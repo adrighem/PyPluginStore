@@ -446,7 +446,7 @@
     "main",
     "2026-04-28T06:53:01Z"
   ],
-  "domoticz_somfy": [
+  "Somfy": [
     "MadPatrick",
     "domoticz_somfy",
     "Tahoma/Conexoon plugin for IO blinds",
@@ -540,7 +540,7 @@
   "FrisquetConnectDomoticz": [
     "fjumeaux",
     "FrisquetConnectDomoticz",
-    "Fork de Krakinou (plugin Frisquet Connect pour Domoticz) — correctifs et évolutions",
+    "Fork de Krakinou (plugin Frisquet Connect pour Domoticz) â€” correctifs et Ã©volutions",
     "main",
     "2026-03-26T11:49:08Z"
   ],
@@ -904,7 +904,7 @@
   "IMGW-Meteo": [
     "mstojek",
     "IMGW-Meteo",
-    "Plugin dla platformy Domoticz umożliwiający pobieranie aktualnych danych pogodowych z publicznego API Instytutu Meteorologii i Gospodarki Wodnej (IMGW).",
+    "Plugin dla platformy Domoticz umoÅ¼liwiajÄ…cy pobieranie aktualnych danych pogodowych z publicznego API Instytutu Meteorologii i Gospodarki Wodnej (IMGW).",
     "main",
     "2025-08-08T20:15:44Z"
   ],
@@ -949,5 +949,47 @@
     "Domoticz Python Plugin for the KPN Experia v10",
     "main",
     "2026-05-10T00:00:00Z"
+  ],
+  "Dreame": [
+    "MadPatrick",
+    "Domoticz_dreame",
+    "Control your Dreame robot vacuum cleaner",
+    "main",
+    "2026-04-20T17:51:05Z"
+  ],
+    "Garbage": [
+    "MadPatrick",
+    "Domoticz_garbage",
+    "Calendar for Garbage pickup in NL",
+    "main",
+    "2026-04-20T17:51:05Z"
+  ],
+    "F1_race": [
+    "MadPatrick",
+    "Domoticz_F1",
+    "Calendar for F1 races",
+    "main",
+    "2026-04-20T17:51:05Z"
+  ],
+    "FullyKiosk": [
+    "MadPatrick",
+    "Domoticz_fullykiosk",
+    "Control your tablet with Fully kiosk browser",
+    "main",
+    "2026-04-20T17:51:05Z"
+  ],
+    "Toon_Thermostat": [
+    "MadPatrick",
+    "Domoticz_toon",
+    "Control your Toon Thermostat",
+    "main",
+    "2026-04-20T17:51:05Z"
+  ],
+    "HP iLo": [
+    "MadPatrick",
+    "Domoticz_HP_ilo",
+    "Read out you HP ilo system",
+    "main",
+    "2026-04-20T17:51:05Z"
   ]
 }
