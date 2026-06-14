@@ -1,5 +1,5 @@
 <style>
-    :root {
+:root {
         --bg-color: #1a2035;
         --panel-bg: #1e2d45;
         --card-bg: #162035;
@@ -35,6 +35,37 @@
         margin-bottom: 24px;
         padding-bottom: 16px;
         border-bottom: 1px solid var(--border-color);
+    }
+	
+    #pypluginstore-container .btn-restart {
+        background: rgba(224, 92, 106, 0.15) !important;
+        color: var(--danger) !important;
+        border: 1px solid rgba(224, 92, 106, 0.65) !important;
+        border-radius: 6px;
+        padding: 7px 12px;
+        font-size: 0.82em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s, box-shadow 0.2s;
+    }
+
+
+    #pypluginstore-container .btn-update-available { 
+        background: rgba(255, 165, 0, 0.2) !important; 
+        color: #ffaa00 !important; 
+        border: 1px solid rgba(255, 165, 0, 0.8) !important; 
+        font-weight: bold !important;
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.4); }
+        70% { box-shadow: 0 0 0 6px rgba(255, 165, 0, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(255, 165, 0, 0); }
+    }
+
+    #pypluginstore-container .btn-restart:hover {
+        background: rgba(224, 92, 106, 0.28) !important;
     }
 
     #pypluginstore-container h1 {
@@ -279,12 +310,34 @@
         font-weight: 600;
         letter-spacing: 0.03em;
     }
+
+/* Update button styles */
+#pypluginstore-container .btn-update-current {
+    background: rgba(107,130,160,.15) !important;
+    color: #8ea8c0 !important;
+    border: 1px solid rgba(107,130,160,.65) !important;
+}
+#pypluginstore-container .btn-update-current:hover {
+    background: rgba(107,130,160,.28) !important;
+}
+#pypluginstore-container .btn-update-available {
+    background: rgba(58,191,126,.15) !important;
+    color: var(--success) !important;
+    border: 1px solid rgba(58,191,126,.65) !important;
+}
+#pypluginstore-container .btn-update-available:hover {
+    background: rgba(58,191,126,.28) !important;
+}
+
 </style>
 
 <div id="pypluginstore-container">
     <div class="header">
         <h1>PyPluginStore: Plugin Store</h1>
-        <div id="pypluginstore-status">Initializing...</div>
+        <div class="header-actions">
+            <button id="restart-domoticz" class="btn-restart" type="button">Restart Domoticz</button>
+            <div id="pypluginstore-status">Initializing...</div>
+        </div>
     </div>
 
     <div class="filters">
@@ -320,6 +373,8 @@
     let isLoading = false;
     let pluginCache = null;
     let installedCache = [];
+    let updateStatusCache = {};
+    let managerKey = null;
     let currentSort = 'name';
 
     function setStatus(msg) {
@@ -336,6 +391,7 @@
         // Attach filter listeners
         document.getElementById('search-box').oninput = filterAndRender;
         document.getElementById('installed-toggle').onchange = filterAndRender;
+        document.getElementById('restart-domoticz').onclick = restartDomoticz;
         document.getElementById('sort-select').onchange = function() {
             currentSort = this.value;
             filterAndRender();
@@ -425,6 +481,8 @@
             if (response && response.status === 'success') {
                 pluginCache = response.data;
                 installedCache = response.installed;
+                updateStatusCache = response.update_status || {};
+                managerKey = response.manager_key || null;
                 filterAndRender();
                 setStatus(`Loaded ${Object.keys(response.data).length} plugins.`);
             } else {
@@ -504,6 +562,7 @@
             const branch = info[3];
             const updatedAt = info[4];
             const isInstalled = installedList.indexOf(key) !== -1;
+            const updateStatus = updateStatusCache[key] || 'unknown';
 
             let timeStr = "";
             if (updatedAt) {
@@ -539,10 +598,15 @@
             const cardId = 'btn-' + key.replace(/[^a-z0-9]/gi, '-');
 
             if (isInstalled) {
+                const updateClass = updateStatus === 'available' ? 'btn-update-available' : 'btn-update-current';
+                const updateTitle = updateStatus === 'available' ? 'Update available' :
+                    (updateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown');
                 html += `
-                    <button class="btn-update" data-key="${key}" data-action="update">Update</button>
-                    <button class="btn-remove" data-key="${key}" data-action="remove">Remove</button>
+                    <button class="${updateClass}" data-key="${key}" data-action="update" title="${updateTitle}">Update</button>
                 `;
+                if (key !== managerKey) {
+                    html += `<button class="btn-remove" data-key="${key}" data-action="remove">Remove</button>`;
+                }
             } else {
                 html += `
                     <button class="btn-install" data-key="${key}" data-action="install">Install</button>
@@ -580,6 +644,26 @@
         } catch (e) {
             alert("Error: " + e.message);
             setStatus("Operation failed.");
+        }
+    }
+
+    async function restartDomoticz() {
+        if (!confirm("Restart Domoticz now? The web interface will disconnect while the service restarts.")) {
+            return;
+        }
+
+        setStatus("Requesting Domoticz restart...");
+        try {
+            const response = await sendCommand('restart_domoticz', {});
+            if (response && response.status === 'success') {
+                setStatus("Domoticz restart requested. Reconnect after the service comes back online.");
+            } else {
+                alert("Restart request failed: " + (response ? response.message : "Unknown error"));
+                setStatus("Restart request failed.");
+            }
+        } catch (e) {
+            alert("Restart request failed: " + e.message);
+            setStatus("Restart request failed.");
         }
     }
 
