@@ -1,79 +1,104 @@
 <style>
     :root {
-        --bg-color: #f4f4f9;
-        --text-color: #333;
-        --card-bg: #fff;
-        --border-color: #ddd;
-        --primary: #007bff;
-        --primary-hover: #0056b3;
-        --danger: #dc3545;
-        --danger-hover: #c82333;
-        --success: #28a745;
-        --muted: #6c757d;
-        --muted-hover: #5a6268;
+        --bg-color: #1a2035;
+        --panel-bg: #1e2d45;
+        --card-bg: #162035;
+        --card-bg-hover: #1c2a42;
+        --border-color: rgba(255,255,255,0.18);
+        --text-color: #c8d6e8;
+        --text-muted: #6b82a0;
+        --text-heading: #e0eaf5;
+        --primary: #4a9eda;
+        --primary-hover: #5baee8;
+        --danger: #e05c6a;
+        --danger-hover: #f06878;
+        --success: #3abf7e;
+        --success-hover: #4acf8e;
+        --accent: #4a9eda;
+        --input-bg: #152032;
+        --select-bg: #152032;
     }
 
     #pypluginstore-container {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         color: var(--text-color);
         padding: 20px;
+        background: var(--bg-color);
+        min-height: 100%;
+        box-sizing: border-box;
     }
 
     #pypluginstore-container .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--border-color);
     }
 
     #pypluginstore-container h1 {
         margin: 0;
-        color: var(--primary);
+        font-size: 1.4em;
+        font-weight: 600;
+        color: var(--text-heading);
+        letter-spacing: 0.02em;
     }
 
-    #PyPluginStore-status {
-        font-weight: bold;
-        color: #666;
-    }
-
-    #pypluginstore-container .header-actions {
-        display: flex;
-        gap: 12px;
-        align-items: center;
-        justify-content: flex-end;
-        flex-wrap: wrap;
+    #pypluginstore-status {
+        font-weight: 500;
+        font-size: 0.85em;
+        color: var(--text-muted);
+        background: rgba(74, 158, 218, 0.1);
+        border: 1px solid rgba(74, 158, 218, 0.2);
+        padding: 5px 12px;
+        border-radius: 20px;
     }
 
     #pypluginstore-container .filters {
         display: flex;
-        gap: 20px;
+        gap: 14px;
         margin-bottom: 20px;
         align-items: center;
-        background: var(--card-bg);
-        padding: 15px;
-        border-radius: 8px;
+        background: var(--panel-bg);
+        padding: 14px 18px;
+        border-radius: 10px;
         border: 1px solid var(--border-color);
         flex-wrap: wrap;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
     }
 
     #pypluginstore-container .filters input[type="text"] {
         flex-grow: 1;
-        padding: 8px 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        font-size: 1em;
+        padding: 8px 14px;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px;
+        font-size: 0.9em;
         min-width: 200px;
+        background: var(--input-bg);
+        color: var(--text-color);
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    #pypluginstore-container .filters input[type="text"]:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(74, 158, 218, 0.15);
+    }
+
+    #pypluginstore-container .filters input[type="text"]::placeholder {
+        color: var(--text-muted);
     }
 
     #pypluginstore-container .filters label {
         display: flex;
         align-items: center;
-        gap: 12px;
-        font-weight: bold;
+        gap: 10px;
+        font-weight: 500;
+        font-size: 0.9em;
         cursor: pointer;
         user-select: none;
+        color: var(--text-color);
     }
 
     #pypluginstore-container .sort-controls {
@@ -85,24 +110,32 @@
     #pypluginstore-container .sort-controls label {
         margin: 0;
         font-weight: normal;
-        font-size: 0.95em;
+        font-size: 0.85em;
+        color: var(--text-muted);
     }
 
     #pypluginstore-container .sort-controls select {
         padding: 8px 12px;
-        border: 1px solid var(--border-color);
-        border-radius: 4px;
-        font-size: 1em;
-        background: white;
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 6px;
+        font-size: 0.88em;
+        background: var(--select-bg);
+        color: var(--text-color);
         cursor: pointer;
+        outline: none;
+        transition: border-color 0.2s;
+    }
+
+    #pypluginstore-container .sort-controls select:focus {
+        border-color: var(--primary);
     }
 
     /* Switch styling */
     .switch {
         position: relative;
         display: inline-block;
-        width: 50px;
-        height: 24px;
+        width: 46px;
+        height: 22px;
     }
 
     .switch input { 
@@ -118,132 +151,140 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: #ccc;
-        transition: .4s;
-        border-radius: 24px;
+        background-color: rgba(255,255,255,0.1);
+        transition: .3s;
+        border-radius: 22px;
+        border: 1px solid rgba(255,255,255,0.12);
     }
 
     .slider:before {
         position: absolute;
         content: "";
-        height: 18px;
-        width: 18px;
-        left: 3px;
-        bottom: 3px;
-        background-color: white;
-        transition: .4s;
+        height: 16px;
+        width: 16px;
+        left: 2px;
+        bottom: 2px;
+        background-color: #8ea8c0;
+        transition: .3s;
         border-radius: 50%;
     }
 
     input:checked + .slider {
-        background-color: var(--success);
-    }
-
-    input:focus + .slider {
-        box-shadow: 0 0 1px var(--success);
+        background-color: rgba(58, 191, 126, 0.3);
+        border-color: var(--success);
     }
 
     input:checked + .slider:before {
-        transform: translateX(26px);
+        transform: translateX(24px);
+        background-color: var(--success);
     }
 
     #pypluginstore-container .grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 20px;
+        gap: 16px;
     }
 
     #pypluginstore-container .card {
         background: var(--card-bg);
         border: 1px solid var(--border-color);
-        border-radius: 8px;
-        padding: 15px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border-radius: 10px;
+        padding: 18px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
         display: flex;
         flex-direction: column;
+        transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    #pypluginstore-container .card:hover {
+        border-color: rgba(74, 158, 218, 0.65);
+        background: var(--card-bg-hover);
+        box-shadow: 0 6px 24px rgba(0,0,0,0.35);
     }
 
     #pypluginstore-container .card-header {
-        font-size: 1.1em;
-        font-weight: bold;
+        font-size: 1em;
+        font-weight: 600;
         margin-bottom: 10px;
+        color: var(--text-heading);
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 6px;
     }
 
     #pypluginstore-container .card-desc {
-        font-size: 0.9em;
-        color: #666;
-        margin-bottom: 15px;
+        font-size: 0.85em;
+        color: var(--text-muted);
+        margin-bottom: 14px;
         flex-grow: 1;
+        line-height: 1.5;
     }
 
     #pypluginstore-container .card-meta {
-        font-size: 0.8em;
-        color: #888;
-        margin-bottom: 15px;
+        font-size: 0.78em;
+        color: var(--text-muted);
+        margin-bottom: 14px;
+        line-height: 1.7;
+        padding-top: 10px;
+        border-top: 1px solid var(--border-color);
     }
 
     #pypluginstore-container .actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         align-items: stretch;
     }
 
     #pypluginstore-container button, 
     #pypluginstore-container .btn-link {
-        padding: 8px 12px;
+        padding: 7px 12px;
         border: none;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
-        font-weight: bold;
+        font-weight: 600;
         flex: 1;
-        transition: background 0.2s;
-        font-size: 13.3333px; /* Match default button font size */
+        transition: background 0.2s, box-shadow 0.2s;
+        font-size: 0.82em;
         font-family: inherit;
         display: flex;
         align-items: center;
         justify-content: center;
         text-decoration: none;
         box-sizing: border-box;
-        min-height: 35px;
+        min-height: 32px;
+        letter-spacing: 0.02em;
     }
 
-    .btn-install { background: var(--primary); color: white; }
-    .btn-install:hover { background: var(--primary-hover); }
+    #pypluginstore-container .btn-install { background: rgba(74, 158, 218, 0.25) !important; color: var(--primary) !important; border: 1px solid rgba(74, 158, 218, 0.65) !important; }
+    #pypluginstore-container .btn-install:hover { background: rgba(74, 158, 218, 0.28) !important; }
 
-    .btn-remove { background: var(--danger); color: white; }
-    .btn-remove:hover { background: var(--danger-hover); }
+    #pypluginstore-container .btn-remove { background: rgba(224, 92, 106, 0.15) !important; color: var(--danger) !important; border: 1px solid rgba(224, 92, 106, 0.65) !important; }
+    #pypluginstore-container .btn-remove:hover { background: rgba(224, 92, 106, 0.28) !important; }
 
-    .btn-update-current { background: var(--muted); color: white; }
-    .btn-update-current:hover { background: var(--muted-hover); }
+    #pypluginstore-container .btn-update { background: rgba(58, 191, 126, 0.15) !important; color: var(--success) !important; border: 1px solid rgba(58, 191, 126, 0.65) !important; }
+    #pypluginstore-container .btn-update:hover { background: rgba(58, 191, 126, 0.28) !important; }
 
-    .btn-update-available { background: var(--primary); color: white; }
-    .btn-update-available:hover { background: var(--primary-hover); }
-
-    .btn-restart { background: #343a40; color: white; flex: 0 0 auto !important; }
-    .btn-restart:hover { background: #23272b; }
-    
-    .btn-info { background: #17a2b8; color: white; }
-    .btn-info:hover { background: #138496; }
+    #pypluginstore-container .btn-info { background: rgba(107, 130, 160, 0.15) !important; color: #8ea8c0 !important; border: 1px solid rgba(107,130,160,0.65) !important; text-decoration: none !important; }
+    #pypluginstore-container .btn-info:hover { background: rgba(107, 130, 160, 0.28) !important; }
     
     .installed-badge {
         display: inline-block;
-        background: var(--success);
-        color: white;
-        padding: 2px 6px;
+        background: rgba(58, 191, 126, 0.18);
+        color: var(--success);
+        border: 1px solid rgba(58, 191, 126, 0.4);
+        padding: 2px 8px;
         border-radius: 10px;
         font-size: 0.7em;
-        margin-left: 10px;
-        vertical-align: middle;
+        font-weight: 600;
+        letter-spacing: 0.03em;
     }
 </style>
 
 <div id="pypluginstore-container">
     <div class="header">
         <h1>PyPluginStore: Plugin Store</h1>
-        <div class="header-actions">
-            <button id="restart-domoticz" class="btn-restart" type="button">Restart Domoticz</button>
-            <div id="pypluginstore-status">Initializing...</div>
-        </div>
+        <div id="pypluginstore-status">Initializing...</div>
     </div>
 
     <div class="filters">
@@ -279,8 +320,6 @@
     let isLoading = false;
     let pluginCache = null;
     let installedCache = [];
-    let updateStatusCache = {};
-    let managerKey = null;
     let currentSort = 'name';
 
     function setStatus(msg) {
@@ -297,7 +336,6 @@
         // Attach filter listeners
         document.getElementById('search-box').oninput = filterAndRender;
         document.getElementById('installed-toggle').onchange = filterAndRender;
-        document.getElementById('restart-domoticz').onclick = restartDomoticz;
         document.getElementById('sort-select').onchange = function() {
             currentSort = this.value;
             filterAndRender();
@@ -387,8 +425,6 @@
             if (response && response.status === 'success') {
                 pluginCache = response.data;
                 installedCache = response.installed;
-                updateStatusCache = response.update_status || {};
-                managerKey = response.manager_key || null;
                 filterAndRender();
                 setStatus(`Loaded ${Object.keys(response.data).length} plugins.`);
             } else {
@@ -468,7 +504,6 @@
             const branch = info[3];
             const updatedAt = info[4];
             const isInstalled = installedList.indexOf(key) !== -1;
-            const updateStatus = updateStatusCache[key] || 'unknown';
 
             let timeStr = "";
             if (updatedAt) {
@@ -504,15 +539,10 @@
             const cardId = 'btn-' + key.replace(/[^a-z0-9]/gi, '-');
 
             if (isInstalled) {
-                const updateClass = updateStatus === 'available' ? 'btn-update-available' : 'btn-update-current';
-                const updateTitle = updateStatus === 'available' ? 'Update available' :
-                    (updateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown');
                 html += `
-                    <button class="${updateClass}" data-key="${key}" data-action="update" title="${updateTitle}">Update</button>
+                    <button class="btn-update" data-key="${key}" data-action="update">Update</button>
+                    <button class="btn-remove" data-key="${key}" data-action="remove">Remove</button>
                 `;
-                if (key !== managerKey) {
-                    html += `<button class="btn-remove" data-key="${key}" data-action="remove">Remove</button>`;
-                }
             } else {
                 html += `
                     <button class="btn-install" data-key="${key}" data-action="install">Install</button>
@@ -550,26 +580,6 @@
         } catch (e) {
             alert("Error: " + e.message);
             setStatus("Operation failed.");
-        }
-    }
-
-    async function restartDomoticz() {
-        if (!confirm("Restart Domoticz now? The web interface will disconnect while the service restarts.")) {
-            return;
-        }
-
-        setStatus("Requesting Domoticz restart...");
-        try {
-            const response = await sendCommand('restart_domoticz', {});
-            if (response && response.status === 'success') {
-                setStatus("Domoticz restart requested. Reconnect after the service comes back online.");
-            } else {
-                alert("Restart request failed: " + (response ? response.message : "Unknown error"));
-                setStatus("Restart request failed.");
-            }
-        } catch (e) {
-            alert("Restart request failed: " + e.message);
-            setStatus("Restart request failed.");
         }
     }
 
