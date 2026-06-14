@@ -9,8 +9,46 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 REGISTRY_FILE = os.path.join(SCRIPT_DIR, '../../registry.json')
 UPDATE_TIMES_FILE = os.path.join(SCRIPT_DIR, '../../update_times.json')
 
+# Repositories that should never be added to or kept in the registry.
+REPO_BLOCKLIST = {
+    "ycahome/pp-manager",
+    "adrighem/pp-manager",
+    "adrighem/pypluginstore",
+    "domoticz/domoticz",
+}
+
 def is_valid_plugin_repo(repo_name):
     return bool(repo_name) and not repo_name.startswith('.') and '/' not in repo_name and '\\' not in repo_name
+
+def normalize_full_name(owner, repo):
+    return f"{owner}/{repo}".lower()
+
+def get_repo_block_reason(owner, repo):
+    if normalize_full_name(owner, repo) in REPO_BLOCKLIST:
+        return "Repo blocklisted"
+    return None
+
+def get_repo_skip_reason(repo):
+    if repo.get('archived'):
+        return "Repo archived"
+    if repo.get('disabled'):
+        return "Repo disabled"
+
+    size = repo.get('size')
+    if size is not None:
+        try:
+            if int(size) <= 0:
+                return "Repo empty"
+        except (TypeError, ValueError):
+            pass
+
+    return None
+
+def remove_registry_entry(registry, update_times, key, reason):
+    print(f"[-] Removing {key} ({reason})")
+    del registry[key]
+    if key in update_times:
+        del update_times[key]
 
 def get_repo_info(owner, repo):
     url = f'https://api.github.com/repos/{owner}/{repo}'
@@ -89,22 +127,23 @@ def main():
         data = registry[key]
         owner, repo_name = data[0], data[1]
 
+        block_reason = get_repo_block_reason(owner, repo_name)
+        if block_reason:
+            remove_registry_entry(registry, update_times, key, block_reason)
+            stats["removed"] += 1
+            continue
+
         # Determine if we need to fetch info (for existing plugins, we check 1 in 4 to stay under rate limits if no token)
         # In GitHub Actions, GITHUB_TOKEN is present, so we can check all.
         info = get_repo_info(owner, repo_name)
 
         if info == "DELETED":
-            print(f"[-] Removing {key} (Repo deleted)")
-            del registry[key]
-            if key in update_times:
-                del update_times[key]
+            remove_registry_entry(registry, update_times, key, "Repo deleted")
             stats["removed"] += 1
         elif info:
-            if info.get('archived'):
-                print(f"[-] Removing {key} (Repo archived)")
-                del registry[key]
-                if key in update_times:
-                    del update_times[key]
+            skip_reason = get_repo_skip_reason(info)
+            if skip_reason:
+                remove_registry_entry(registry, update_times, key, skip_reason)
                 stats["removed"] += 1
             else:
                 # Update metadata
@@ -137,20 +176,22 @@ def main():
     new_items = search_github()
     existing_full_names = {f"{v[0].lower()}/{v[1].lower()}" for k, v in registry.items() if k != "Idle"}
 
-    # Repositories that should never be added to the registry
-    ignore_list = {
-        "ycahome/pp-manager",
-        "adrighem/pp-manager",
-        "adrighem/pypluginstore"
-    }
-
     for repo in new_items:
         full_name = repo['full_name'].lower()
-        if full_name not in existing_full_names and full_name not in ignore_list:
-            if repo.get('archived'): continue
-
+        if full_name not in existing_full_names:
             owner = repo['owner']['login']
             repo_name = repo['name']
+
+            block_reason = get_repo_block_reason(owner, repo_name)
+            if block_reason:
+                print(f"[-] Skipping {repo['full_name']} ({block_reason})")
+                continue
+
+            skip_reason = get_repo_skip_reason(repo)
+            if skip_reason:
+                print(f"[-] Skipping {repo['full_name']} ({skip_reason})")
+                continue
+
             if not is_valid_plugin_repo(repo_name):
                 print(f"[-] Skipping {repo['full_name']} (Invalid plugin repository name)")
                 continue

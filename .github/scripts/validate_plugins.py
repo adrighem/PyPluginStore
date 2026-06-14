@@ -55,7 +55,7 @@ def validate_repository(author, repository, branch):
         print(f"Error executing command: {' '.join(repo_clone_cmd)}")
         print(f"stdout: {result.stdout}")
         print(f"stderr: {result.stderr}")
-    return result.returncode == 0
+    return result.returncode == 0 and bool(result.stdout.strip())
 
 def main():
     print("Loading registry file...")

@@ -857,12 +857,6 @@
         "Domoticz plugin for Aldes T One Air product",
         "main"
     ],
-    "Domoticz-spaarnelanden-plugin": [
-        "Garthim",
-        "Domoticz-spaarnelanden-plugin",
-        "Domoticz-spaarnelanden-plugin",
-        "main"
-    ],
     "WifiTIC": [
         "DebugBill",
         "WifiTIC",
@@ -946,12 +940,6 @@
         "shelly-domoticz-bridge",
         "Middleware system for integrating Shelly devices with Domoticz.",
         "main"
-    ],
-    "domoticz-atlantic-cozytouch": [
-        "dzooli",
-        "domoticz-atlantic-cozytouch",
-        "A port of Atlantic Cozytouch integration of HA to Domoticz",
-        "master"
     ],
     "rp2040pico-w_BME680": [
         "len-sla",
@@ -1139,12 +1127,6 @@
         "Domoticz IFTTT Integration",
         "master"
     ],
-    "Domoticz_integration": [
-        "cipesokram",
-        "Domoticz_integration",
-        "Arduino to domoticz integration",
-        "master"
-    ],
     "ESP8266_AutoBlinds_MQTT_Domoticz": [
         "zygios",
         "ESP8266_AutoBlinds_MQTT_Domoticz",
@@ -1180,12 +1162,6 @@
         "cisco-spark-domoticz-integration",
         "cisco-spark-domoticz-integration plugin for Domoticz",
         "master"
-    ],
-    "domoticz": [
-        "domoticz",
-        "domoticz",
-        "Free open source home automation system for Linux, Windows, Raspberry Pi. Supports Z-Wave, Zigbee, MQTT, and 150+ devices.",
-        "development"
     ],
     "Domoticz-Events-Scripts": [
         "saidlm",

@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.6.0](https://github.com/adrighem/PyPluginStore/compare/v2.5.0...v2.6.0) (2026-06-14)
+
+
+### Features
+
+* MadPatrick: Change layout to new Domoticz style
+* clean Domoticz affixes from plugin cards ([4b5e805](https://github.com/adrighem/PyPluginStore/commit/4b5e805a8eed1e2b2fa06d18bf50d666462d9ba4))
+* improve plugin store controls ([2c102a2](https://github.com/adrighem/PyPluginStore/commit/2c102a212fa244734850413f9c5b0ef1810a6888))
+
+
+### Bug Fixes
+
+* block core Domoticz repository from registry ([f0693d6](https://github.com/adrighem/PyPluginStore/commit/f0693d614b39c5e36cd076fa6a43d4525b890f50))
+* harden plugin scanner registry updates ([80853e1](https://github.com/adrighem/PyPluginStore/commit/80853e1931c05ba5b01f327d7e87ad4b355e42b2))
+* remove empty repositories from registry ([ed49951](https://github.com/adrighem/PyPluginStore/commit/ed49951fa6f3976d2875c14c7d8b5f31d1416f6e))
+* restore update button colors after MadPatrick layout refresh ([c9d4fd1](https://github.com/adrighem/PyPluginStore/commit/c9d4fd169271b8f1e0a258bbe8f7584a778946b4))
+* restore update button state colors ([eb66ded](https://github.com/adrighem/PyPluginStore/commit/eb66ded97bc4308b4e44952fc5758b29fcdf782f))
+* skip empty repositories in plugin scanner ([293429b](https://github.com/adrighem/PyPluginStore/commit/293429bac3e159243a2f0a270edb75259b807919))
+* strip domoticz-for card title affixes ([251545e](https://github.com/adrighem/PyPluginStore/commit/251545ebe8ef68229da4d75e7e70fbc133e2c76e))
+
+
+### Documentation
+
+* update store screenshot ([b4e2772](https://github.com/adrighem/PyPluginStore/commit/b4e2772fa9817fc834d3f914bc0d78ca85a1890a))
+
 ## [2.5.0](https://github.com/adrighem/PyPluginStore/compare/v2.4.0...v2.5.0) (2026-06-07)
 
 
