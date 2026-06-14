@@ -135,6 +135,9 @@ class BasePlugin:
         return False
 
     def overlay_git_update_time(self, plugin_key, updated_at, update_times=None, remote_url="", remote_ref=""):
+        if plugin_key not in self.plugin_data:
+            return False
+
         if update_times is None:
             update_times = self.update_times
 
@@ -658,6 +661,10 @@ class BasePlugin:
         update_status = {}
 
         for plugin_key in installed_plugins:
+            if plugin_key not in self.plugin_data:
+                update_status[plugin_key] = "unknown"
+                continue
+
             plugin_dir = os.path.join(plugins_dir, plugin_key)
             update_status[plugin_key] = self.getGitUpdateStatus(plugin_dir, plugin_key)
         return update_status
