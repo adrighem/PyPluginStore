@@ -559,7 +559,7 @@
             const cardId = 'btn-' + key.replace(/[^a-z0-9]/gi, '-');
 
             if (isInstalled) {
-                const updateClass = updateStatus === 'available' ? 'btn-update-available' : 'btn-update-current';
+                const updateClass = updateStatus === 'available' ? 'btn-update btn-update-available' : 'btn-update btn-update-current';
                 const updateTitle = updateStatus === 'available' ? 'Update available' :
                     (updateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown');
                 html += `
