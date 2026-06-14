@@ -272,7 +272,13 @@
 
     #pypluginstore-container .btn-update { border: 1px solid transparent !important; }
 
-    #pypluginstore-container .btn-update-available { background: rgba(58, 191, 126, 0.15) !important; color: var(--success) !important; border-color: rgba(58, 191, 126, 0.65) !important; }
+    @keyframes glow-pulse {
+        0%   { box-shadow: 0 0 4px 1px rgba(58, 191, 126, 0.35); }
+        50%  { box-shadow: 0 0 12px 4px rgba(58, 191, 126, 0.7); }
+        100% { box-shadow: 0 0 4px 1px rgba(58, 191, 126, 0.35); }
+    }
+
+    #pypluginstore-container .btn-update-available { background: rgba(58, 191, 126, 0.15) !important; color: var(--success) !important; border-color: rgba(58, 191, 126, 0.65) !important; animation: glow-pulse 3.5s ease-in-out infinite; }
     #pypluginstore-container .btn-update-available:hover { background: rgba(58, 191, 126, 0.28) !important; }
 
     #pypluginstore-container .btn-update-current { background: rgba(107, 130, 160, 0.15) !important; color: #8ea8c0 !important; border-color: rgba(107, 130, 160, 0.65) !important; }
