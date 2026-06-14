@@ -41,10 +41,10 @@ def generate_plugin():
 """
 '''
 
-    with open(CORE_FILE, 'r') as f:
+    with open(CORE_FILE, 'r', encoding='utf-8') as f:
         core_code = f.read()
 
-    with open(OUTPUT_FILE, 'w') as f:
+    with open(OUTPUT_FILE, 'w', encoding='utf-8', newline='\n') as f:
         f.write(xml_header + "\n" + core_code)
 
     print("plugin.py successfully generated.")
