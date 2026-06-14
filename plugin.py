@@ -65,6 +65,7 @@ class BasePlugin:
         self.exception_list = []
         self.secpoluser_list = {}
         self.plugin_data = {}
+        self.update_times = {}
         self.last_update_date = None
 
     def get_current_plugin_folder(self):
@@ -76,6 +77,309 @@ class BasePlugin:
         env['LC_ALL'] = 'en_US.UTF-8'
         return env
 
+    def get_plugin_home_folder(self):
+        return os.path.abspath(Parameters.get("HomeFolder", str(os.getcwd()) + "/"))
+
+    def get_update_times_file(self):
+        return os.path.join(self.get_plugin_home_folder(), "update_times.json")
+
+    def get_update_times_url(self):
+        return "https://raw.githubusercontent.com/adrighem/PyPluginStore/refs/heads/master/update_times.json"
+
+    def load_local_update_times(self):
+        update_times_file = self.get_update_times_file()
+        if not os.path.isfile(update_times_file):
+            Domoticz.Debug("No bundled update_times.json found.")
+            return {}
+
+        try:
+            with open(update_times_file, "r", encoding="utf-8") as f:
+                update_times = json.load(f)
+            if isinstance(update_times, dict):
+                Domoticz.Debug("Loaded update times from bundled update_times.json.")
+                return update_times
+            Domoticz.Error("Bundled update_times.json does not contain a JSON object.")
+        except Exception as e:
+            Domoticz.Error("Error reading bundled update_times.json: " + str(e))
+        return {}
+
+    def save_update_times(self, update_times):
+        update_times_file = self.get_update_times_file()
+        try:
+            with open(update_times_file, "w", encoding="utf-8") as f:
+                json.dump(update_times, f, indent=4)
+                f.write("\n")
+            Domoticz.Log("Updated local update_times.json.")
+            return True
+        except Exception as e:
+            Domoticz.Error("Error writing local update_times.json: " + str(e))
+            return False
+
+    def load_update_times(self):
+        Domoticz.Debug("Fetching update times from GitHub.")
+        try:
+            req = urllib.request.Request(self.get_update_times_url())
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    update_times = json.loads(response.read().decode("utf-8"))
+                    if isinstance(update_times, dict):
+                        Domoticz.Log("Successfully fetched update times from GitHub.")
+                        self.save_update_times(update_times)
+                        return update_times
+                    Domoticz.Error("Remote update_times.json does not contain a JSON object.")
+                else:
+                    Domoticz.Error("Failed to fetch update times, status code: " + str(response.status))
+        except Exception as e:
+            Domoticz.Error("Error fetching update times: " + str(e))
+        return self.load_local_update_times()
+
+    def apply_update_times(self, update_times):
+        self.update_times = update_times
+        for key, data in self.plugin_data.items():
+            if key == "Idle":
+                continue
+            if not isinstance(data, list):
+                continue
+
+            updated_at = update_times.get(key, "")
+            if len(data) == 4:
+                data.append(updated_at)
+            elif len(data) >= 5:
+                data[4] = updated_at
+
+    def parse_update_time(self, updated_at):
+        if not updated_at:
+            return None
+        try:
+            return datetime.strptime(str(updated_at), "%Y-%m-%dT%H:%M:%SZ")
+        except Exception:
+            return None
+
+    def is_better_update_time(self, candidate, current):
+        if not candidate:
+            return False
+        if not current:
+            return True
+
+        candidate_time = self.parse_update_time(candidate)
+        current_time = self.parse_update_time(current)
+        if candidate_time and current_time:
+            return candidate_time > current_time
+        if candidate_time and not current_time:
+            return True
+        return False
+
+    def overlay_git_update_time(self, plugin_key, updated_at, update_times=None, remote_url="", remote_ref=""):
+        if update_times is None:
+            update_times = self.update_times
+
+        current_updated_at = update_times.get(plugin_key, "")
+        if not self.is_better_update_time(updated_at, current_updated_at):
+            return False
+
+        update_times[plugin_key] = updated_at
+
+        data = self.plugin_data.get(plugin_key)
+        if isinstance(data, list):
+            if len(data) == 4:
+                data.append(updated_at)
+            elif len(data) >= 5:
+                data[4] = updated_at
+
+        Domoticz.Log("Git update date changed for " + plugin_key + ": " + updated_at)
+        if remote_url:
+            Domoticz.Debug("Update date source for " + plugin_key + ": " + remote_url + " " + remote_ref)
+        return True
+
+    def run_git_command(self, plugin_dir, command, timeout=15):
+        try:
+            return subprocess.run(
+                command,
+                cwd=plugin_dir,
+                env=self.get_git_env(),
+                capture_output=True,
+                text=True,
+                timeout=timeout
+            )
+        except subprocess.TimeoutExpired:
+            Domoticz.Error("Git command timed out in " + plugin_dir + ": " + " ".join(command))
+        except OSError as e:
+            Domoticz.Error("Git ErrorNo:" + str(e.errno))
+            Domoticz.Error("Git StrError:" + str(e.strerror))
+        except Exception as e:
+            Domoticz.Error("Git command failed in " + plugin_dir + ": " + str(e))
+        return None
+
+    def fetch_git_repo(self, plugin_dir):
+        result = self.run_git_command(plugin_dir, ["git", "fetch", "--quiet"], timeout=20)
+        if result is None:
+            return False
+        if result.stdout:
+            Domoticz.Debug("Git Fetch Response:" + result.stdout.strip())
+        if result.stderr:
+            Domoticz.Debug("Git Fetch Error:" + result.stderr.strip())
+        return result.returncode == 0
+
+    def get_git_current_branch(self, plugin_dir):
+        result = self.run_git_command(plugin_dir, ["git", "rev-parse", "--abbrev-ref", "HEAD"], timeout=10)
+        if result is not None and result.returncode == 0:
+            branch = result.stdout.strip()
+            if branch and branch != "HEAD":
+                return branch
+        return ""
+
+    def get_git_remote_name(self, plugin_dir, branch=""):
+        if branch:
+            result = self.run_git_command(plugin_dir, ["git", "config", "--get", "branch." + branch + ".remote"], timeout=10)
+            if result is not None and result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+
+        result = self.run_git_command(plugin_dir, ["git", "remote"], timeout=10)
+        if result is not None and result.returncode == 0:
+            remotes = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+            if "origin" in remotes:
+                return "origin"
+            if remotes:
+                return remotes[0]
+        return "origin"
+
+    def get_git_remote_url(self, plugin_dir, remote_name):
+        result = self.run_git_command(plugin_dir, ["git", "remote", "get-url", remote_name], timeout=10)
+        if result is not None and result.returncode == 0:
+            return result.stdout.strip()
+        return ""
+
+    def git_ref_exists(self, plugin_dir, ref_name):
+        result = self.run_git_command(plugin_dir, ["git", "rev-parse", "--verify", ref_name], timeout=10)
+        return result is not None and result.returncode == 0
+
+    def get_git_remote_ref(self, plugin_dir):
+        result = self.run_git_command(
+            plugin_dir,
+            ["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"],
+            timeout=10
+        )
+        if result is not None and result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+
+        branch = self.get_git_current_branch(plugin_dir)
+        remote_name = self.get_git_remote_name(plugin_dir, branch)
+        if branch:
+            branch_ref = remote_name + "/" + branch
+            if self.git_ref_exists(plugin_dir, branch_ref):
+                return branch_ref
+
+        result = self.run_git_command(plugin_dir, ["git", "symbolic-ref", "--quiet", "--short", "refs/remotes/" + remote_name + "/HEAD"], timeout=10)
+        if result is not None and result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+
+        return ""
+
+    def get_git_remote_commit_date(self, plugin_dir, remote_ref):
+        if not remote_ref:
+            return ""
+
+        result = self.run_git_command(plugin_dir, ["git", "log", "-1", "--format=%ct", remote_ref], timeout=10)
+        if result is None or result.returncode != 0:
+            if result is not None and result.stderr:
+                Domoticz.Debug("Git Log Error:" + result.stderr.strip())
+            return ""
+
+        timestamp = result.stdout.strip()
+        if not timestamp:
+            return ""
+
+        try:
+            return datetime.utcfromtimestamp(int(timestamp)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except Exception as e:
+            Domoticz.Debug("Could not parse git commit timestamp '" + timestamp + "': " + str(e))
+            return ""
+
+    def get_git_ahead_behind(self, plugin_dir, remote_ref):
+        if not remote_ref:
+            return None
+
+        result = self.run_git_command(
+            plugin_dir,
+            ["git", "rev-list", "--left-right", "--count", "HEAD..." + remote_ref],
+            timeout=10
+        )
+        if result is None or result.returncode != 0:
+            if result is not None and result.stderr:
+                Domoticz.Debug("Git Rev-List Error:" + result.stderr.strip())
+            return None
+
+        ahead_behind = result.stdout.strip().split()
+        if len(ahead_behind) < 2:
+            return None
+
+        try:
+            return int(ahead_behind[0]), int(ahead_behind[1])
+        except ValueError:
+            return None
+
+    def refresh_git_update_time(self, plugin_key, plugin_dir, update_times=None, remote_ref=""):
+        if not plugin_key or not os.path.isdir(os.path.join(plugin_dir, ".git")):
+            return False
+
+        if not remote_ref:
+            remote_ref = self.get_git_remote_ref(plugin_dir)
+
+        updated_at = self.get_git_remote_commit_date(plugin_dir, remote_ref)
+        if not updated_at:
+            return False
+
+        remote_name = remote_ref.split("/", 1)[0] if "/" in remote_ref else "origin"
+        remote_url = self.get_git_remote_url(plugin_dir, remote_name)
+        return self.overlay_git_update_time(plugin_key, updated_at, update_times, remote_url, remote_ref)
+
+    def refresh_single_plugin_update_time(self, plugin_key, plugin_dir, fetch_first=True):
+        if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+            return False
+
+        if fetch_first and not self.fetch_git_repo(plugin_dir):
+            return False
+
+        update_times = dict(self.update_times) if self.update_times else self.load_local_update_times()
+        changed = self.refresh_git_update_time(plugin_key, plugin_dir, update_times)
+        if changed:
+            self.save_update_times(update_times)
+            self.apply_update_times(update_times)
+        return changed
+
+    def overlay_installed_git_update_times(self, installed_plugins=None, plugins_dir=None, update_times=None):
+        if plugins_dir is None:
+            plugins_dir = os.path.abspath(os.path.join(self.get_plugin_home_folder(), ".."))
+        if update_times is None:
+            update_times = dict(self.update_times)
+
+        if installed_plugins is None:
+            try:
+                installed_plugins = [
+                    d for d in os.listdir(plugins_dir)
+                    if os.path.isdir(os.path.join(plugins_dir, d)) and not d.startswith(".")
+                ]
+            except Exception as e:
+                Domoticz.Error("Error listing installed plugins for update times: " + str(e))
+                return False
+
+        changed = False
+        for plugin_key in installed_plugins:
+            if plugin_key not in self.plugin_data:
+                continue
+
+            plugin_dir = os.path.join(plugins_dir, plugin_key)
+            if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+                continue
+
+            if self.fetch_git_repo(plugin_dir):
+                changed = self.refresh_git_update_time(plugin_key, plugin_dir, update_times) or changed
+
+        if changed:
+            self.save_update_times(update_times)
+            self.apply_update_times(update_times)
+        return changed
+
     def add_self_to_registry(self):
         self_key = self.get_current_plugin_folder()
         if not self_key:
@@ -86,13 +390,12 @@ class BasePlugin:
             "PyPluginStore",
             "PyPluginStore plugin manager",
             "master",
-            ""
+            self.update_times.get(self_key, "")
         ]
 
     def fetch_registry(self):
 
         registry_url = "https://raw.githubusercontent.com/adrighem/PyPluginStore/refs/heads/master/registry.json"
-        updates_url = "https://raw.githubusercontent.com/adrighem/PyPluginStore/refs/heads/master/update_times.json"
         
         Domoticz.Debug("Fetching plugin registry from GitHub.")
         try:
@@ -114,38 +417,11 @@ class BasePlugin:
             else:
                 Domoticz.Error("No local registry found. Plugins cannot be managed.")
 
-        # Fetch update times
-        update_times = {}
-        Domoticz.Debug("Fetching update times from GitHub.")
-        try:
-            req = urllib.request.Request(updates_url)
-            with urllib.request.urlopen(req, timeout=5) as response:
-                if response.status == 200:
-                    update_times = json.loads(response.read().decode('utf-8'))
-                    Domoticz.Log("Successfully fetched update times from GitHub.")
-                else:
-                    Domoticz.Error("Failed to fetch update times, status code: " + str(response.status))
-        except Exception as e:
-            Domoticz.Error("Error fetching update times: " + str(e))
-            local_upd = os.path.join(os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), "..", "..")), "plugins", os.path.basename(os.path.normpath(Parameters.get('HomeFolder', str(os.getcwd()) + '/'))), "update_times.json")
-            if os.path.isfile(local_upd):
-                with open(local_upd, 'r') as f:
-                    update_times = json.load(f)
-                Domoticz.Log("Loaded update times from local file.")
-            else:
-                Domoticz.Error("No local update times found.")
-        
-        # Merge update times into plugin data
-        for key, data in self.plugin_data.items():
-            if key == "Idle": continue
-            # Ensure each plugin has 5 elements (owner, repo, desc, branch, timestamp)
-            updated_at = update_times.get(key, "")
-            if len(data) == 4:
-                data.append(updated_at)
-            elif len(data) >= 5:
-                data[4] = updated_at
+        update_times = self.load_update_times()
+        self.apply_update_times(update_times)
 
         self.add_self_to_registry()
+        self.overlay_installed_git_update_times(update_times=update_times)
 
     def onStart(self):
         import json
@@ -355,14 +631,15 @@ class BasePlugin:
             for d in os.listdir(plugins_dir):
                 if os.path.isdir(os.path.join(plugins_dir, d)) and not d.startswith("."):
                     installed_plugins.append(d)
-                    
+
+            update_status = self.getInstalledUpdateStatuses(installed_plugins, plugins_dir)
             self.sendApiResponse({
                 "status": "success",
                 "action": action,
                 "data": self.plugin_data,
                 "installed": installed_plugins,
                 "manager_key": self.get_current_plugin_folder(),
-                "update_status": self.getInstalledUpdateStatuses(installed_plugins, plugins_dir)
+                "update_status": update_status
             })
         elif action == "install":
             plugin_key = payload.get("plugin_key")
@@ -414,40 +691,34 @@ class BasePlugin:
 
     def getInstalledUpdateStatuses(self, installed_plugins, plugins_dir):
         update_status = {}
+
         for plugin_key in installed_plugins:
             plugin_dir = os.path.join(plugins_dir, plugin_key)
-            update_status[plugin_key] = self.getGitUpdateStatus(plugin_dir)
+            update_status[plugin_key] = self.getGitUpdateStatus(plugin_dir, plugin_key)
         return update_status
 
-    def getGitUpdateStatus(self, plugin_dir):
+    def getGitUpdateStatus(self, plugin_dir, plugin_key=None):
         if not os.path.isdir(os.path.join(plugin_dir, ".git")):
             return "unknown"
 
         try:
-            subprocess.run(
-                ["git", "fetch", "--quiet"],
-                cwd=plugin_dir,
-                env=self.get_git_env(),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=15
-            )
-            result = subprocess.run(
-                ["git", "rev-list", "--left-right", "--count", "HEAD...@{u}"],
-                cwd=plugin_dir,
-                env=self.get_git_env(),
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode != 0:
+            if not self.fetch_git_repo(plugin_dir):
                 return "unknown"
 
-            ahead_behind = result.stdout.strip().split()
-            if len(ahead_behind) < 2:
+            if plugin_key:
+                remote_ref = self.get_git_remote_ref(plugin_dir)
+                update_times = dict(self.update_times) if self.update_times else self.load_local_update_times()
+                if self.refresh_git_update_time(plugin_key, plugin_dir, update_times, remote_ref):
+                    self.save_update_times(update_times)
+                    self.apply_update_times(update_times)
+            else:
+                remote_ref = "@{u}"
+
+            ahead_behind = self.get_git_ahead_behind(plugin_dir, remote_ref)
+            if ahead_behind is None:
                 return "unknown"
 
-            behind = int(ahead_behind[1])
+            behind = ahead_behind[1]
             if behind > 0:
                 return "available"
             return "current"
@@ -513,6 +784,7 @@ class BasePlugin:
         Domoticz.Debug("InstallPythonPlugin called")
 
         plugins_dir = os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), ".."))
+        plugin_dir = os.path.join(plugins_dir, ppKey)
 
         Domoticz.Log("Installing Plugin:" + self.plugin_data[ppKey][2])
         ppCloneCmd = ["git", "clone", "-b", ppBranch, f"https://github.com/{ppAuthor}/{ppRepository}.git", ppKey]
@@ -536,6 +808,7 @@ class BasePlugin:
             Domoticz.Error("Git ErrorNo:" + str(e.errno))
             Domoticz.Error("Git StrError:" + str(e.strerror))
 
+        self.refresh_single_plugin_update_time(ppKey, plugin_dir, fetch_first=False)
         self.installDependencies(ppKey)
         return None
 
@@ -591,6 +864,7 @@ class BasePlugin:
             Domoticz.Error("Git ErrorNo:" + str(e.errno))
             Domoticz.Error("Git StrError:" + str(e.strerror))
 
+        self.refresh_single_plugin_update_time(ppKey, plugin_dir, fetch_first=False)
         self.installDependencies(ppKey)
         return None
 
@@ -606,46 +880,33 @@ class BasePlugin:
         home_folder = os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), "..", ".."))
         plugin_dir = os.path.join(home_folder, "plugins", ppKey)
 
-        env = os.environ.copy()
-        env['LANG'] = 'en_US.UTF-8'
-        env['LC_ALL'] = 'en_US.UTF-8'
+        if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+            Domoticz.Log("Plugin:" + ppKey + " is not installed from gitHub. Ignoring!!.")
+            return None
 
-        ppGitFetch = ["git", "fetch"]
-        try:
-            prFetch = subprocess.Popen(ppGitFetch, cwd=plugin_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            outFetch, errorFetch = prFetch.communicate()
-            if outFetch:
-                Domoticz.Debug(f"Git Response: {outFetch}")
-            if errorFetch:
-                Domoticz.Debug(f"Git Error: {errorFetch.strip()}")
-        except OSError as eFetch:
-            Domoticz.Error("Git ErrorNo:" + str(eFetch.errno))
-            Domoticz.Error("Git StrError:" + str(eFetch.strerror))
+        if not self.fetch_git_repo(plugin_dir):
+            Domoticz.Error("Something went wrong with update check of " + str(ppKey))
+            return None
 
-        ppUrl = ["git", "status", "-uno"]
-        Domoticz.Debug("Calling: " + " ".join(ppUrl) + " on folder " + plugin_dir)
+        remote_ref = self.get_git_remote_ref(plugin_dir)
+        update_times = dict(self.update_times) if self.update_times else self.load_local_update_times()
+        if self.refresh_git_update_time(ppKey, plugin_dir, update_times, remote_ref):
+            self.save_update_times(update_times)
+            self.apply_update_times(update_times)
 
-        try:
-            pr = subprocess.Popen(ppUrl, cwd=plugin_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            out, error = pr.communicate()
-            if out:
-                Domoticz.Debug("Git Response:" + out)
-                if "up to date" in out or "up-to-date" in out:
-                   Domoticz.Log("Plugin " + ppKey + " already Up-To-Date")
-                elif "Your branch is behind" in out and "error" not in out.lower():
-                   Domoticz.Log("Found that we are behind on plugin " + ppKey)
-                   self.fnSelectedNotify(ppKey)
-                elif "Your branch is ahead" in out and "error" not in out.lower():
-                   Domoticz.Debug("Found that we are ahead on plugin " + ppKey + ". No need for update")
-                else:
-                   Domoticz.Error("Something went wrong with update of " + str(ppKey))
-            if error:
-                Domoticz.Debug("Git Error:" + error.strip())
-                if "Not a git repository" in error:
-                   Domoticz.Log("Plugin:" + ppKey + " is not installed from gitHub. Ignoring!!.")
-        except OSError as e:
-            Domoticz.Error("Git ErrorNo:" + str(e.errno))
-            Domoticz.Error("Git StrError:" + str(e.strerror))
+        ahead_behind = self.get_git_ahead_behind(plugin_dir, remote_ref)
+        if ahead_behind is None:
+            Domoticz.Error("Something went wrong with update check of " + str(ppKey))
+            return None
+
+        ahead, behind = ahead_behind
+        if behind > 0:
+            Domoticz.Log("Found that we are behind on plugin " + ppKey)
+            self.fnSelectedNotify(ppKey)
+        elif ahead > 0:
+            Domoticz.Debug("Found that we are ahead on plugin " + ppKey + ". No need for update")
+        else:
+            Domoticz.Log("Plugin " + ppKey + " already Up-To-Date")
 
         return None
 

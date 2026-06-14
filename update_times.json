@@ -312,10 +312,12 @@
     "Toon_Thermostat": "2026-06-12T13:45:23Z",
     "HP iLo": "2026-04-20T17:51:05Z",
     "Lyrion": "2026-06-12T13:42:10Z",
-    "HP_iLo": "2026-05-17T12:15:36Z",
+    "HP_iLo": "2026-06-14T15:10:03Z",
     "domoticz-HomeConnectDishwasher": "2026-06-08T12:06:48Z",
     "solarFlow2400AC": "2026-06-13T17:12:40Z",
     "Domoticz-GPSD-plugin": "2026-06-12T10:30:54Z",
     "domoticz-wifitic": "2026-06-11T10:17:10Z",
-    "domoticz-zonneplan": "2026-06-07T08:27:35Z"
+    "domoticz-zonneplan": "2026-06-07T08:27:35Z",
+    "00-PyPluginStore": "2026-06-14T14:35:23Z",
+    "Rain_Forecast": "2026-06-12T14:08:09Z"
 }
