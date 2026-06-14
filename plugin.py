@@ -7,8 +7,7 @@
 
 
 """
-<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="2.5.0" externallink="https://www.domoticz.com/forum/viewtopic.php?f=65&t=22339"> <!-- x-release-please-version -->
-    <description>
+<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="2.5.0" externallink="https://www.domoticz.com/forum/viewtopic.php?f=65&t=22339"> <description>
         <h2>PyPluginStore</h2><br/>
         This plugin manages other Domoticz Python plugins.<br/><br/>
         <b>Usage:</b><br/>
@@ -127,13 +126,18 @@ class BasePlugin:
                     Domoticz.Error("Failed to fetch update times, status code: " + str(response.status))
         except Exception as e:
             Domoticz.Error("Error fetching update times: " + str(e))
-            local_upd = os.path.join(os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), "..", "..")), "plugins", os.path.basename(os.path.normpath(Parameters.get('HomeFolder', str(os.getcwd()) + '/'))), "update_times.json")
-            if os.path.isfile(local_upd):
+            
+        # Altijd proberen het lokale bestand in te laden en samen te voegen (zodat lokale wijzigingen behouden blijven)
+        local_upd = os.path.join(os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), "..", "..")), "plugins", os.path.basename(os.path.normpath(Parameters.get('HomeFolder', str(os.getcwd()) + '/'))), "update_times.json")
+        if os.path.isfile(local_upd):
+            try:
                 with open(local_upd, 'r') as f:
-                    update_times = json.load(f)
-                Domoticz.Log("Loaded update times from local file.")
-            else:
-                Domoticz.Error("No local update times found.")
+                    local_times = json.load(f)
+                    # Voeg lokale tijden toe aan of overschrijf de github tijden
+                    update_times.update(local_times)
+                Domoticz.Debug("Merged local update times from update_times.json.")
+            except Exception as e_local:
+                Domoticz.Error("Error loading local update_times.json: " + str(e_local))
         
         # Merge update times into plugin data
         for key, data in self.plugin_data.items():
@@ -146,6 +150,27 @@ class BasePlugin:
                 data[4] = updated_at
 
         self.add_self_to_registry()
+
+    def write_local_update_time(self, ppKey, iso_timestamp):
+        """Hulpmethode om een specifieke timestamp lokaal in update_times.json op te slaan"""
+        local_upd = os.path.join(os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), "..", "..")), "plugins", os.path.basename(os.path.normpath(Parameters.get('HomeFolder', str(os.getcwd()) + '/'))), "update_times.json")
+        update_times = {}
+        
+        if os.path.isfile(local_upd):
+            try:
+                with open(local_upd, 'r') as f:
+                    update_times = json.load(f)
+            except:
+                update_times = {}
+                
+        update_times[ppKey] = iso_timestamp
+        
+        try:
+            with open(local_upd, 'w') as f:
+                json.dump(update_times, f, indent=4)
+            Domoticz.Debug(f"Successfully updated local update_times.json for {ppKey} to {iso_timestamp}")
+        except Exception as e:
+            Domoticz.Error(f"Failed to write local update_times.json: {e}")
 
     def onStart(self):
         import json
@@ -532,6 +557,15 @@ class BasePlugin:
                 Domoticz.Debug("Git Error: " + error.strip())
                 if "Cloning into" in error:
                    Domoticz.Log("Plugin " + ppKey + " installed Succesfully")
+                   
+                   # Haal de nieuwste commit-tijd direct lokaal op na installatie
+                   plugin_dir = os.path.join(plugins_dir, ppKey)
+                   try:
+                       res_log = subprocess.run(["git", "log", "-1", "--format=%cI"], cwd=plugin_dir, env=env, capture_output=True, text=True)
+                       if res_log.returncode == 0 and res_log.stdout:
+                           self.write_local_update_time(ppKey, res_log.stdout.strip())
+                   except:
+                       pass
         except OSError as e:
             Domoticz.Error("Git ErrorNo:" + str(e.errno))
             Domoticz.Error("Git StrError:" + str(e.strerror))
@@ -583,6 +617,14 @@ class BasePlugin:
                    Domoticz.Log("---Restarting Domoticz MAY BE REQUIRED to activate new plugins---")
                 else:
                    Domoticz.Error("Something went wrong with update of " + str(ppKey))
+                
+                # Haal de nieuwste commit datum op (ISO 8601 formaat) en schrijf naar update_times.json
+                res_log = subprocess.run(["git", "log", "-1", "--format=%cI"], cwd=plugin_dir, env=env, capture_output=True, text=True)
+                if res_log.returncode == 0 and res_log.stdout:
+                    iso_time = res_log.stdout.strip()
+                    self.write_local_update_time(ppKey, iso_time)
+                    if ppKey in self.plugin_data and len(self.plugin_data[ppKey]) >= 5:
+                        self.plugin_data[ppKey][4] = iso_time
             if error:
                 Domoticz.Debug("Git Error:" + error.strip())
                 if "Not a git repository" in error:
@@ -606,9 +648,7 @@ class BasePlugin:
         home_folder = os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), "..", ".."))
         plugin_dir = os.path.join(home_folder, "plugins", ppKey)
 
-        env = os.environ.copy()
-        env['LANG'] = 'en_US.UTF-8'
-        env['LC_ALL'] = 'en_US.UTF-8'
+        env = self.get_git_env()
 
         ppGitFetch = ["git", "fetch"]
         try:
@@ -621,6 +661,19 @@ class BasePlugin:
         except OSError as eFetch:
             Domoticz.Error("Git ErrorNo:" + str(eFetch.errno))
             Domoticz.Error("Git StrError:" + str(eFetch.strerror))
+
+        # NIEUW LOGICA: Haal de datum op van de LAATSTE commit op de remote tracking branch (Origin/GitHub)
+        try:
+            res_log = subprocess.run(["git", "log", "-1", "--format=%cI", "@{u}"], cwd=plugin_dir, env=env, capture_output=True, text=True)
+            if res_log.returncode == 0 and res_log.stdout:
+                remote_iso_time = res_log.stdout.strip()
+                # Update de lokale JSON file met de gevonden datum van GitHub
+                self.write_local_update_time(ppKey, remote_iso_time)
+                # Update het ook direct in het geheugen voor de UI
+                if ppKey in self.plugin_data and len(self.plugin_data[ppKey]) >= 5:
+                    self.plugin_data[ppKey][4] = remote_iso_time
+        except Exception as e_log:
+            Domoticz.Debug(f"Could not retrieve remote commit time for {ppKey}: {e_log}")
 
         ppUrl = ["git", "status", "-uno"]
         Domoticz.Debug("Calling: " + " ".join(ppUrl) + " on folder " + plugin_dir)
