@@ -866,7 +866,7 @@
     "WifiTIC": [
         "DebugBill",
         "WifiTIC",
-        "WifiTIC plugin for DomoticZ",
+        "Domoticz plugin for Cartelectronic WiFiTic Teleinfo module",
         "main"
     ],
     "IntesisBox-Panasonic-Tcap-modbus": [
@@ -1900,5 +1900,35 @@
         "tado_domoticz",
         "Tado <> Domoticz integration",
         "master"
+    ],
+    "solarFlow2400AC": [
+        "hermantb",
+        "solarFlow2400AC",
+        "Zendure solarFlow2400AC+ domoticz plugin",
+        "main"
+    ],
+    "Domoticz-GPSD-plugin": [
+        "marceldbo",
+        "Domoticz-GPSD-plugin",
+        "Plugin to show the most relevant information from GPSD to a Domoticz device",
+        "main"
+    ],
+    "domoticz-wifitic": [
+        "DebugBill",
+        "domoticz-wifitic",
+        "Domoticz plugin for Cartelectronic WiFiTic Teleinfo module",
+        "main"
+    ],
+    ".github": [
+        "Domoticz-Raspberry",
+        ".github",
+        "Download domoticz raspberry for a lightweight, flexible home automation setup that connects lights, sensors, switches, and energy data from one web interface. Explore easy setup, integrations, dashboards, automation rules, and domoticz mqtt support for smarter control on your local network.",
+        "main"
+    ],
+    "domoticz-zonneplan": [
+        "rayray4105",
+        "domoticz-zonneplan",
+        "Unofficial Zonneplan integration for Domoticz",
+        "main"
     ]
 }
