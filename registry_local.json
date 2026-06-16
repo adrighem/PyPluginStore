@@ -1,9 +1,14 @@
 {
-    "MijnPluginMapNaam": [
-        "github-user",
-        "repo-name",
-        "Omschrijving",
+    "APC_UPS": [
+        "MadPatrick",
+        "domoticz-apc-ups-plugin",
+        "APC UPS Plugin for Domoticz",
         "main"
-    ]
-}
+    ],
+    "Rain_Forecast": [
+        "MadPatrick",
+        "domoticz_rainforecast",
+        "Rain Forecast for Domoticz based on Buienradar",
+        "main"
+    ]}
 
