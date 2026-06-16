@@ -1,4 +1,5 @@
 __pycache__/
 update_times.cache.json
+registry_local.json
 *.orig
 out_compile.txt
