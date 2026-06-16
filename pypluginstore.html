@@ -221,6 +221,13 @@
         gap: 6px;
     }
 
+    #pypluginstore-container .card-header-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
     #pypluginstore-container .card-desc {
         font-size: 0.85em;
         color: var(--text-muted);
@@ -333,7 +340,6 @@
         font-size: 0.7em;
         font-weight: 600;
         letter-spacing: 0.03em;
-        margin-left: auto;
     }
 </style>
 
@@ -614,14 +620,19 @@
 
             const header = document.createElement('div');
             header.className = 'card-header';
-            header.appendChild(document.createTextNode(displayName));
+
+            const headerLeft = document.createElement('div');
+            headerLeft.className = 'card-header-left';
+            headerLeft.appendChild(document.createTextNode(displayName));
 
             if (isInstalled) {
                 const badge = document.createElement('span');
                 badge.className = 'installed-badge';
                 badge.textContent = 'Installed';
-                header.appendChild(badge);
+                headerLeft.appendChild(badge);
             }
+
+            header.appendChild(headerLeft);
 
             if (isLocal) {
                 const localBadge = document.createElement('span');
