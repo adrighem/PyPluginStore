@@ -216,16 +216,8 @@
         color: var(--text-heading);
         display: flex;
         align-items: center;
-        justify-content: space-between;
         flex-wrap: wrap;
         gap: 6px;
-    }
-
-    #pypluginstore-container .card-header-left {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
     }
 
     #pypluginstore-container .card-desc {
@@ -329,18 +321,6 @@
         font-weight: 600;
         letter-spacing: 0.03em;
     }
-
-    .local-badge {
-        display: inline-block;
-        background: rgba(74, 158, 218, 0.18);
-        color: var(--primary);
-        border: 1px solid rgba(74, 158, 218, 0.4);
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.7em;
-        font-weight: 600;
-        letter-spacing: 0.03em;
-    }
 </style>
 
 <div id="pypluginstore-container">
@@ -386,7 +366,6 @@
     let isLoading = false;
     let pluginCache = null;
     let installedCache = [];
-    let localCache = [];
     let updateStatusCache = {};
     let managerKey = null;
     let currentSort = 'name';
@@ -495,7 +474,6 @@
             if (response && response.status === 'success') {
                 pluginCache = response.data;
                 installedCache = response.installed;
-                localCache = response.local_plugins || [];
                 updateStatusCache = response.update_status || {};
                 managerKey = response.manager_key || null;
                 filterAndRender();
@@ -598,7 +576,6 @@
             const branch = String(info[3] || '');
             const updatedAt = info[4];
             const isInstalled = installedList.indexOf(key) !== -1;
-            const isLocal = localCache.indexOf(key) !== -1;
             const updateStatus = updateStatusCache[key] || 'unknown';
             const displayName = formatPluginDisplayName(key);
 
@@ -620,25 +597,13 @@
 
             const header = document.createElement('div');
             header.className = 'card-header';
-
-            const headerLeft = document.createElement('div');
-            headerLeft.className = 'card-header-left';
-            headerLeft.appendChild(document.createTextNode(displayName));
+            header.appendChild(document.createTextNode(displayName));
 
             if (isInstalled) {
                 const badge = document.createElement('span');
                 badge.className = 'installed-badge';
                 badge.textContent = 'Installed';
-                headerLeft.appendChild(badge);
-            }
-
-            header.appendChild(headerLeft);
-
-            if (isLocal) {
-                const localBadge = document.createElement('span');
-                localBadge.className = 'local-badge';
-                localBadge.textContent = 'Local';
-                header.appendChild(localBadge);
+                header.appendChild(badge);
             }
 
             const desc = document.createElement('div');
@@ -744,7 +709,6 @@
             if (response && response.status === 'success') {
                 pluginCache = response.data || pluginCache;
                 installedCache = response.installed || installedCache;
-                localCache = response.local_plugins || localCache;
                 updateStatusCache = response.update_status || {};
                 managerKey = response.manager_key || managerKey;
                 filterAndRender();
