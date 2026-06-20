@@ -22,7 +22,7 @@ A robust and modern plugin manager for Domoticz that allows you to install and a
 *   **Flexible Dependency Management:** Supports automatic dependency installation using `uv` (recommended) or `pip`. Also allows for manual sysadmin-managed dependencies.
 *   **PEP 668 Compliant:** When using `uv` or `pip`, dependencies are safely installed into a local `.shared_deps` isolated folder without requiring `sudo` or global `pip` access.
 *   **Update Notifications:** Opt-in to receive email/system notifications when a plugin update is available.
-*   **Decoupled Registry:** Uses `registry.json` dynamically fetched from GitHub, so you don't need to constantly update the manager just to see new plugins in your list.
+*   **Decoupled Registry:** Uses `registry.json` dynamically fetched from GitHub, with a bundled fallback and an optional local-only `registry_local.json` overlay for private plugins.
 
 ## 🛡️ Advanced Security Scanning
 
@@ -108,6 +108,25 @@ To install dependencies for a specific plugin manually:
 To add your plugin to the manager, simply submit a Pull Request to update `registry.json` in this repository.
 
 When a Pull Request modifying `registry.json` is merged, a GitHub Action automatically updates the registry metadata including the latest repository push timestamps.
+
+### Local private registry
+
+Private or local-only plugins can be added to `registry_local.json` in the PyPluginStore plugin folder. This file uses the same format as `registry.json`, is loaded after the public registry, and is ignored by git so it stays local to your Domoticz installation.
+
+```json
+{
+    "MyPrivatePlugin": [
+        "github-user-or-org",
+        "private-repository-name",
+        "Description shown in PyPluginStore",
+        "main"
+    ]
+}
+```
+
+Entries in `registry_local.json` override public entries with the same key and show a **Local** badge in the Plugin Store UI. Installing or updating private repositories still requires the Domoticz host to have working git access to those repositories.
+
+The first two values are normally the GitHub owner and repository name. A full Git clone URL is also accepted as the first value for private/local entries; in that case the repository-name value is ignored for cloning.
 
 ---
 

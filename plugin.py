@@ -7,7 +7,7 @@
 
 
 """
-<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="2.7.0" externallink="https://www.domoticz.com/forum/viewtopic.php?f=65&t=22339"> <!-- x-release-please-version -->
+<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="2.8.1" externallink="https://www.domoticz.com/forum/viewtopic.php?f=65&t=22339"> <!-- x-release-please-version -->
     <description>
         <h2>PyPluginStore</h2><br/>
         This plugin manages other Domoticz Python plugins.<br/><br/>
@@ -42,6 +42,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import json
 from datetime import datetime
@@ -65,6 +66,7 @@ class BasePlugin:
         self.exception_list = []
         self.secpoluser_list = {}
         self.plugin_data = {}
+        self.local_plugin_keys = []
         self.update_times = {}
         self.update_status = {}
         self.last_update_date = None
@@ -90,6 +92,86 @@ class BasePlugin:
 
     def get_update_times_url(self):
         return "https://raw.githubusercontent.com/adrighem/PyPluginStore/refs/heads/master/update_times.json"
+
+    def get_registry_url(self):
+        return "https://raw.githubusercontent.com/adrighem/PyPluginStore/refs/heads/master/registry.json"
+
+    def get_bundled_registry_file(self):
+        return os.path.join(self.get_plugin_home_folder(), "registry.json")
+
+    def get_local_registry_file(self):
+        return os.path.join(self.get_plugin_home_folder(), "registry_local.json")
+
+    def build_git_clone_url(self, author, repository):
+        author = str(author or "").strip()
+        repository = str(repository or "").strip()
+
+        if author.startswith("git@") or author.startswith("ssh://") or author.startswith("file://"):
+            return author.rstrip("/")
+
+        if author.startswith("http://") or author.startswith("https://"):
+            clone_url = author.rstrip("/")
+            parsed_url = urllib.parse.urlparse(clone_url)
+            if parsed_url.scheme in ("http", "https") and parsed_url.hostname == "github.com":
+                path_parts = [part for part in parsed_url.path.split("/") if part]
+                if len(path_parts) >= 2:
+                    clone_url = parsed_url.scheme + "://github.com/" + path_parts[0] + "/" + path_parts[1]
+                    if not clone_url.endswith(".git"):
+                        clone_url += ".git"
+            return clone_url
+
+        shorthand_url = urllib.parse.urlparse("//" + author)
+        if shorthand_url.hostname == "github.com":
+            path_parts = [part for part in shorthand_url.path.split("/") if part]
+            if len(path_parts) >= 2:
+                clone_url = "https://github.com/" + path_parts[0] + "/" + path_parts[1]
+                if not clone_url.endswith(".git"):
+                    clone_url += ".git"
+                return clone_url
+
+        return f"https://github.com/{author}/{repository}.git"
+
+    def load_registry_file(self, registry_file, label, missing_is_error=False):
+        if not os.path.isfile(registry_file):
+            if missing_is_error:
+                Domoticz.Error("No " + label + " registry found.")
+            else:
+                Domoticz.Debug("No " + label + " registry file found.")
+            return None
+
+        try:
+            with open(registry_file, "r", encoding="utf-8") as f:
+                registry = json.load(f)
+            if isinstance(registry, dict):
+                Domoticz.Log("Loaded " + label + " plugin registry.")
+                return registry
+            Domoticz.Error(label + " registry file does not contain a JSON object.")
+        except Exception as e:
+            Domoticz.Error("Error reading " + label + " registry file: " + str(e))
+        return None
+
+    def fetch_remote_registry(self):
+        Domoticz.Debug("Fetching plugin registry from GitHub.")
+        try:
+            req = urllib.request.Request(self.get_registry_url())
+            with urllib.request.urlopen(req, timeout=5) as response:
+                if response.status == 200:
+                    registry = json.loads(response.read().decode("utf-8"))
+                    if isinstance(registry, dict):
+                        Domoticz.Log("Successfully fetched plugin registry from GitHub.")
+                        return registry
+                    Domoticz.Error("Remote registry.json does not contain a JSON object.")
+                else:
+                    Domoticz.Error("Failed to fetch registry, status code: " + str(response.status))
+        except Exception as e:
+            Domoticz.Error("Error fetching registry: " + str(e))
+        return None
+
+    def load_bundled_registry(self):
+        return self.load_registry_file(self.get_bundled_registry_file(), "bundled", True)
+
+    def load_local_registry(self):
+        return self.load_registry_file(self.get_local_registry_file(), "local")
 
     def load_update_times_file(self, update_times_file, label):
         if not os.path.isfile(update_times_file):
@@ -429,28 +511,29 @@ class BasePlugin:
         ]
 
     def fetch_registry(self):
+        registry = self.fetch_remote_registry()
+        if registry is None:
+            registry = self.load_bundled_registry()
 
-        registry_url = "https://raw.githubusercontent.com/adrighem/PyPluginStore/refs/heads/master/registry.json"
-        
-        Domoticz.Debug("Fetching plugin registry from GitHub.")
-        try:
-            req = urllib.request.Request(registry_url)
-            with urllib.request.urlopen(req, timeout=5) as response:
-                if response.status == 200:
-                    self.plugin_data = json.loads(response.read().decode('utf-8'))
-                    Domoticz.Log("Successfully fetched plugin registry from GitHub.")
-                else:
-                    Domoticz.Error("Failed to fetch registry, status code: " + str(response.status))
-        except Exception as e:
-            Domoticz.Error("Error fetching registry: " + str(e))
-            # Fallback to local file if fetch fails
-            local_reg = os.path.join(os.path.abspath(os.path.join(Parameters.get("HomeFolder", str(os.getcwd()) + "/"), "..", "..")), "plugins", os.path.basename(os.path.normpath(Parameters.get('HomeFolder', str(os.getcwd()) + '/'))), "registry.json")
-            if os.path.isfile(local_reg):
-                with open(local_reg, 'r') as f:
-                    self.plugin_data = json.load(f)
-                Domoticz.Log("Loaded plugin registry from local file.")
-            else:
-                Domoticz.Error("No local registry found. Plugins cannot be managed.")
+        local_registry = self.load_local_registry()
+        registry_loaded = registry is not None or local_registry is not None
+        merged_registry = dict(registry) if registry is not None else {}
+        local_plugin_keys = []
+
+        if local_registry:
+            merged_registry.update(local_registry)
+            local_plugin_keys = sorted(local_registry.keys())
+            Domoticz.Log("Merged " + str(len(local_registry)) + " local plugin registry entries.")
+
+        if registry_loaded:
+            self.plugin_data = merged_registry
+            self.local_plugin_keys = local_plugin_keys
+        elif self.plugin_data:
+            Domoticz.Error("No plugin registry found. Keeping existing plugin registry.")
+        else:
+            self.plugin_data = {}
+            self.local_plugin_keys = []
+            Domoticz.Error("No plugin registry found. Plugins cannot be managed.")
 
         update_times = self.load_update_times()
         self.apply_update_times(update_times)
@@ -668,6 +751,7 @@ class BasePlugin:
                 "data": self.plugin_data,
                 "installed": installed_plugins,
                 "manager_key": self.get_current_plugin_folder(),
+                "local_plugins": self.local_plugin_keys,
                 "update_status": self.getCachedUpdateStatuses(installed_plugins)
             })
         elif action == "refresh_update_status":
@@ -679,6 +763,7 @@ class BasePlugin:
                 "data": self.plugin_data,
                 "installed": installed_plugins,
                 "manager_key": self.get_current_plugin_folder(),
+                "local_plugins": self.local_plugin_keys,
                 "update_status": update_status
             })
         elif action == "install":
@@ -687,8 +772,11 @@ class BasePlugin:
                 plugin_author = self.plugin_data[plugin_key][0]
                 plugin_repository = self.plugin_data[plugin_key][1]
                 plugin_branch = self.plugin_data[plugin_key][3]
-                self.InstallPythonPlugin(plugin_author, plugin_repository, plugin_key, plugin_branch)
-                self.sendApiResponse({"status": "success", "action": action, "plugin_key": plugin_key})
+                install_success, install_message = self.InstallPythonPlugin(plugin_author, plugin_repository, plugin_key, plugin_branch)
+                if install_success:
+                    self.sendApiResponse({"status": "success", "action": action, "plugin_key": plugin_key})
+                else:
+                    self.sendApiResponse({"status": "error", "message": install_message or "Plugin install failed"})
             else:
                 self.sendApiResponse({"status": "error", "message": "Plugin not found"})
         elif action == "update":
@@ -825,31 +913,36 @@ class BasePlugin:
         plugin_dir = os.path.join(plugins_dir, ppKey)
 
         Domoticz.Log("Installing Plugin:" + self.plugin_data[ppKey][2])
-        ppCloneCmd = ["git", "clone", "-b", ppBranch, f"https://github.com/{ppAuthor}/{ppRepository}.git", ppKey]
+        ppCloneCmd = ["git", "clone", "-b", ppBranch, self.build_git_clone_url(ppAuthor, ppRepository), ppKey]
         Domoticz.Log("Calling: " + " ".join(ppCloneCmd))
 
-        env = os.environ.copy()
-        env['LANG'] = 'en_US.UTF-8'
-        env['LC_ALL'] = 'en_US.UTF-8'
+        env = self.get_git_env()
 
         try:
             pr = subprocess.Popen(ppCloneCmd, cwd=plugins_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             out, error = pr.communicate()
             if out:
-                Domoticz.Log("Succesfully installed: " + out.strip())
-                Domoticz.Log("---Restarting Domoticz MAY BE REQUIRED to activate new plugins---")
+                Domoticz.Debug("Git Response: " + out.strip())
             if error:
                 Domoticz.Debug("Git Error: " + error.strip())
-                if "Cloning into" in error:
-                   Domoticz.Log("Plugin " + ppKey + " installed Succesfully")
+            if pr.returncode != 0:
+                Domoticz.Error("Git clone failed for plugin " + ppKey + ".")
+                return False, (error or out or "Git clone failed").strip()
+            Domoticz.Log("Plugin " + ppKey + " installed successfully.")
         except OSError as e:
             Domoticz.Error("Git ErrorNo:" + str(e.errno))
             Domoticz.Error("Git StrError:" + str(e.strerror))
+            return False, str(e)
+
+        if not os.path.isdir(plugin_dir):
+            Domoticz.Error("Plugin folder was not created: " + plugin_dir)
+            return False, "Plugin folder was not created."
 
         self.refresh_single_plugin_update_time(ppKey, plugin_dir, fetch_first=False)
         self.refresh_single_plugin_update_status(ppKey, plugin_dir, fetch_first=False)
         self.installDependencies(ppKey)
-        return None
+        Domoticz.Log("---Restarting Domoticz MAY BE REQUIRED to activate new plugins---")
+        return True, ""
 
     def UpdatePythonPlugin(self, ppAuthor, ppRepository, ppKey):
         Domoticz.Debug("UpdatePythonPlugin called")

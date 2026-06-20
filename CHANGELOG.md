@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.8.1](https://github.com/adrighem/PyPluginStore/compare/v2.8.0...v2.8.1) (2026-06-20)
+
+
+### Bug Fixes
+
+* parse clone URLs before GitHub normalization ([66bcd4c](https://github.com/adrighem/PyPluginStore/commit/66bcd4ca598d8ea06fdcd05e817e3c85bb2489c9))
+
+## [2.8.0](https://github.com/adrighem/PyPluginStore/compare/v2.7.0...v2.8.0) (2026-06-20)
+
+
+### Features
+
+* support local registry overlays with MadPatrick ([36f3bcf](https://github.com/adrighem/PyPluginStore/commit/36f3bcf79bbdc942999517f55e074a3d0a0653e8))
+
+
+### Bug Fixes
+
+* remove unavailable Melotron Python registry entry ([e6d98c8](https://github.com/adrighem/PyPluginStore/commit/e6d98c83da45c39c9015763ded6133c1810e1e25))
+
 ## [2.7.0](https://github.com/adrighem/PyPluginStore/compare/v2.6.0...v2.7.0) (2026-06-15)
 
 

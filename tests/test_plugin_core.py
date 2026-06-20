@@ -163,6 +163,100 @@ def test_load_update_times_keeps_newer_cached_timestamp(plugin_core_module, tmp_
     assert saved_update_times == [{"Plugin": "2026-06-14T15:10:03Z"}]
 
 
+def test_fetch_registry_merges_remote_registry_with_local_overlay(plugin_core_module, tmp_path, monkeypatch):
+    _, manager_dir = configure_home(plugin_core_module, tmp_path)
+    (manager_dir / "registry_local.json").write_text(json.dumps({
+        "LocalPlugin": ["git@github.com:owner/private-plugin.git", "", "local description", "main"],
+        "PublicPlugin": ["local-owner", "public-plugin", "local override", "main"],
+    }))
+    plugin = plugin_core_module.BasePlugin()
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "PublicPlugin": ["remote-owner", "public-plugin", "remote description", "main"],
+                "RemoteOnly": ["remote-owner", "remote-only", "remote only", "master"],
+            }).encode("utf-8")
+
+    monkeypatch.setattr(plugin_core_module.urllib.request, "urlopen", lambda *args, **kwargs: FakeResponse())
+    monkeypatch.setattr(plugin, "load_update_times", lambda: {
+        "LocalPlugin": "2026-06-16T18:42:59Z",
+        "RemoteOnly": "2026-06-14T15:10:03Z",
+    })
+
+    plugin.fetch_registry()
+
+    assert plugin.plugin_data["PublicPlugin"] == [
+        "local-owner",
+        "public-plugin",
+        "local override",
+        "main",
+        "",
+    ]
+    assert plugin.plugin_data["LocalPlugin"] == [
+        "git@github.com:owner/private-plugin.git",
+        "",
+        "local description",
+        "main",
+        "2026-06-16T18:42:59Z",
+    ]
+    assert plugin.plugin_data["RemoteOnly"] == [
+        "remote-owner",
+        "remote-only",
+        "remote only",
+        "master",
+        "2026-06-14T15:10:03Z",
+    ]
+    assert plugin.local_plugin_keys == ["LocalPlugin", "PublicPlugin"]
+
+
+def test_fetch_registry_falls_back_to_bundled_registry(plugin_core_module, tmp_path, monkeypatch):
+    _, manager_dir = configure_home(plugin_core_module, tmp_path)
+    (manager_dir / "registry.json").write_text(json.dumps({
+        "BundledPlugin": ["owner", "repo", "description", "main"],
+    }))
+    plugin = plugin_core_module.BasePlugin()
+
+    monkeypatch.setattr(plugin_core_module.urllib.request, "urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("offline")))
+    monkeypatch.setattr(plugin, "load_update_times", lambda: {})
+
+    plugin.fetch_registry()
+
+    assert plugin.plugin_data["BundledPlugin"] == ["owner", "repo", "description", "main", ""]
+    assert plugin.local_plugin_keys == []
+
+
+def test_build_git_clone_url_accepts_owner_repo_and_full_urls(plugin_core_module):
+    plugin = plugin_core_module.BasePlugin()
+
+    assert plugin.build_git_clone_url("owner", "repo") == "https://github.com/owner/repo.git"
+    assert plugin.build_git_clone_url("github.com/owner/repo", "") == "https://github.com/owner/repo.git"
+    assert plugin.build_git_clone_url("https://github.com/owner/repo/tree/main", "") == "https://github.com/owner/repo.git"
+    assert plugin.build_git_clone_url("git@github.com:owner/private-repo.git", "") == "git@github.com:owner/private-repo.git"
+    assert plugin.build_git_clone_url("file:///srv/git/local-plugin", "") == "file:///srv/git/local-plugin"
+
+
+def test_build_git_clone_url_only_normalizes_real_github_hosts(plugin_core_module):
+    plugin = plugin_core_module.BasePlugin()
+
+    assert plugin.build_git_clone_url(
+        "https://github.com.evil/owner/repo/tree/main",
+        "",
+    ) == "https://github.com.evil/owner/repo/tree/main"
+    assert plugin.build_git_clone_url(
+        "https://example.com/github.com/owner/repo/tree/main",
+        "",
+    ) == "https://example.com/github.com/owner/repo/tree/main"
+
+
 def test_refresh_installed_update_statuses_checks_managed_plugins_in_order(plugin_core_module, tmp_path, monkeypatch):
     plugin = plugin_core_module.BasePlugin()
     plugin.plugin_data = {
@@ -224,6 +318,25 @@ def test_list_plugins_response_includes_manager_and_update_status(plugin_core_mo
         "00-PyPluginStore": "current",
         "OtherPlugin": "available",
     }
+    assert response["local_plugins"] == []
+
+
+def test_list_plugins_response_includes_local_plugin_keys(plugin_core_module, tmp_path, monkeypatch):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    (plugins_dir / "LocalPlugin").mkdir()
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "LocalPlugin": ["git@github.com:owner/private-plugin.git", "", "description", "main", ""],
+    }
+    plugin.local_plugin_keys = ["LocalPlugin"]
+    responses = []
+
+    monkeypatch.setattr(plugin, "sendApiResponse", responses.append)
+
+    plugin.handleApiCommand({"action": "list_plugins"})
+
+    assert responses[0]["local_plugins"] == ["LocalPlugin"]
+    assert set(responses[0]["installed"]) == {"00-PyPluginStore", "LocalPlugin"}
 
 
 def test_update_command_refreshes_cached_status_for_next_list(plugin_core_module, tmp_path, monkeypatch):
@@ -293,6 +406,33 @@ def test_refresh_update_status_command_runs_serial_refresh(plugin_core_module, t
         "OtherPlugin": "available",
     }
     assert response["data"] == plugin.plugin_data
+    assert response["local_plugins"] == []
+
+
+def test_install_command_reports_clone_failure(plugin_core_module, tmp_path, monkeypatch):
+    configure_home(plugin_core_module, tmp_path)
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "PrivatePlugin": ["git@github.com:owner/private-plugin.git", "", "description", "main", ""],
+    }
+    responses = []
+
+    class FakePopen:
+        returncode = 128
+
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def communicate(self):
+            return "", "fatal: repository not found"
+
+    monkeypatch.setattr(plugin_core_module.subprocess, "Popen", FakePopen)
+    monkeypatch.setattr(plugin, "sendApiResponse", responses.append)
+
+    plugin.handleApiCommand({"action": "install", "plugin_key": "PrivatePlugin"})
+
+    assert responses[0]["status"] == "error"
+    assert "repository not found" in responses[0]["message"]
 
 
 def test_daily_heartbeat_refreshes_update_status_once(plugin_core_module, tmp_path, monkeypatch):

@@ -1589,12 +1589,6 @@
         "Python plugin for Domoticz to control H801 LED WiFi Controller with Tasmota firmware",
         "master"
     ],
-    "Python": [
-        "Melotron",
-        "Python",
-        "Python scripts for Domoticz and Raspberrys",
-        "master"
-    ],
     "Domoticz-Unifi-Presence": [
         "lacha07",
         "Domoticz-Unifi-Presence",
