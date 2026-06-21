@@ -14,7 +14,7 @@ def generate_plugin():
 
 
 """
-<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="2.9.0" externallink="https://forum.domoticz.com/viewtopic.php?t=44626"> <!-- x-release-please-version -->
+<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="3.0.0" externallink="https://forum.domoticz.com/viewtopic.php?t=44626"> <!-- x-release-please-version -->
     <description>
         <h2>PyPluginStore</h2><br/>
         This plugin manages other Domoticz Python plugins.<br/><br/>
