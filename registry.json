@@ -527,7 +527,8 @@
         "main",
         "",
         [
-            "linux"
+            "linux",
+            "windows"
         ]
     ],
     "domoticz-tailscale-plugin": [
