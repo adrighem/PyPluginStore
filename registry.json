@@ -524,7 +524,7 @@
         "Rouzax",
         "luxtronik-domoticz-plugin-v2",
         "Domoticz plugin for Luxtronik heat pump controllers - COP tracking, multi-instance support, write protection, 5 languages",
-        "main",
+        "dist",
         "",
         [
             "linux"
