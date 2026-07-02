@@ -524,11 +524,10 @@
         "Rouzax",
         "luxtronik-domoticz-plugin-v2",
         "Domoticz plugin for Luxtronik heat pump controllers - COP tracking, multi-instance support, write protection, 5 languages",
-        "dist",
+        "main",
         "",
         [
-            "linux",
-            "windows"
+            "linux"
         ]
     ],
     "domoticz-tailscale-plugin": [
@@ -882,7 +881,7 @@
     "MarstekCT": [
         "Haaibaai",
         "Domoticz-Marstek",
-        "Marstek CT Meter plugin for Domoticz",
+        "Reads the Marstek ct003 for domoticz",
         "main",
         "",
         [
@@ -3490,6 +3489,27 @@
         "Domoticz-Home-Connect-Plugin",
         "Domoticz Home-Connect Plugin",
         "master",
+        "",
+        [
+            "linux"
+        ]
+    ],
+    "domoticz-ewpe-smart-direct": [
+        "Achterhoeker",
+        "domoticz-ewpe-smart-direct",
+        "Domoticz plugin EwpeSmart Air Conditioners Direct",
+        "master",
+        "",
+        [
+            "linux",
+            "windows"
+        ]
+    ],
+    "Domoticz-Shelly-plugin": [
+        "codeberg.org/Hoog",
+        "Domoticz-Shelly-plugin",
+        "Domoticz plugin for integrating Shelly Gen2+ devices with Switch, PM1 or EM1 components.",
+        "main",
         "",
         [
             "linux",
