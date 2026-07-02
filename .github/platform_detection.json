@@ -661,10 +661,10 @@
             "reviewed": false
         },
         "luxtronikex": {
-            "identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@dist",
+            "identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@main",
             "owner": "Rouzax",
             "repository": "luxtronik-domoticz-plugin-v2",
-            "branch": "dist",
+            "branch": "main",
             "registry_platforms": [
                 "linux",
                 "windows"
@@ -672,7 +672,29 @@
             "source": "legacy_detected",
             "confidence": "unknown",
             "evidence_class": "legacy",
-            "reviewed": false
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 16,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses sudo",
+                    "README.md: uses systemd",
+                    "README.md: uses shell commands",
+                    "migration/README.md: uses sudo",
+                    "migration/README.md: uses systemd",
+                    "migration/README.md: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_existing_requires_high_confidence",
+            "previous_identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@dist"
         },
         "domoticz-tailscale-plugin": {
             "identity": "github.com/mirkg/domoticz-tailscale-plugin@main",
@@ -4486,7 +4508,83 @@
             "source": "legacy_detected",
             "confidence": "unknown",
             "evidence_class": "legacy",
-            "reviewed": false
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 14,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "plugin.py: uses shell commands",
+                    "homeconnectSSE.sh: Linux-oriented file name",
+                    "homeconnectSSE.sh: mentions Raspberry Pi/Raspbian",
+                    "homeconnectSSE.sh: uses Unix system paths",
+                    "homeconnectSSE.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_existing_requires_high_confidence"
+        },
+        "domoticz-ewpe-smart-direct": {
+            "identity": "github.com/achterhoeker/domoticz-ewpe-smart-direct@master",
+            "owner": "Achterhoeker",
+            "repository": "domoticz-ewpe-smart-direct",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz-Shelly-plugin": {
+            "identity": "codeberg.org/hoog/domoticz-shelly-plugin@main",
+            "owner": "codeberg.org/Hoog",
+            "repository": "Domoticz-Shelly-plugin",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
         }
     }
 }
