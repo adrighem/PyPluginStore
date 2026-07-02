@@ -1,0 +1,14 @@
+Task: Support Codeberg and GitLab plugin repositories
+
+Summary:
+- Added host-aware repository helpers for GitHub, Codeberg, and GitLab in the runtime plugin.
+- Updated repo links and remote plugin version lookup for supported hosts.
+- Extended registry validation, scheduled scanner discovery, and platform detection for Codeberg/GitLab.
+- Added root plugin.py filtering for non-GitHub discovery.
+- Seeded Codeberg Stromer and GitLab SabNZBD registry entries.
+- Added tests covering runtime, UI, validation, scanner, and platform detector behavior.
+
+Files changed include plugin_core.py, generated plugin.py, pypluginstore.html, .github scripts/workflow, registry/update_times, README, tests, and Conductor track artifacts.
+
+Why:
+PyPluginStore should support Domoticz plugins hosted outside GitHub without breaking existing GitHub registry behavior.
