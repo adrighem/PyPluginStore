@@ -1,0 +1,11 @@
+Task: Fix plugin store repository card host display and links
+
+Summary:
+- Refactored UI repository parsing into generic helpers for full URLs, SSH remotes, host-qualified owners, and plain GitHub owner/repo entries.
+- Changed card author display so GitHub entries show github.com/<owner>, aligning with Codeberg/GitLab display.
+- Ensured Repo links are built from the parsed host instead of assuming GitHub.
+- Added UI smoke tests for generic host URLs, formatted author display, and rendered-card usage of the formatting helper.
+
+QA:
+- Reviewed full URL, SSH, supported-host, arbitrary-host, and plain GitHub owner/repo cases.
+- Ran UI smoke tests and full pytest suite.
