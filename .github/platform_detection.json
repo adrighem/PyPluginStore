@@ -3498,6 +3498,2576 @@
                 ]
             },
             "policy_action": "kept_low_confidence_new"
+        },
+        "myenergi": {
+            "identity": "github.com/rouzax/myenergi-domoticz-plugin@dist",
+            "owner": "Rouzax",
+            "repository": "myenergi-domoticz-plugin",
+            "branch": "dist",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "reviewed",
+            "confidence": "unknown",
+            "evidence_class": "manual_registry_edit",
+            "reviewed": true,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 2,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_reviewed"
+        },
+        "Domoticz-Indevolt-plugin": {
+            "identity": "github.com/marceldbo/domoticz-indevolt-plugin@main",
+            "owner": "marceldbo",
+            "repository": "Domoticz-Indevolt-plugin",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "wiki": {
+            "identity": "github.com/zigbeefordomoticz/wiki@master",
+            "owner": "zigbeefordomoticz",
+            "repository": "wiki",
+            "branch": "master",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "high",
+            "evidence_class": "explicit_both",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "high",
+                "evidence_class": "explicit_both",
+                "scores": {
+                    "linux": 117,
+                    "windows": 14,
+                    "both": 40
+                },
+                "reasons": [
+                    "en-eng/Plugin_Update.md: uses sudo",
+                    "en-eng/Plugin_Update.md: uses shell commands",
+                    "fr-fr/Plugin_Mise-a-jour.md: uses sudo",
+                    "fr-fr/Plugin_Mise-a-jour.md: uses shell commands",
+                    "en-eng/Plugin_Installation.md: mentions Windows and Linux support",
+                    "en-eng/Plugin_Installation.md: mentions Raspberry Pi/Raspbian",
+                    "en-eng/Plugin_Installation.md: uses apt package installation",
+                    "en-eng/Plugin_Installation.md: uses sudo",
+                    "en-eng/Plugin_Installation.md: uses systemd",
+                    "en-eng/Plugin_Installation.md: uses chmod",
+                    "en-eng/Plugin_Installation.md: uses Unix system paths",
+                    "en-eng/Plugin_Installation.md: uses Linux device paths",
+                    "en-eng/Plugin_Installation.md: uses shell commands",
+                    "en-eng/Plugin_Installation.md: uses Linux/Raspberry Pi Python dependency",
+                    "fr-fr/Plugin_Installation.md: mentions Linux and Windows support",
+                    "fr-fr/Plugin_Installation.md: mentions Windows and Linux support",
+                    "fr-fr/Plugin_Installation.md: mentions Raspberry Pi/Raspbian",
+                    "fr-fr/Plugin_Installation.md: uses apt package installation",
+                    "fr-fr/Plugin_Installation.md: uses sudo",
+                    "fr-fr/Plugin_Installation.md: uses systemd",
+                    "fr-fr/Plugin_Installation.md: uses chmod",
+                    "fr-fr/Plugin_Installation.md: uses Unix system paths",
+                    "fr-fr/Plugin_Installation.md: uses Linux device paths",
+                    "fr-fr/Plugin_Installation.md: uses shell commands",
+                    "fr-fr/Plugin_Installation.md: uses Linux/Raspberry Pi Python dependency",
+                    "fr-fr/Plugin_Installation.md: uses Windows script files",
+                    "fr-fr/Plugin_Installation.md: uses Windows drive paths",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: mentions Linux and Windows support",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: mentions Windows and Linux support",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: mentions Raspberry Pi/Raspbian",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: uses apt package installation",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: uses sudo",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: uses Unix system paths",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: uses shell commands",
+                    "fr-fr/Old_versions/Plugin_Installation_OLD.md: uses Windows drive paths",
+                    "en-eng/HowTo_Backup-zigpy-coordinators.md: uses Unix system paths",
+                    "en-eng/HowTo_Backup-zigpy-coordinators.md: uses Linux device paths",
+                    "en-eng/HowTo_Have-a-real-time-topology.md: uses sudo",
+                    "en-eng/HowTo_Have-a-real-time-topology.md: uses Unix system paths",
+                    "en-eng/HowTo_Have-a-real-time-topology.md: uses Linux device paths",
+                    "nl-dut/Zigate-Plugin-FAQ.md: uses sudo"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Domoticz-Zigbee-UI": {
+            "identity": "github.com/zigbeefordomoticz/domoticz-zigbee-ui@beta",
+            "owner": "zigbeefordomoticz",
+            "repository": "Domoticz-Zigbee-UI",
+            "branch": "beta",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 2,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    ".devcontainer/Dockerfile: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "DomoticzControl": {
+            "identity": "github.com/guillaumezin/domoticzcontrol@master",
+            "owner": "guillaumezin",
+            "repository": "DomoticzControl",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "homebridge-edomoticz": {
+            "identity": "github.com/patchworkboy/homebridge-edomoticz@master",
+            "owner": "PatchworkBoy",
+            "repository": "homebridge-edomoticz",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 2,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses sudo"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz-Rhasspy-Plugin": {
+            "identity": "github.com/turnofafriendlycard/domoticz-rhasspy-plugin@main",
+            "owner": "TurnOfAFriendlyCard",
+            "repository": "Domoticz-Rhasspy-Plugin",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "esphome-air-quality-monitor": {
+            "identity": "github.com/easternredcedarfleece849/esphome-air-quality-monitor@main",
+            "owner": "easternredcedarfleece849",
+            "repository": "esphome-air-quality-monitor",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 4,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "debug/sm300d2_debugger.py: uses Unix system paths"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "ha-domoticz-sync": {
+            "identity": "github.com/adrighem/ha-domoticz-sync@main",
+            "owner": "adrighem",
+            "repository": "ha-domoticz-sync",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 4,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses shell commands",
+                    "CONTRIBUTING.md: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz-mcp": {
+            "identity": "github.com/adrighem/domoticz-mcp@main",
+            "owner": "adrighem",
+            "repository": "domoticz-mcp",
+            "branch": "main",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "high",
+            "evidence_class": "explicit_both",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "high",
+                "evidence_class": "explicit_both",
+                "scores": {
+                    "linux": 2,
+                    "windows": 0,
+                    "both": 8
+                },
+                "reasons": [
+                    "README.md: mentions Linux and Windows support",
+                    "README.md: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "boiler-controller-domoticz": {
+            "identity": "github.com/boilercontroller/boiler-controller-domoticz@main",
+            "owner": "BoilerController",
+            "repository": "boiler-controller-domoticz",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 5,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz-hue-emulator": {
+            "identity": "github.com/hackboxguy/domoticz-hue-emulator@main",
+            "owner": "hackboxguy",
+            "repository": "domoticz-hue-emulator",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 42,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses sudo",
+                    "README.md: uses systemd",
+                    "README.md: uses shell commands",
+                    "domoticz-hue-emulator.py: uses sudo",
+                    "domoticz-hue-emulator.py: uses Unix system paths",
+                    "domoticz-hue-emulator.service: Linux-oriented file name",
+                    "install.sh: Linux-oriented file name",
+                    "install.sh: mentions Raspberry Pi/Raspbian",
+                    "install.sh: uses apt package installation",
+                    "install.sh: uses sudo",
+                    "install.sh: uses systemd",
+                    "install.sh: uses Unix system paths",
+                    "install.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "psacc-domoticz": {
+            "identity": "github.com/tatroxitum/psacc-domoticz@main",
+            "owner": "Tatroxitum",
+            "repository": "psacc-domoticz",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 3,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses chmod"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "mqtt-rainbird": {
+            "identity": "github.com/kd377/mqtt-rainbird@main",
+            "owner": "KD377",
+            "repository": "mqtt-rainbird",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 10,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses shell commands",
+                    "rainbird/Dockerfile: uses apt package installation",
+                    "rainbird/Dockerfile: uses Unix system paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "FF_WeatherStation": {
+            "identity": "github.com/flyingdomotic/ff_weatherstation@main",
+            "owner": "FlyingDomotic",
+            "repository": "FF_WeatherStation",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "shelly-domoticz-bridge": {
+            "identity": "github.com/darton/shelly-domoticz-bridge@main",
+            "owner": "darton",
+            "repository": "shelly-domoticz-bridge",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 10,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "shellyapp-restart.service: Linux-oriented file name",
+                    "shellyapp-restart.service: uses systemd",
+                    "shellyapp.service: Linux-oriented file name"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "rp2040pico-w_BME680": {
+            "identity": "github.com/len-sla/rp2040pico-w_bme680@main",
+            "owner": "len-sla",
+            "repository": "rp2040pico-w_BME680",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 16,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses Unix system paths",
+                    "README.md: uses Linux device paths",
+                    "CMakeLists.txt: mentions Raspberry Pi/Raspbian"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "FF_Radar": {
+            "identity": "github.com/flyingdomotic/ff_radar@main",
+            "owner": "FlyingDomotic",
+            "repository": "FF_Radar",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz-openDTU": {
+            "identity": "github.com/belzetrigger/domoticz-opendtu@main",
+            "owner": "belzetrigger",
+            "repository": "domoticz-openDTU",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz-homematicip-workbook": {
+            "identity": "github.com/rwbl/domoticz-homematicip-workbook@main",
+            "owner": "rwbl",
+            "repository": "domoticz-homematicip-workbook",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 7,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "SOURCECHANGES.md: uses sudo",
+                    "SOURCECHANGES.md: uses shell commands",
+                    "TODO.md: mentions Raspberry Pi/Raspbian"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz-with-ChatGPT-integration": {
+            "identity": "github.com/lemmedasker/domoticz-with-chatgpt-integration@main",
+            "owner": "LemmeDasker",
+            "repository": "Domoticz-with-ChatGPT-integration",
+            "branch": "main",
+            "registry_platforms": [
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "windows_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "windows"
+                ],
+                "confidence": "medium",
+                "evidence_class": "windows_evidence",
+                "scores": {
+                    "linux": 0,
+                    "windows": 22,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses Windows script files",
+                    "Source/wakeupword.py: uses Windows drive paths",
+                    "Test scripts/wakeword.py: uses Windows drive paths",
+                    "Source/AI.bat: Windows-oriented file name",
+                    "Source/AI.bat: uses Windows drive paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "ecoSOL-500-Domoticz": {
+            "identity": "github.com/tomek10861/ecosol-500-domoticz@main",
+            "owner": "tomek10861",
+            "repository": "ecoSOL-500-Domoticz",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz-MQTT-Mew01-integration": {
+            "identity": "github.com/tomek10861/domoticz-mqtt-mew01-integration@main",
+            "owner": "tomek10861",
+            "repository": "Domoticz-MQTT-Mew01-integration",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "comfoconnect_domoticz": {
+            "identity": "github.com/zygios/comfoconnect_domoticz@main",
+            "owner": "zygios",
+            "repository": "comfoconnect_domoticz",
+            "branch": "main",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "mixed_platform_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "medium",
+                "evidence_class": "mixed_platform_evidence",
+                "scores": {
+                    "linux": 15,
+                    "windows": 17,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses apt package installation",
+                    "README.md: uses sudo",
+                    "README.md: uses systemd",
+                    "example/manually_decode.py: uses Windows script files",
+                    "pycomfoconnect/message.py: uses Windows script files",
+                    "pycomfoconnect/comfoconnect.py: uses Windows script files",
+                    "pycomfoconnect/zehnder_pb2.py: uses Windows drive paths",
+                    "confoconnect.service: Linux-oriented file name",
+                    "PROTOCOL.md: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "domoticz-splunk": {
+            "identity": "github.com/romanmelko/domoticz-splunk@main",
+            "owner": "romanmelko",
+            "repository": "domoticz-splunk",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 21,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "github metadata: mentions Raspberry Pi/Raspbian",
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "start.sh: Linux-oriented file name",
+                    "start.sh: uses shell commands",
+                    "scripts/network_printer_restart.sh: Linux-oriented file name",
+                    "scripts/network_printer_restart.sh: uses shell commands",
+                    "scripts/yihome_camera_logging.sh: Linux-oriented file name",
+                    "scripts/yihome_camera_logging.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "integrations": {
+            "identity": "github.com/emsesp/integrations@main",
+            "owner": "emsesp",
+            "repository": "integrations",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz-Tuya": {
+            "identity": "github.com/canard64/domoticz-tuya@main",
+            "owner": "Canard64",
+            "repository": "Domoticz-Tuya",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz_SharkIQ_Integration": {
+            "identity": "github.com/ittiz/domoticz_sharkiq_integration@main",
+            "owner": "Ittiz",
+            "repository": "Domoticz_SharkIQ_Integration",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "max_cube_domoticz": {
+            "identity": "github.com/bbrowaros/max_cube_domoticz@main",
+            "owner": "bbrowaros",
+            "repository": "max_cube_domoticz",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 3,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses chmod"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz_Node-Red_Esp32_DB18B20": {
+            "identity": "github.com/heinohein/domoticz_node-red_esp32_db18b20@master",
+            "owner": "heinohein",
+            "repository": "Domoticz_Node-Red_Esp32_DB18B20",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 3,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz-teracom": {
+            "identity": "github.com/mboisnard/domoticz-teracom@master",
+            "owner": "mboisnard",
+            "repository": "domoticz-teracom",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 2,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses sudo"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "CCS811-HDC1080-ESP32-weatherstation-with-Domoticz-integration": {
+            "identity": "github.com/ierlandfan/ccs811-hdc1080-esp32-weatherstation-with-domoticz-integration@master",
+            "owner": "Ierlandfan",
+            "repository": "CCS811-HDC1080-ESP32-weatherstation-with-Domoticz-integration",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "ESP32-Cam": {
+            "identity": "github.com/domoticdiy/esp32-cam@master",
+            "owner": "DomoticDIY",
+            "repository": "ESP32-Cam",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "satel2mqtt": {
+            "identity": "github.com/voyo/satel2mqtt@master",
+            "owner": "voyo",
+            "repository": "satel2mqtt",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 10,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses Unix system paths",
+                    "README.md: uses Linux device paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "penguino-domoticz": {
+            "identity": "github.com/duodiscus92/penguino-domoticz@master",
+            "owner": "duodiscus92",
+            "repository": "penguino-domoticz",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 15,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "bad/lgtv.service: Linux-oriented file name",
+                    "bad/lgtv.service: uses shell commands",
+                    "bad/penguino.service: Linux-oriented file name",
+                    "bad/penguino.service: uses shell commands",
+                    "bad/remote.sh: Linux-oriented file name",
+                    "bad/remote.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "ESP32_Paradox_controler_mqtt": {
+            "identity": "github.com/zygios/esp32_paradox_controler_mqtt@master",
+            "owner": "zygios",
+            "repository": "ESP32_Paradox_controler_mqtt",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "yolo2domoticz": {
+            "identity": "github.com/djgrasss/yolo2domoticz@master",
+            "owner": "djgrasss",
+            "repository": "yolo2domoticz",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 36,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses apt package installation",
+                    "README.md: uses sudo",
+                    "README.md: uses Unix system paths",
+                    "README.md: uses shell commands",
+                    "domoticzexample.sh: Linux-oriented file name",
+                    "domoticzexample.sh: uses apt package installation",
+                    "domoticzexample.sh: uses shell commands",
+                    "main.sh: Linux-oriented file name",
+                    "main.sh: uses apt package installation",
+                    "main.sh: uses sudo",
+                    "main.sh: uses Unix system paths",
+                    "main.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Airwick_ESPM3": {
+            "identity": "github.com/zygios/airwick_espm3@master",
+            "owner": "zygios",
+            "repository": "Airwick_ESPM3",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domo-ifttt": {
+            "identity": "github.com/dswinton/domo-ifttt@master",
+            "owner": "dswinton",
+            "repository": "domo-ifttt",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "ESP8266_AutoBlinds_MQTT_Domoticz": {
+            "identity": "github.com/zygios/esp8266_autoblinds_mqtt_domoticz@master",
+            "owner": "zygios",
+            "repository": "ESP8266_AutoBlinds_MQTT_Domoticz",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "policy_action": "no_decision"
+        },
+        "Domoticz-Pi-USB8-relay-board-SOS-solutions": {
+            "identity": "github.com/bbqkees/domoticz-pi-usb8-relay-board-sos-solutions@master",
+            "owner": "bbqkees",
+            "repository": "Domoticz-Pi-USB8-relay-board-SOS-solutions",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 15,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "github metadata: mentions Raspberry Pi/Raspbian",
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses sudo",
+                    "README.md: uses Unix system paths",
+                    "usbrelay/Readme.md: mentions Raspberry Pi/Raspbian"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Pollen-forecast-in-Norway-for-Domoticz": {
+            "identity": "github.com/flemmingss/pollen-forecast-in-norway-for-domoticz@master",
+            "owner": "flemmingss",
+            "repository": "Pollen-forecast-in-Norway-for-Domoticz",
+            "branch": "master",
+            "registry_platforms": [
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "windows_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "windows"
+                ],
+                "confidence": "medium",
+                "evidence_class": "windows_evidence",
+                "scores": {
+                    "linux": 0,
+                    "windows": 18,
+                    "both": 0
+                },
+                "reasons": [
+                    "github metadata: uses PowerShell",
+                    "README.md: uses PowerShell",
+                    "pollen_domoticz.ps1: Windows-oriented file name",
+                    "pollen_domoticz.ps1: uses Windows drive paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "lightwaveproxy": {
+            "identity": "github.com/jagsta/lightwaveproxy@master",
+            "owner": "jagsta",
+            "repository": "lightwaveproxy",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "tado_domoticz": {
+            "identity": "github.com/laszlodev/tado_domoticz@master",
+            "owner": "LaszloDev",
+            "repository": "tado_domoticz",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "cheapometer": {
+            "identity": "github.com/n0w/cheapometer@master",
+            "owner": "n0w",
+            "repository": "cheapometer",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "cisco-spark-domoticz-integration": {
+            "identity": "github.com/patglanz/cisco-spark-domoticz-integration@master",
+            "owner": "patglanz",
+            "repository": "cisco-spark-domoticz-integration",
+            "branch": "master",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "high",
+            "evidence_class": "explicit_both",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "high",
+                "evidence_class": "explicit_both",
+                "scores": {
+                    "linux": 21,
+                    "windows": 0,
+                    "both": 8
+                },
+                "reasons": [
+                    "README.md: mentions Windows and Linux support",
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses apt package installation",
+                    "README.md: uses sudo",
+                    "README.md: uses shell commands",
+                    "sparkmessage.sh: Linux-oriented file name",
+                    "sparkmessage.sh: uses shell commands",
+                    "listrooms.sh: Linux-oriented file name",
+                    "listrooms.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Domoticz-Events-Scripts": {
+            "identity": "github.com/saidlm/domoticz-events-scripts@main",
+            "owner": "saidlm",
+            "repository": "Domoticz-Events-Scripts",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 2,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "ADS-B-FlightTracker-counter": {
+            "identity": "github.com/freijn/ads-b-flighttracker-counter@main",
+            "owner": "freijn",
+            "repository": "ADS-B-FlightTracker-counter",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 17,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses shell commands",
+                    "fly.py: uses Unix system paths",
+                    "Fly_counter.txt: uses Unix system paths",
+                    "Fly_cam.txt: uses Unix system paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Domoticz-Resilience-Project": {
+            "identity": "github.com/okfriend88-lang/domoticz-resilience-project@main",
+            "owner": "okfriend88-lang",
+            "repository": "Domoticz-Resilience-Project",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 21,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "Pre\u0301sentation du projet.txt: mentions Raspberry Pi/Raspbian",
+                    "sh_files/sync_backups.sh: Linux-oriented file name",
+                    "sh_files/sync_backups.sh: uses Unix system paths",
+                    "sh_files/sync_backups.sh: uses shell commands",
+                    "sh_files/monitoring_systeme.sh: Linux-oriented file name",
+                    "sh_files/monitoring_systeme.sh: uses Unix system paths",
+                    "sh_files/monitoring_systeme.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "dynamicTelegramBot": {
+            "identity": "github.com/waltervl/dynamictelegrambot@master",
+            "owner": "waltervl",
+            "repository": "dynamicTelegramBot",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 13,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses sudo",
+                    "README.md: uses systemd",
+                    "README.md: uses Unix system paths",
+                    "systemdservice.service: Linux-oriented file name"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "hyundai_kia_connect_monitor": {
+            "identity": "github.com/zuinigerijder/hyundai_kia_connect_monitor@main",
+            "owner": "ZuinigeRijder",
+            "repository": "hyundai_kia_connect_monitor",
+            "branch": "main",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "high",
+            "evidence_class": "explicit_both",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "high",
+                "evidence_class": "explicit_both",
+                "scores": {
+                    "linux": 29,
+                    "windows": 81,
+                    "both": 16
+                },
+                "reasons": [
+                    "README.md: mentions Linux and Windows support",
+                    "README.md: mentions Windows and Linux support",
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses chmod",
+                    "README.md: uses shell commands",
+                    "README.md: uses Windows drive paths",
+                    "tests/README.md: uses Windows script files",
+                    "tests/README.md: uses Windows drive paths",
+                    "monitor.py: mentions Raspberry Pi/Raspbian",
+                    "run_monitor_once.sh: Linux-oriented file name",
+                    "run_monitor_once.sh: uses Unix system paths",
+                    "run_monitor_once.sh: uses shell commands",
+                    "run_monitor_infinite.sh: Linux-oriented file name",
+                    "run_monitor_infinite.sh: uses Unix system paths",
+                    "run_monitor_infinite.sh: uses shell commands",
+                    "CONTRIBUTING.md: uses Windows script files",
+                    "CONTRIBUTING.md: uses Windows drive paths",
+                    "CHANGELOG.md: uses Windows script files",
+                    "CHANGELOG.md: uses Windows drive paths",
+                    "tests/MQTTServer.bat: Windows-oriented file name",
+                    "tests/run_mypy.bat: Windows-oriented file name",
+                    "tests/run_mypy.bat: uses Windows script files",
+                    "tests/run_monitor.bat: Windows-oriented file name",
+                    "tests/run_monitor.bat: uses Windows script files",
+                    "tests/run_monitor.bat: uses Windows drive paths",
+                    "examples/kml.py_output.txt: uses Windows drive paths",
+                    "examples/dailystats.py_output.txt: uses Windows drive paths",
+                    "tests/run_tests.bat: Windows-oriented file name",
+                    "tests/run_tests.bat: uses Windows script files",
+                    "tests/run_tests.bat: uses Windows drive paths",
+                    "examples/summary.py_output.txt: uses Windows drive paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "semodbus2domoticz": {
+            "identity": "github.com/gkroone/semodbus2domoticz@master",
+            "owner": "gkroone",
+            "repository": "semodbus2domoticz",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Location-aware-night-polling-inhibitor": {
+            "identity": "github.com/daserra23/location-aware-night-polling-inhibitor@main",
+            "owner": "daserra23",
+            "repository": "Location-aware-night-polling-inhibitor",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "SolisCloud2PVOutput": {
+            "identity": "github.com/zuinigerijder/soliscloud2pvoutput@main",
+            "owner": "ZuinigeRijder",
+            "repository": "SolisCloud2PVOutput",
+            "branch": "main",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "high",
+            "evidence_class": "explicit_both",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "high",
+                "evidence_class": "explicit_both",
+                "scores": {
+                    "linux": 20,
+                    "windows": 0,
+                    "both": 8
+                },
+                "reasons": [
+                    "README.md: mentions Windows and Linux support",
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses Unix system paths",
+                    "README.md: uses shell commands",
+                    "solis.sh: Linux-oriented file name",
+                    "solis.sh: uses Unix system paths",
+                    "solis.sh: uses shell commands",
+                    "CHANGELOG.md: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "domoticz-YONY-Modbus-plugin": {
+            "identity": "github.com/pawelmuszynski/domoticz-yony-modbus-plugin@master",
+            "owner": "pawelmuszynski",
+            "repository": "domoticz-YONY-Modbus-plugin",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "policy_action": "no_decision"
+        },
+        "HomeAutomationScripts": {
+            "identity": "github.com/sergeypomelov/homeautomationscripts@master",
+            "owner": "SergeyPomelov",
+            "repository": "HomeAutomationScripts",
+            "branch": "master",
+            "registry_platforms": [
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "windows_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "windows"
+                ],
+                "confidence": "medium",
+                "evidence_class": "windows_evidence",
+                "scores": {
+                    "linux": 0,
+                    "windows": 16,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses PowerShell",
+                    "cpuDump.ps1: Windows-oriented file name",
+                    "logs.bat: Windows-oriented file name",
+                    "logs.bat: uses Windows drive paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Orcon_MQTT": {
+            "identity": "github.com/jwgracht/orcon_mqtt@main",
+            "owner": "JWGracht",
+            "repository": "Orcon_MQTT",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 8,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses sudo",
+                    "README.md: uses systemd",
+                    "README.md: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "WeatherAlertToDomoticz": {
+            "identity": "github.com/hotting/weatheralerttodomoticz@main",
+            "owner": "hotting",
+            "repository": "WeatherAlertToDomoticz",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 8,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "readme.md: uses Unix system paths",
+                    "WeatherAlertToDomoticz.cfg: uses Unix system paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "wellnotification": {
+            "identity": "github.com/feelingwalnut/wellnotification@main",
+            "owner": "feelingwalnut",
+            "repository": "wellnotification",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Home-Manager": {
+            "identity": "github.com/roscoe81/home-manager@master",
+            "owner": "roscoe81",
+            "repository": "Home-Manager",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 6,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "github metadata: mentions Raspberry Pi/Raspbian",
+                    "README.md: mentions Raspberry Pi/Raspbian"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Solaredge_Domoticz_Modbus": {
+            "identity": "github.com/strebrah/solaredge_domoticz_modbus@master",
+            "owner": "strebrah",
+            "repository": "Solaredge_Domoticz_Modbus",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 7,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses sudo",
+                    "dz_se_comm.py: uses sudo"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "emonitor": {
+            "identity": "github.com/hansake/emonitor@master",
+            "owner": "hansake",
+            "repository": "emonitor",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 52,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "interface-MQTT-Domoticz/README.md: mentions Raspberry Pi/Raspbian",
+                    "install/README.md: uses sudo",
+                    "install/README.md: uses Unix system paths",
+                    "interface-MQTT-Domoticz/emon-mqtt.py: uses Unix system paths",
+                    "interface-MQTT-Domoticz/power_mqtt.py: uses Unix system paths",
+                    "interface-MQTT-ha/power_mqtt_ha.py: uses Unix system paths",
+                    "interface-MQTT-ha/emon_mqtt_ha.py: uses Unix system paths",
+                    "pow-mon/power-mon.py: mentions Raspberry Pi/Raspbian",
+                    "pow-mon/power-mon.py: uses Unix system paths",
+                    "pow-mon/power-mon.py: uses Linux/Raspberry Pi Python dependency",
+                    "emonitor/emonitor.py: uses Unix system paths",
+                    "emonitor/emonitor.py: uses Linux device paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Cozytouch-domoticz": {
+            "identity": "github.com/obone-git/cozytouch-domoticz@master",
+            "owner": "OBone-git",
+            "repository": "Cozytouch-domoticz",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 12,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "github metadata: mentions Raspberry Pi/Raspbian",
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses sudo",
+                    "README.md: uses Unix system paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "smarthome": {
+            "identity": "github.com/albertmon/smarthome@main",
+            "owner": "albertmon",
+            "repository": "smarthome",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 38,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "github metadata: mentions Raspberry Pi/Raspbian",
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "domo/README.md: uses shell commands",
+                    "attic/rtl-rrd/p1_to_rrd.py: uses Unix system paths",
+                    "attic/rtl-rrd/p1_to_rrd.py: uses Linux device paths",
+                    "attic/functions.sh: Linux-oriented file name",
+                    "attic/functions.sh: uses Unix system paths",
+                    "attic/functions.sh: uses Linux device paths",
+                    "attic/functions.sh: uses shell commands",
+                    "rhasspy/handler/timer.sh: Linux-oriented file name",
+                    "rhasspy/handler/timer.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Domoticz_Victor_Mousetrap_Cloud": {
+            "identity": "github.com/net-time/domoticz_victor_mousetrap_cloud@main",
+            "owner": "Net-time",
+            "repository": "Domoticz_Victor_Mousetrap_Cloud",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz_rpi_ultrasonic": {
+            "identity": "github.com/net-time/domoticz_rpi_ultrasonic@main",
+            "owner": "Net-time",
+            "repository": "Domoticz_rpi_ultrasonic",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 21,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "Ultrasonic/plugin.py: mentions Raspberry Pi/Raspbian",
+                    "Ultrasonic/plugin.py: uses Linux/Raspberry Pi Python dependency",
+                    "Ultrasonic/plugin.py: imports Linux-specific module rpi.gpio"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "AM2301_Domoticz_Python": {
+            "identity": "github.com/tom-van-pelt/am2301_domoticz_python@master",
+            "owner": "tom-van-pelt",
+            "repository": "AM2301_Domoticz_Python",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 67,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses apt package installation",
+                    "README.md: uses sudo",
+                    "README.md: uses Linux/Raspberry Pi Python dependency",
+                    "dht_simpletest.py: mentions Raspberry Pi/Raspbian",
+                    "dht_simpletest.py: uses Linux/Raspberry Pi Python dependency",
+                    "dht_simpletest.py: imports Linux-specific module adafruit_dht",
+                    "am2301(raspberrypi)(remote).py: uses Linux/Raspberry Pi Python dependency",
+                    "am2301(raspberrypi)(remote).py: imports Linux-specific module adafruit_dht",
+                    "am2301(raspberrypi)(local).py: mentions Raspberry Pi/Raspbian",
+                    "am2301(raspberrypi)(local).py: uses Linux/Raspberry Pi Python dependency",
+                    "am2301(raspberrypi)(local).py: imports Linux-specific module adafruit_dht"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "WXDomoPy": {
+            "identity": "github.com/sq9mdd/wxdomopy@master",
+            "owner": "SQ9MDD",
+            "repository": "WXDomoPy",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz_blueconnect": {
+            "identity": "github.com/dannyruijters/domoticz_blueconnect@main",
+            "owner": "DannyRuijters",
+            "repository": "domoticz_blueconnect",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domo2weewx": {
+            "identity": "github.com/sanrab/domo2weewx@main",
+            "owner": "sanrab",
+            "repository": "domo2weewx",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 8,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses Unix system paths",
+                    "domo2weewx.py: uses Unix system paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Domoticz-stan-czujnikow-email-python": {
+            "identity": "github.com/lukaz1987/domoticz-stan-czujnikow-email-python@main",
+            "owner": "lukaz1987",
+            "repository": "Domoticz-stan-czujnikow-email-python",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz_gaspar-deprecated": {
+            "identity": "github.com/empierre/domoticz_gaspar-deprecated@master",
+            "owner": "empierre",
+            "repository": "domoticz_gaspar-deprecated",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 5,
+                    "windows": 3,
+                    "both": 0
+                },
+                "reasons": [
+                    "domoticz_gaspar.bat: Windows-oriented file name",
+                    "domoticz_gaspar.sh: Linux-oriented file name",
+                    "domoticz_gaspar.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Shainny": {
+            "identity": "github.com/spatomequ/shainny@main",
+            "owner": "spatomequ",
+            "repository": "Shainny",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "domoticz-python": {
+            "identity": "github.com/coucou747/domoticz-python@main",
+            "owner": "coucou747",
+            "repository": "domoticz-python",
+            "branch": "main",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 45,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "domoticz_prog.py: mentions Raspberry Pi/Raspbian",
+                    "domoticz_prog.py: uses Linux/Raspberry Pi Python dependency",
+                    "domoticz_prog.py: imports Linux-specific module adafruit_dht",
+                    "domoticz_prog.py: imports Linux-specific module rpi.gpio",
+                    "domoticz_lib.py: uses Unix system paths",
+                    "domoticz_lib.py: uses Linux/Raspberry Pi Python dependency",
+                    "domoticz_lib.py: imports Linux-specific module adafruit_dht"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "domoticz-andino-x1": {
+            "identity": "github.com/hansaplast26/domoticz-andino-x1@master",
+            "owner": "hansaplast26",
+            "repository": "domoticz-andino-x1",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 10,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "AndinoX1Plug/plugin.py: uses Unix system paths",
+                    "AndinoX1Plug/plugin.py: uses Linux device paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "HYD6000": {
+            "identity": "github.com/andywhittaker/hyd6000@master",
+            "owner": "AndyWhittaker",
+            "repository": "HYD6000",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 27,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "README.md: uses sudo",
+                    "README.md: uses Unix system paths",
+                    "README.md: uses Linux device paths",
+                    "README.md: uses shell commands",
+                    "sofar.py: uses Unix system paths",
+                    "sofar.py: uses Linux device paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "domoticz-quick-access-mobile": {
+            "identity": "github.com/rwbl/domoticz-quick-access-mobile@main",
+            "owner": "rwbl",
+            "repository": "domoticz-quick-access-mobile",
+            "branch": "main",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 6,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: mentions Raspberry Pi/Raspbian",
+                    "GETSTARTED.md: mentions Raspberry Pi/Raspbian"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "veolia-idf": {
+            "identity": "github.com/s0nik42/veolia-idf@master",
+            "owner": "s0nik42",
+            "repository": "veolia-idf",
+            "branch": "master",
+            "registry_platforms": [
+                "linux",
+                "windows"
+            ],
+            "source": "detected",
+            "confidence": "high",
+            "evidence_class": "explicit_both",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "high",
+                "evidence_class": "explicit_both",
+                "scores": {
+                    "linux": 20,
+                    "windows": 13,
+                    "both": 8
+                },
+                "reasons": [
+                    "README.md: mentions Linux and Windows support",
+                    "README.md: uses apt package installation",
+                    "README.md: uses Unix system paths",
+                    "README.md: uses Windows script files",
+                    "dockerRun.BAT: Windows-oriented file name",
+                    "dockerRun.BAT: uses shell commands",
+                    "dockerAlpineRun.BAT: Windows-oriented file name",
+                    "dockerDebianRun.BAT: Windows-oriented file name",
+                    "dockerDebianRun.BAT: uses shell commands",
+                    "Dockerfile: uses apt package installation",
+                    "Dockerfile: uses Unix system paths"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "Domoticz-Tapo-P100-Plugin": {
+            "identity": "github.com/randomoutcome/domoticz-tapo-p100-plugin@master",
+            "owner": "RandomOutcome",
+            "repository": "Domoticz-Tapo-P100-Plugin",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 0,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "generic: no Linux-only or Windows-only evidence found"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "Domoticz-XAir-Plugin": {
+            "identity": "github.com/xiaoyao9184/domoticz-xair-plugin@master",
+            "owner": "xiaoyao9184",
+            "repository": "Domoticz-XAir-Plugin",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 32,
+                    "windows": 5,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses Unix system paths",
+                    "README.md: uses Linux device paths",
+                    "README.md: uses shell commands",
+                    "XAir-B35-Quality-Moniter/plugin.py: uses Windows serial port names",
+                    "install.sh: Linux-oriented file name",
+                    "install.sh: uses sudo",
+                    "install.sh: uses chmod",
+                    "install.sh: uses Unix system paths",
+                    "install.sh: uses Linux device paths",
+                    "install.sh: uses shell commands"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
+        },
+        "domoticz-plugins": {
+            "identity": "github.com/tcellerier/domoticz-plugins@master",
+            "owner": "tcellerier",
+            "repository": "domoticz-plugins",
+            "branch": "master",
+            "registry_platforms": [],
+            "source": "unknown",
+            "confidence": "unknown",
+            "evidence_class": "legacy",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux",
+                    "windows"
+                ],
+                "confidence": "low",
+                "evidence_class": "generic_python",
+                "scores": {
+                    "linux": 6,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "README.md: uses apt package installation",
+                    "README.md: uses sudo"
+                ]
+            },
+            "policy_action": "kept_low_confidence_new"
+        },
+        "GalconController": {
+            "identity": "github.com/suborb/galconcontroller@master",
+            "owner": "suborb",
+            "repository": "GalconController",
+            "branch": "master",
+            "registry_platforms": [
+                "linux"
+            ],
+            "source": "detected",
+            "confidence": "medium",
+            "evidence_class": "linux_evidence",
+            "reviewed": false,
+            "last_detection": {
+                "platforms": [
+                    "linux"
+                ],
+                "confidence": "medium",
+                "evidence_class": "linux_evidence",
+                "scores": {
+                    "linux": 30,
+                    "windows": 0,
+                    "both": 0
+                },
+                "reasons": [
+                    "domoticz/galcon/plugin.py: uses Linux/Raspberry Pi Python dependency",
+                    "domoticz/galcon/plugin.py: imports Linux-specific module bluepy",
+                    "galcon.py: uses Linux/Raspberry Pi Python dependency",
+                    "galcon.py: imports Linux-specific module bluepy"
+                ]
+            },
+            "policy_action": "accepted_new_medium_or_high"
         }
     }
 }
