@@ -1,0 +1,20 @@
+Task: Make PyPluginStore UI theme-compatible
+
+Summary:
+- Analyzed Nightglass and LittleTheme theme approaches.
+- Replaced PyPluginStore's fixed inline color palette with theme-aware CSS variables.
+- Mapped Nightglass/Domoticz semantic --dz-* variables and LittleTheme --Color... variables.
+- Kept cards and the filters bar visible through theme-provided surfaces, borders, and shadows.
+- Moved the empty-state color from JavaScript inline style into CSS.
+- Added a UI smoke test that rejects hard-coded hex/rgb/hsl colors and verifies theme variable mappings.
+
+Modified files:
+- pypluginstore.html
+- tests/test_ui_smoke.py
+- conductor/tracks.md
+- conductor/tracks/theme_css_20260706/spec.md
+- conductor/tracks/theme_css_20260706/plan.md
+- conductor/tracks/theme_css_20260706/metadata.json
+
+Why:
+PyPluginStore should blend with both variable-driven Domoticz themes like Nightglass and custom-background themes like LittleTheme without losing visible cards or filters.
