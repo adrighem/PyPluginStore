@@ -1,0 +1,23 @@
+Task: Robust PyPluginStore self-update state
+
+Summary:
+- Added durable self_update_state.json handling with atomic writes.
+- Added self-update phase logging in the main Domoticz log with self_update.log references.
+- Exposed self-update state through list_plugins, refresh_update_status, and self_update_status.
+- Updated the custom UI to render and poll self-update state for the manager card.
+- Regenerated plugin.py and added focused backend/UI tests.
+
+Files:
+- plugin_core.py
+- plugin.py
+- pypluginstore.html
+- tests/test_plugin_update_status.py
+- tests/test_plugin_registry.py
+- tests/test_ui_smoke.py
+- .github/maintainer/notes/issue-94.md
+
+Verification:
+- pytest -q: 199 passed
+- python -m py_compile plugin_core.py plugin.py .github/scripts/generate_plugin.py: passed
+- pytest -q tests/test_generated_plugin.py: passed
+- git diff --check: passed
