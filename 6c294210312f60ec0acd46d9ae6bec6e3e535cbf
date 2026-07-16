@@ -1,0 +1,3 @@
+Task: Update documentation, regenerate plugin.py, and run full verification
+
+Made the UI the primary local-registry workflow, retained advanced manual JSON guidance, regenerated plugin.py, and recorded the issue architecture and implementation state. Verification passed: 226 tests, Python compilation, registry validation, generated-runtime freshness, and diff checks. pytest-cov was unavailable and no dependency was added solely for reporting.
