@@ -1,0 +1,3 @@
+Task: Add the accessible local-registry dialog and interaction tests
+
+Added a visible Local registry action and one native dialog with list/form views, public-entry prefill, immutable edit keys, revision-aware CRUD, inline delete confirmation, field-level errors, conflict reloads, and responsive theme-token styling. Added UI structure, wiring, CSS, and JavaScript syntax tests.
