@@ -1,0 +1,3 @@
+Task: Add test-driven atomic local-registry persistence service
+
+Added exact-byte revisions, structured read and mutation errors, local entry validation, canonical atomic writes, preservation of untouched legacy entries, and focused failure-path tests. Reused HostRuntime.write_json_atomic with insertion-order support and temporary-file cleanup.
