@@ -1,0 +1,1 @@
+Conductor task: Add release descriptor and delivery-mode models without changing Git behavior. Added strict v1 delivery policy, multi-hoster repository identity, normalized release/index/tombstone validation, lineage checks, and local-registry Git-only protection. Verification: 140 focused release/registry/local/installed/status tests passed.
