@@ -1,0 +1,1 @@
+Provider contract correction: use the documented Forgejo/Gitea /api/v1/repos/{owner}/{repo}/archive/{commit}.zip endpoint rather than a web-route assumption. Verified against the current Codeberg Swagger schema.
