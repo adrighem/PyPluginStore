@@ -1,0 +1,1 @@
+Adds an independent Gitea adapter with explicit host configuration, bounded pagination, exact polymorphic tag-ref handling, annotated-tag peeling, full SHA-1/SHA-256 object IDs, commit archives, and host-returned asset URLs. Verification: 63 non-generic provider/model tests passed; diff check and Python compilation passed.
