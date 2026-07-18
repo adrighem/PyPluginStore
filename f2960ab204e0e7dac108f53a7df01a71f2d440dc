@@ -1,0 +1,5 @@
+Phase: Verification
+Automated verification: PYTHONDONTWRITEBYTECODE=1 pytest -q -p no:cacheprovider; python .github/scripts/generate_plugin.py with clean plugin.py diff; python .github/scripts/validate_plugins.py
+Result: 231 tests passed, generated parity passed, all 256 registry entries validated.
+Manual verification: explicitly waived by the user on 2026-07-18.
+Scope: final Codeberg/GitLab track verification.
