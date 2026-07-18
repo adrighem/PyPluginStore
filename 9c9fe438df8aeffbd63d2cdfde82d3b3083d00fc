@@ -1,0 +1,1 @@
+Conductor task: Implement the shared release-provider interface and normalized candidate model. Added a frozen 15-field candidate contract, strict provider-neutral validation, abstract adapter seam, timestamp-ordered stable selection, and exact name/full-match asset selection. Verification: 16 focused model/helper tests passed.
