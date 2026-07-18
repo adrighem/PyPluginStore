@@ -1,0 +1,1 @@
+Adds lossless legacy/object registry records, strict multi-host delivery policies, scanner/cleanup/platform integration, exact registry-index binding, authenticated and cached weekly report/update generation, and minimal workflow permissions. Verification: 228 registry/workflow/HTTP/index tests passed; 256 current registry entries parsed; Python compilation and diff check passed.
