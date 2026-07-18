@@ -1,0 +1,1 @@
+Hardens custom Forgejo/Gitea release enumeration with explicit reviewed page-cap capabilities, requires annotated-tag identity, and rejects unreviewed external asset types while preserving host-returned URLs. Verification: 83 provider/model tests passed; diff check and Python compilation passed.
