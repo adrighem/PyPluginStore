@@ -1,0 +1,1 @@
+Defines failing release-first activation, fail-closed metadata, revision lineage, mutation, recompression, downgrade, Git retention, migration routing, execution, and wrapper-compatibility contracts. RED verification: 46 expected failures because ReleaseManagementCoordinator and trigger-aware wrappers are not implemented yet.
