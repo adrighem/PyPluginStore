@@ -1,0 +1,1 @@
+Implements direct DNS-pinned HTTPS downloads, bounded strict provider JSON, deterministic report-only release-index generation, canonical ZIP tree certification, mutation quarantine, lineage/revision assignment, durable TTL caching, and narrow GitHub codeload redirect support. Verification: 188 provider/model/HTTP/index tests passed; Python compilation and diff check passed.
