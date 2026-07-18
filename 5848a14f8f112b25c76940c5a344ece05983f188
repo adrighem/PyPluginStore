@@ -1,0 +1,1 @@
+Adds strict schema-v1 generic HTTPS manifest normalization with repository/release binding, canonical digest/size/timestamp/source-path validation, future-date rejection, optional commit provenance, and standard JSON request headers. Verification: 80 provider/model tests passed; diff check and Python compilation passed.
