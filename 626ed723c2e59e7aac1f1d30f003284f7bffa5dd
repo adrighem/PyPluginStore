@@ -1,0 +1,5 @@
+Phase: Registry Automation Support
+Automated verification: PYTHONDONTWRITEBYTECODE=1 pytest tests/test_registry_scripts.py -q -p no:cacheprovider
+Result: 68 passed.
+Manual verification: explicitly waived by the user on 2026-07-18.
+Scope: Codeberg/GitLab validation and scheduled registry scanner behavior.
