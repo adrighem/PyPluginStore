@@ -1,0 +1,5 @@
+Phase: Runtime Host Support
+Automated verification: PYTHONDONTWRITEBYTECODE=1 pytest tests/test_plugin_registry.py tests/test_ui_smoke.py -q -p no:cacheprovider
+Result: 58 passed.
+Manual verification: explicitly waived by the user on 2026-07-18.
+Scope: Codeberg/GitLab runtime clone URLs, identities, links, and remote plugin lookup.
