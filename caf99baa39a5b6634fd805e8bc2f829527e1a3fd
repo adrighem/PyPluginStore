@@ -1,0 +1,1 @@
+Defines 91 archive extraction contracts covering traversal, platform path hazards, special files, encryption, collisions, exact roots, manager/VCS metadata, resource bounds, malformed/local-central/CRC failures, and destination cleanup. Test collection and Python compilation passed; representative executions fail at the intentionally absent ReleaseArchiveLimits seam.
