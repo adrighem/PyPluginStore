@@ -1,0 +1,1 @@
+Implements stable Forgejo/Codeberg release discovery with bounded pagination, exact tag-ref resolution, annotated-tag peeling, source archives, attached assets, and custom-host validation. Verification: 50 provider/model tests passed; diff check and Python compilation passed.
