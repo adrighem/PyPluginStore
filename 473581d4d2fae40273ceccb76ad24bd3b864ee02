@@ -1,0 +1,1 @@
+Automated verification: pytest -q tests/test_release_ui.py -k 'test_ui_ or test_release_channel_labels or test_release_status_text or test_release_action_model or test_confirmation_payload' (9 passed). Manual verification waived by user.
