@@ -1,0 +1,1 @@
+Conductor task: Add failing release metadata contract tests. Added 28 red tests for legacy delivery compatibility, normalized provider-neutral releases, sequence/freshness/binding, revision lineage, invalid metadata, and de-certification tombstones. Red verification: 28 expected failures due only to missing production contracts.
