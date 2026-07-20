@@ -1,0 +1,1 @@
+Automated verification: 830 release-focused tests passed, including migration execution, preservation approvals, rollback/recovery, Windows lock behavior, provider contracts, UI, and metadata validation; plugin_core.py/plugin.py/provider scripts compiled; diff check clean. Manual Linux/Windows/Domoticz verification waived by user.
