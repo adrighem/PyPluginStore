@@ -1,0 +1,1 @@
+Automated verification: python -m py_compile plugin_core.py; pytest -q tests/test_release_preservation.py tests/test_release_runtime_strategy.py tests/test_release_management.py tests/test_release_transactions.py tests/test_release_dependencies.py (165 passed); git diff --check. Manual verification waived by user on 2026-07-18.
