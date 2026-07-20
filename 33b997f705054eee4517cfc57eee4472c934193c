@@ -1,0 +1,1 @@
+Automated verification: 1118 tests passed; 839 release-focused tests passed; generated runtime parity and workflow security tests passed; Python compilation and git diff checks passed; registry schema and release-index binding validated for 256 plugin records; final security review found no blockers. Manual Linux/Windows/Domoticz verification waived by the user on 2026-07-18.
