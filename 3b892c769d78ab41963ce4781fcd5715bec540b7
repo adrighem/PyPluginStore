@@ -1,0 +1,1 @@
+Hides Git current/unknown status text, renders only actionable Git updates, and avoids empty status rows. UI release suite: 23 passed.
