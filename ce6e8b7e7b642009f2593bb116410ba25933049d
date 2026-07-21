@@ -1,0 +1,1 @@
+Enables one-pass v1-to-v2 de-certification when a bad package is removed from the registry, while requiring an explicit tombstone request. Generator suite: 49 passed.
