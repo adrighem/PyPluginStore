@@ -1,0 +1,1 @@
+Closes the producer input gap by strictly parsing registry-v2 package arrays while retaining legacy registry input only at a read boundary. Generator suite: 47 passed.
