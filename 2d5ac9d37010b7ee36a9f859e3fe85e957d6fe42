@@ -1,0 +1,1 @@
+Implemented strict persisted schema v2 using package_id for local registry records, install metadata, transaction journals, and pending queues. Valid v1 state is backed up or atomically normalized on read/recovery; malformed state remains untouched; in-flight legacy transactions retain forward recovery. External plugin_key names remain in-memory API compatibility only.
