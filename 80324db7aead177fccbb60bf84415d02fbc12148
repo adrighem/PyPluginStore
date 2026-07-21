@@ -1,0 +1,1 @@
+Replaces substring-based Codeberg detection in the one-time registry migration with canonical URL hostname parsing, resolving the CodeQL incomplete URL sanitization alert.
