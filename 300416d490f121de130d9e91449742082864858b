@@ -1,0 +1,1 @@
+Hardens certification output atomically, updates weekly PR semantics, and adds strict provider-neutral v2 writer/loader coverage. Focused identity/schema/workflow suites: 53 passed.
