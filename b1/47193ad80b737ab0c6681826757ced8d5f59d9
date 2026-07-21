@@ -1,0 +1,3 @@
+Task: Integrate cached registry overlays and local-registry API actions
+
+Cached the selected public registry, centralized public-plus-local normalization, added get/upsert/delete API actions with structured errors and derived entry metadata, and reapplied mutations without network access. Added tests for malformed files, cache reuse, validation responses, and restoring public overrides.

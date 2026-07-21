@@ -1,5 +1,0 @@
-Task summary: Implement Codeberg and GitLab plugin repository support.
-Changes: added multi-host runtime URL/identity/link handling, UI links, registry validation, scanner support, tests, workflow naming, and regenerated plugin.py.
-Core why: keep host differences behind normalized repository helpers while preserving GitHub compatibility.
-Related plan tasks: Runtime Host Support, Registry Automation Support, Verification.
-Refs #76
