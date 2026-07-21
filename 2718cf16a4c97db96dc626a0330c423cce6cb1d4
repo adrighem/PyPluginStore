@@ -1,0 +1,1 @@
+Added strict contract tests for registry-v2 package arrays, release-index-v2 record arrays, explicit Domoticz identities, deterministic serialization, provider-neutral repository URLs, duplicate rejection, and explicit legacy read boundaries. Files: tests/test_package_registry_v2.py and tests/test_registry_v2_scripts.py.
