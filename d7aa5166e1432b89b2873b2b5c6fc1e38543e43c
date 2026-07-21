@@ -1,0 +1,1 @@
+Added upgrade contracts for cached local registry bytes, atomic v1 backup/rewrite, strict local package records, release install metadata, transaction journals, pending queues, malformed state, restart recovery, and Windows paths. New persisted output must use package_id and never legacy keyed identity fields.
