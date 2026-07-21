@@ -1,0 +1,1 @@
+Regenerates plugin.py from plugin_core.py after package identity, release migration evidence, safe transaction cleanup, and tombstone reactivation changes. Generated-plugin and release runtime suites passed.
