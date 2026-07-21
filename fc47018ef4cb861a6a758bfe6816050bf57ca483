@@ -1,0 +1,1 @@
+Allows a reviewed de-certification tombstone to outlive removal of an invalid registry package, preserving release lineage during v2 cutover. Generator suite: 48 passed.
