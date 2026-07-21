@@ -1,0 +1,1 @@
+Implements strict public registry and update-times v2 consumption, explicit legacy adapters, v2-only cache writes, and automatic timestamp normalization. Focused registry/state/status suites: 111 passed.
