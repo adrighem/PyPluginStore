@@ -1,0 +1,1 @@
+Cuts public registry, update timestamps, platform detections, and release index to strict v2 package records. Publishes 257 certified packages, 44 active releases, and tombstones three invalid legacy release records; removes two invalid legacy registry records.
