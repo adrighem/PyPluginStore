@@ -1,0 +1,1 @@
+Weekly cleanup now atomically emits tombstone requests for removed packages with active releases. Both release-index preview and update consume the same request set, preventing silent disappearance failures while retaining strict v2 validation.
