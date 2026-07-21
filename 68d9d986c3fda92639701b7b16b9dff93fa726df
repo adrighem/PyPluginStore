@@ -1,0 +1,1 @@
+Created the package_identity_transition_20260721 track. The specification defines registry and release-index v2 package records, explicit Domoticz identities, legacy deployment upgrades, safe automatic Git-to-release ZIP transitions, and durable abort recovery. Files: conductor/tracks.md and conductor/tracks/package_identity_transition_20260721/.
