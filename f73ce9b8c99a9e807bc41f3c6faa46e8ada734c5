@@ -1,0 +1,1 @@
+Moves weekly scan, cleanup, platform detection, update-times, and validation to strict v2 records with certified identities and atomic writers. Adds deterministic public migration tooling. Focused CI/data suites: 165 passed.
