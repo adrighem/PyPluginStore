@@ -1,0 +1,1 @@
+Allows release_if_indexed packages to recover from a tombstoned release only through a newer fully certified release with explicit predecessor lineage. Adds scanner and runtime regression coverage for later release adoption.
