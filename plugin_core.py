@@ -12407,9 +12407,18 @@ class GitMigrationPreflight:
         top_level = self._output(
             self._run(plugin_dir, "rev-parse", "--show-toplevel")
         )
-        if not top_level or os.path.realpath(top_level) != os.path.realpath(
-            plugin_dir
-        ):
+        same_top_level = False
+        if top_level:
+            try:
+                same_top_level = os.path.samefile(
+                    top_level,
+                    plugin_dir,
+                )
+            except OSError:
+                same_top_level = os.path.normcase(
+                    os.path.realpath(top_level)
+                ) == os.path.normcase(os.path.realpath(plugin_dir))
+        if not same_top_level:
             return self._result(
                 reason="not_git_repository",
                 message="The plugin folder is not the Git repository root.",

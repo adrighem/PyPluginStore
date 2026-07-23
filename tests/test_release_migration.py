@@ -838,6 +838,49 @@ def test_non_git_directory_reports_unknown(plugin_core_module, tmp_path):
     assert result.relationship == "unknown"
 
 
+def test_preflight_accepts_canonical_git_path_casing(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    repository, release_commit = initialize_repository(
+        tmp_path / "MixedCasePlugin"
+    )
+    plugin = plugin_core_module.BasePlugin()
+    host = plugin.get_host()
+    real_run_git_read_only = host.run_git_read_only
+
+    def canonicalizing_git(command, cwd, timeout=15):
+        result = real_run_git_read_only(command, cwd, timeout=timeout)
+        if command[-2:] == ["rev-parse", "--show-toplevel"]:
+            result.stdout = result.stdout.swapcase()
+        return result
+
+    monkeypatch.setattr(
+        host,
+        "run_git_read_only",
+        canonicalizing_git,
+    )
+    monkeypatch.setattr(
+        plugin_core_module.os.path,
+        "samefile",
+        lambda left, right: (
+            os.path.realpath(left).casefold()
+            == os.path.realpath(right).casefold()
+        ),
+    )
+
+    result = evaluate_preflight(
+        plugin_core_module,
+        repository,
+        release_commit,
+        plugin=plugin,
+    )
+
+    assert result.allowed is True
+    assert result.relationship == "equal"
+
+
 def test_shallow_checkout_with_missing_ancestry_waits_when_fetch_fails(
     plugin_core_module, tmp_path, monkeypatch
 ):
