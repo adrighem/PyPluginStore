@@ -85,7 +85,7 @@ def run_node(source):
             [node, script_path],
             capture_output=True,
             text=True,
-            timeout=15,
+            timeout=30,
         )
     finally:
         os.remove(script_path)

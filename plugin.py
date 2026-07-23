@@ -485,8 +485,11 @@ class HostRuntime:
     def has_safe_directory_option(self, command):
         return any(str(part).startswith("safe.directory=") for part in command)
 
+    def platform_git_command(self, command):
+        return list(command)
+
     def safe_git_command(self, command, cwd):
-        safe_command = list(command)
+        safe_command = self.platform_git_command(command)
         repo_dir = os.path.realpath(os.path.abspath(cwd))
         if len(safe_command) > 0 and safe_command[0] == "git" and not self.has_safe_directory_option(safe_command):
             safe_command.insert(1, "-c")
@@ -619,9 +622,9 @@ class HostRuntime:
         return retry_result
 
     def run_git(self, command, cwd, timeout=15):
-        actual_command = command
+        actual_command = self.platform_git_command(command)
         if self.should_use_safe_git_directory(command, cwd):
-            actual_command = self.safe_git_command(command, cwd)
+            actual_command = self.safe_git_command(actual_command, cwd)
         result = self._run_git_once(actual_command, cwd, timeout=timeout)
         if result is not None and result.returncode != 0 and self.is_git_dubious_ownership(result):
             return self.handle_git_ownership_failure(result, actual_command, cwd, timeout)
@@ -1335,6 +1338,16 @@ class LinuxHostRuntime(HostRuntime):
 
 class WindowsHostRuntime(HostRuntime):
     platform_name = "windows"
+
+    def platform_git_command(self, command):
+        platform_command = list(command)
+        if (
+            platform_command
+            and platform_command[0] == "git"
+            and "core.longpaths=true" not in platform_command
+        ):
+            platform_command[1:1] = ["-c", "core.longpaths=true"]
+        return platform_command
 
     def windows_restart_script_file(self):
         return os.path.join(self.plugin_home_folder(), "restart_domoticz.ps1")

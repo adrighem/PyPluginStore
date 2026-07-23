@@ -206,6 +206,51 @@ def test_run_git_does_not_use_safe_directory_for_plugins_root_clone(plugin_core_
     scenario.assert_complete()
 
 
+def test_windows_git_commands_enable_long_paths_without_global_config(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugins_dir, manager_dir = configure_home(plugin_core_module, tmp_path)
+    runtime = plugin_core_module.WindowsHostRuntime(
+        plugin_core_module.Parameters
+    )
+    long_paths = ["git", "-c", "core.longpaths=true"]
+    scenario = GitScenario()
+    scenario.expect(
+        long_paths
+        + ["clone", "https://github.com/owner/repo.git", "Plugin"],
+        stdout="ok\n",
+    )
+    scenario.expect(
+        [
+            "git",
+            "-c",
+            "safe.directory=" + str(manager_dir.resolve()),
+            "-c",
+            "core.longpaths=true",
+            "rev-parse",
+            "--verify",
+            "HEAD^{commit}",
+        ],
+        stdout="abc1111\n",
+    )
+    monkeypatch.setattr(plugin_core_module.subprocess, "run", scenario.run)
+
+    clone_result = runtime.run_git(
+        ["git", "clone", "https://github.com/owner/repo.git", "Plugin"],
+        plugins_dir,
+    )
+    inspect_result = runtime.run_git_read_only(
+        ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+        manager_dir,
+    )
+
+    assert clone_result.returncode == 0
+    assert inspect_result.returncode == 0
+    scenario.assert_complete()
+
+
 def test_git_runners_decode_captured_output_as_utf8(
     plugin_core_module,
     tmp_path,
