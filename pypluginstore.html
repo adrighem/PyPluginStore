@@ -1236,6 +1236,8 @@
     let managementCache = {};
     let platformCache = {};
     let installedMatchDetailsCache = {};
+    let installationConflictCache = {};
+    let installedScanError = '';
     let managerKey = null;
     let managerIdentityVerdict = null;
     let managerStatusDetail = '';
@@ -2722,11 +2724,17 @@
                 managementCache = response.management || {};
                 platformCache = response.platforms || {};
                 installedMatchDetailsCache = response.installed_match_details || {};
+                installationConflictCache = response.installation_conflicts || {};
+                installedScanError = String(response.installed_scan_error || '');
                 managerKey = response.manager_key || null;
                 selfUpdateState = response.self_update || null;
                 renderManagerStatus();
                 filterAndRender();
-                renderManagerStatus(`Loaded ${Object.keys(response.data).length} plugins.`);
+                renderManagerStatus(
+                    installedScanError
+                        ? 'Installed plugin scan warning: ' + installedScanError
+                        : `Loaded ${Object.keys(response.data).length} plugins.`
+                );
             } else {
                 renderManagerStatus("Error loading plugins: " + (response ? response.message : "Unknown error"));
             }
@@ -3133,9 +3141,21 @@
 
         const searchQuery = document.getElementById('search-box').value.toLowerCase();
         const showInstalledOnly = document.getElementById('installed-toggle').checked;
+        const renderData = Object.assign({}, pluginCache);
+        installedCache.forEach(key => {
+            if (!Object.prototype.hasOwnProperty.call(renderData, key)) {
+                renderData[key] = [
+                    '',
+                    '',
+                    'Installed plugin is not present in the current registry.',
+                    '',
+                    ''
+                ];
+            }
+        });
 
-        const filteredKeys = Object.keys(pluginCache).filter(key => {
-            const info = pluginCache[key] || [];
+        const filteredKeys = Object.keys(renderData).filter(key => {
+            const info = renderData[key] || [];
             const description = String(info[2] || '').toLowerCase();
             const displayName = formatPluginDisplayName(key).toLowerCase();
             const matchesSearch = description.includes(searchQuery) ||
@@ -3148,7 +3168,7 @@
         });
 
         const filteredData = {};
-        filteredKeys.forEach(key => filteredData[key] = pluginCache[key]);
+        filteredKeys.forEach(key => filteredData[key] = renderData[key]);
 
         renderPlugins(filteredData, installedCache);
     }
@@ -3518,6 +3538,11 @@
             const platforms = platformCache[key] || ['unknown'];
             const displayName = formatPluginDisplayName(key);
             const matchDetails = installedMatchDetailsCache[key] || {};
+            const installationConflict = installationConflictCache[key] || null;
+            const hasRegistryEntry = Object.prototype.hasOwnProperty.call(
+                pluginCache || {},
+                key
+            );
             const isGit = matchDetails.is_git !== false;
             const management = managementCache[key] || null;
             const hasRepoMismatch = Boolean(matchDetails.registry_mismatch || matchDetails.repo_mismatch || matchDetails.branch_mismatch || updateStatus === 'mismatch');
@@ -3652,6 +3677,30 @@
                 }
             }
 
+            if (installationConflict && installationConflict.management_error) {
+                const conflictDetail = document.createElement('span');
+                conflictDetail.className = 'release-error-detail';
+                conflictDetail.textContent = (
+                    isInstalled ? 'Management blocked: ' : 'Installation blocked: '
+                ) +
+                    String(installationConflict.management_error);
+                meta.appendChild(document.createElement('br'));
+                meta.appendChild(conflictDetail);
+            }
+
+            if (
+                isInstalled
+                && !management
+                && matchDetails.management_error
+            ) {
+                const unmanagedDetail = document.createElement('span');
+                unmanagedDetail.className = 'release-error-detail';
+                unmanagedDetail.textContent = 'Management blocked: ' +
+                    String(matchDetails.management_error);
+                meta.appendChild(document.createElement('br'));
+                meta.appendChild(unmanagedDetail);
+            }
+
             if (isInstalled && hasRepoMismatch) {
                 const installedRepo = String(matchDetails.installed_repo || 'unknown repo');
                 const installedBranch = String(matchDetails.installed_branch || '');
@@ -3666,13 +3715,15 @@
             const actions = document.createElement('div');
             actions.className = 'pps-actions';
 
-            const repoLink = document.createElement('a');
-            repoLink.className = 'btn-info btn-link';
-            repoLink.href = buildRepoUrl(author, repo, branch);
-            repoLink.target = '_blank';
-            repoLink.rel = 'noopener noreferrer';
-            repoLink.textContent = 'Repo';
-            actions.appendChild(repoLink);
+            if (hasRegistryEntry) {
+                const repoLink = document.createElement('a');
+                repoLink.className = 'btn-info btn-link';
+                repoLink.href = buildRepoUrl(author, repo, branch);
+                repoLink.target = '_blank';
+                repoLink.rel = 'noopener noreferrer';
+                repoLink.textContent = 'Repo';
+                actions.appendChild(repoLink);
+            }
 
             if (isInstalled) {
                 const managementActions = releaseManagementActions(management, {
@@ -3683,7 +3734,26 @@
                 });
                 const updateButton = document.createElement('button');
                 const releaseUpdateable = management && management.channel === 'release' && management.updateable;
-                if (!managementActions.includes('update')) {
+                if (
+                    installedScanError
+                    || installationConflict
+                    || !hasRegistryEntry
+                    || matchDetails.management_error
+                ) {
+                    updateButton.className = 'btn-update btn-update-disabled';
+                    updateButton.title = installedScanError
+                        || (
+                            installationConflict
+                            && installationConflict.management_error
+                        )
+                        || matchDetails.management_error
+                        || (
+                            !hasRegistryEntry
+                            && 'Restore this plugin to the registry before updating it.'
+                        )
+                        || 'Resolve the installed plugin conflict first.';
+                    updateButton.disabled = true;
+                } else if (!managementActions.includes('update')) {
                     updateButton.className = 'btn-update btn-update-disabled';
                     updateButton.title = management && management.restart_pending ? 'Restart required before another update' : 'Updates are unavailable';
                     updateButton.disabled = true;
@@ -3725,6 +3795,12 @@
                     useReleaseButton.type = 'button';
                     useReleaseButton.textContent = 'Use Release channel';
                     useReleaseButton.title = 'Use the Release channel instead of Git commits';
+                    if (installedScanError || installationConflict) {
+                        useReleaseButton.disabled = true;
+                        useReleaseButton.title = installedScanError
+                            || installationConflict.management_error
+                            || 'Resolve the installed plugin conflict first.';
+                    }
                     actions.appendChild(useReleaseButton);
                 }
 
@@ -3735,6 +3811,12 @@
                     rollbackButton.dataset.action = 'rollback';
                     rollbackButton.type = 'button';
                     rollbackButton.textContent = 'Rollback';
+                    if (installedScanError || installationConflict) {
+                        rollbackButton.disabled = true;
+                        rollbackButton.title = installedScanError
+                            || installationConflict.management_error
+                            || 'Resolve the installed plugin conflict first.';
+                    }
                     actions.appendChild(rollbackButton);
                 }
 
@@ -3745,6 +3827,33 @@
                     removeButton.dataset.action = 'remove';
                     removeButton.type = 'button';
                     removeButton.textContent = 'Remove';
+                    if (
+                        installedScanError
+                        || installationConflict
+                        || matchDetails.management_error
+                        || !hasRegistryEntry
+                        || (
+                            management
+                            && management.status === 'verification_failed'
+                        )
+                    ) {
+                        removeButton.disabled = true;
+                        removeButton.title = installedScanError
+                            || (
+                                installationConflict
+                                && installationConflict.management_error
+                            )
+                            || matchDetails.management_error
+                            || (
+                                !hasRegistryEntry
+                                && 'Restore this plugin to the registry before removing it.'
+                            )
+                            || (
+                                management
+                                && management.verification_message
+                            )
+                            || 'Resolve the installed plugin conflict first.';
+                    }
                     actions.appendChild(removeButton);
                 }
             } else {
@@ -3754,6 +3863,12 @@
                 installButton.dataset.action = 'install';
                 installButton.type = 'button';
                 installButton.textContent = 'Install';
+                if (installedScanError || installationConflict) {
+                    installButton.disabled = true;
+                    installButton.title = installedScanError
+                        || installationConflict.management_error
+                        || 'Resolve the installed plugin conflict first.';
+                }
                 actions.appendChild(installButton);
             }
 
@@ -3778,6 +3893,13 @@
     }
 
     async function handleAction(action, pluginKey) {
+        if (
+            installedScanError
+            && ['install', 'update', 'remove', 'rollback', 'use_release'].includes(action)
+        ) {
+            renderManagerStatus(installedScanError);
+            return;
+        }
         if (
             managerActionIsMutating(action) &&
             !managerIdentityAllowsMutations(managerIdentityVerdict)
@@ -3857,11 +3979,17 @@
                 managementCache = response.management || managementCache;
                 platformCache = response.platforms || platformCache;
                 installedMatchDetailsCache = response.installed_match_details || installedMatchDetailsCache;
+                installationConflictCache = response.installation_conflicts || installationConflictCache;
+                installedScanError = String(response.installed_scan_error || '');
                 managerKey = response.manager_key || managerKey;
                 selfUpdateState = response.self_update || selfUpdateState;
                 renderManagerStatus();
                 filterAndRender();
-                renderManagerStatus("Update status refreshed.");
+                renderManagerStatus(
+                    installedScanError
+                        ? 'Installed plugin scan warning: ' + installedScanError
+                        : 'Update status refreshed.'
+                );
             } else {
                 alert("Refresh failed: " + (response ? response.message : "Unknown error"));
                 renderManagerStatus("Refresh failed.");

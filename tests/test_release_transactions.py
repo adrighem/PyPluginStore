@@ -423,6 +423,40 @@ def prepare_other_release_install(
     )
 
 
+def prepare_new_release_install(manager, operation_id="operation-001"):
+    transaction = manager.create_transaction(
+        plugin_key="ExamplePlugin",
+        operation_id=operation_id,
+        operation="release_install",
+        expected_current={"management_mode": "absent"},
+        target=target_release(),
+    )
+    write_marker(transaction.paths.staged_code, "new-code", "new-only.py")
+    staged_code = Path(transaction.paths.staged_code)
+    (staged_code / "plugin.py").write_text(
+        "# new plugin\n",
+        encoding="utf-8",
+    )
+    (staged_code / ".pypluginstore.json").write_text(
+        json.dumps(
+            install_metadata_document(
+                NEW_COMMIT,
+                NEW_TREE,
+                2,
+                "github:owner/example-plugin:v2.0.0",
+                artifact_inventory(staged_code),
+            )
+        ),
+        encoding="utf-8",
+    )
+    Path(transaction.paths.staged_dependencies).mkdir()
+    manager.mark_staged_verified(transaction.operation_id)
+    return manager.mark_dependencies_staged(
+        transaction.operation_id,
+        dependency_snapshot(),
+    )
+
+
 def assert_old_live(transaction):
     assert read_marker(transaction.paths.live_code) == "old-code"
     assert read_marker(transaction.paths.live_dependencies) == "old-dependencies"
@@ -2578,6 +2612,124 @@ def test_rollback_origin_survives_a_crash_without_preexisting_live_trees(
     assert recovered.phase == "rolled_back"
     assert not Path(recovered.paths.live_code).exists()
     assert not Path(recovered.paths.live_dependencies).exists()
+
+
+def test_release_install_rechecks_repository_alias_before_activation(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, _ = make_manager(plugin_core_module, tmp_path)
+    manager.plugin.plugin_data = {
+        "ExamplePlugin": [
+            "owner",
+            "example-plugin",
+            "Example",
+            "main",
+            "",
+        ],
+    }
+    manager.plugin.registry_entries["ExamplePlugin"] = (
+        plugin_core_module.RegistryEntry(
+            "ExamplePlugin",
+            "owner",
+            "example-plugin",
+            "Example",
+            "main",
+        )
+    )
+    transaction = manager.create_transaction(
+        plugin_key="ExamplePlugin",
+        operation_id="operation-001",
+        operation="release_install",
+        expected_current={"management_mode": "absent"},
+        target=target_release(),
+    )
+    write_marker(transaction.paths.staged_code, "new-code", "new-only.py")
+    staged_code = Path(transaction.paths.staged_code)
+    (staged_code / "plugin.py").write_text(
+        "# new plugin\n",
+        encoding="utf-8",
+    )
+    (staged_code / ".pypluginstore.json").write_text(
+        json.dumps(
+            install_metadata_document(
+                NEW_COMMIT,
+                NEW_TREE,
+                2,
+                "github:owner/example-plugin:v2.0.0",
+                artifact_inventory(staged_code),
+            )
+        ),
+        encoding="utf-8",
+    )
+    Path(transaction.paths.staged_dependencies).mkdir()
+    manager.mark_staged_verified(transaction.operation_id)
+    manager.mark_dependencies_staged(
+        transaction.operation_id,
+        dependency_snapshot(),
+    )
+
+    alias_dir = plugins_dir / "legacy-example-folder"
+    alias_dir.mkdir()
+    alias_metadata = install_metadata_document(
+        OLD_COMMIT,
+        OLD_TREE,
+        1,
+        "github:owner/example-plugin:v1.0.0",
+    )
+    alias_metadata["package_id"] = "RemovedExamplePlugin"
+    (alias_dir / ".pypluginstore.json").write_text(
+        json.dumps(alias_metadata),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="another installed folder now claims",
+    ):
+        manager.activate(transaction.operation_id)
+
+    rolled_back = manager.load_transaction(transaction.operation_id)
+    assert rolled_back.phase == "rolled_back"
+    assert alias_dir.is_dir()
+    assert not (plugins_dir / "ExamplePlugin").exists()
+
+
+def test_release_install_never_backs_up_a_late_canonical_folder(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    manager, plugins_dir, _ = make_manager(plugin_core_module, tmp_path)
+    transaction = prepare_new_release_install(manager)
+    original_replace = manager._replace_directory
+
+    def inject_late_folder(
+        current,
+        source,
+        destination,
+        pending_phase,
+        completed_phase,
+    ):
+        if pending_phase == "code_backup_pending":
+            write_marker(source, "late-writer")
+        return original_replace(
+            current,
+            source,
+            destination,
+            pending_phase,
+            completed_phase,
+        )
+
+    monkeypatch.setattr(manager, "_replace_directory", inject_late_folder)
+
+    with pytest.raises(ValueError, match="appeared"):
+        manager.activate(transaction.operation_id)
+
+    stale = manager.load_transaction(transaction.operation_id)
+    assert stale.phase == "stale_target"
+    assert read_marker(plugins_dir / "ExamplePlugin") == "late-writer"
+    assert not Path(stale.paths.backup_code).exists()
 
 
 def test_recovery_resumes_after_one_rollback_component_was_restored(

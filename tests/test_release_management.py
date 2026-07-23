@@ -330,6 +330,27 @@ def test_activation_honors_registry_policy_and_explicit_channel_choice(
         assert decision.release is target
 
 
+@pytest.mark.parametrize("installed_mode", ["git", "release"])
+def test_install_never_creates_a_second_copy_of_an_installed_plugin(
+    plugin_core_module,
+    installed_mode,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="install",
+        installed_mode=installed_mode,
+        release=release_descriptor(plugin_core_module),
+    )
+
+    assert decision.route == "none"
+    assert decision.status == "current"
+    assert decision.reason == "plugin_already_installed"
+
+
 @pytest.mark.parametrize(
     (
         "preferred",
@@ -1346,7 +1367,7 @@ def test_local_override_on_release_install_requires_git_checkout(
         ),
         encoding="utf-8",
     )
-    plugin.installed_plugin_folders[entry.key] = entry.key
+    installed = plugin.getInstalledPlugins(plugins_dir)
     selection = runtime_selection(
         plugin_core_module,
         release_descriptor(plugin_core_module),
@@ -1356,9 +1377,19 @@ def test_local_override_on_release_install_requires_git_checkout(
         "getCurrentReleaseMetadataSelection",
         lambda: selection,
     )
+    monkeypatch.setattr(
+        plugin.release_transaction_manager,
+        "plugin_lifecycle_state",
+        lambda plugin_key: {
+            "rollback_available": True,
+            "rollback_version": "1.3.0",
+            "rollback_revision": 6,
+            "restart_pending": False,
+        },
+    )
 
     management = plugin.getPluginManagementMap(
-        [entry.key],
+        installed,
         {entry.key: "current"},
         {},
         str(plugins_dir),
@@ -1385,6 +1416,8 @@ def test_local_override_on_release_install_requires_git_checkout(
     assert management["status"] == "local_override_requires_git_checkout"
     assert management["updateable"] is False
     assert "rollback" in management["verification_message"].lower()
+    assert management["rollback_available"] is True
+    assert management["rollback_version"] == "1.3.0"
     assert update_calls == []
     assert responses[0]["status"] == "error"
     assert responses[0]["action"] == "update"

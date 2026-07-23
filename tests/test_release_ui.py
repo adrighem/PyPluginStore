@@ -220,6 +220,8 @@ def test_list_plugins_adds_release_management_map_without_changing_legacy_data(
     assert response["data"] == original_data
     assert response["versions"] == versions
     assert response["update_status"] == statuses
+    assert response["installation_conflicts"] == {}
+    assert response["installed_scan_error"] == ""
     assert plugin.plugin_data == original_data
     assert isinstance(response["data"][PLUGIN_KEY], list)
     assert isinstance(response["data"]["LegacyPlugin"], list)
@@ -277,6 +279,8 @@ def test_refresh_status_rebuilds_management_map_after_release_status_refresh(
     assert calls == ["fetch", "refresh", "management"]
     assert responses[0]["management"] == {PLUGIN_KEY: state}
     assert responses[0]["update_status"][PLUGIN_KEY] == "available"
+    assert responses[0]["installation_conflicts"] == {}
+    assert responses[0]["installed_scan_error"] == ""
 
 
 def test_release_update_action_does_not_require_dot_git(
@@ -285,8 +289,36 @@ def test_release_update_action_does_not_require_dot_git(
     plugin, plugins_dir = configure_api_plugin(plugin_core_module, tmp_path)
     release_dir = plugins_dir / PLUGIN_KEY
     release_dir.mkdir()
-    (release_dir / ".pypluginstore.json").write_text(
-        json.dumps({"management_mode": "release"}), encoding="utf-8"
+    (release_dir / "plugin.py").write_text(
+        "# release plugin\n",
+        encoding="utf-8",
+    )
+    plugin.install_metadata_service.write(
+        release_dir,
+        plugin_core_module.InstallMetadata(
+            schema=2,
+            plugin_key=PLUGIN_KEY,
+            management_mode="release",
+            repository_identity="github.com/owner/example-plugin",
+            version="2.0.0",
+            tag="v2.0.0",
+            release_id="github:owner/example-plugin:v2.0.0",
+            release_revision=2,
+            released_at="2026-07-18T07:00:00Z",
+            commit="1" * 40,
+            artifact_sha256="2" * 64,
+            artifact_tree_sha256="3" * 64,
+            artifact_provenance="forge_source_archive",
+            artifact_files={
+                "plugin.py": {
+                    "sha256": "4" * 64,
+                    "size": 17,
+                },
+            },
+            preserved_files={},
+            index_sequence=2,
+            installed_at="2026-07-18T08:00:00Z",
+        ),
     )
     assert not (release_dir / ".git").exists()
     calls = []
@@ -529,6 +561,7 @@ def test_ui_load_and_refresh_treat_management_map_as_optional_extension():
     script = load_inline_script()
     load_plugins = extract_js_function(script, "loadPlugins")
     refresh = extract_js_function(script, "refreshUpdateStatus")
+    filter_plugins = extract_js_function(script, "filterAndRender")
 
     assert "managementCache = response.management || {};" in load_plugins
     assert (
@@ -537,6 +570,15 @@ def test_ui_load_and_refresh_treat_management_map_as_optional_extension():
     assert "pluginCache = response.data" in load_plugins
     assert "updateStatusCache = response.update_status || {}" in load_plugins
     assert "versionsCache = response.versions || {}" in load_plugins
+    assert (
+        "installationConflictCache = response.installation_conflicts || {};"
+        in load_plugins
+    )
+    assert "installedScanError = String(response.installed_scan_error || '')" in load_plugins
+    assert "response.installation_conflicts || installationConflictCache" in refresh
+    assert "installed plugin scan warning" in load_plugins.lower()
+    assert "installedCache.forEach" in filter_plugins
+    assert "not present in the current registry" in filter_plugins
 
 
 def test_ui_has_release_and_git_channel_badges_with_safe_text_rendering():
@@ -556,6 +598,13 @@ def test_ui_has_release_and_git_channel_badges_with_safe_text_rendering():
     assert "innerHTML = formatReleaseManagementStatus" not in script
     assert "const managementText = formatReleaseManagementStatus(management);" in render_plugins
     assert "if (managementText)" in render_plugins
+    assert "installationConflict.management_error" in render_plugins
+    assert "installButton.disabled = true" in render_plugins
+    assert "removeButton.disabled = true" in render_plugins
+    assert "!hasRegistryEntry" in render_plugins
+    assert "matchDetails.management_error" in render_plugins
+    assert "useReleaseButton.disabled = true" in render_plugins
+    assert "rollbackButton.disabled = true" in render_plugins
 
 
 def test_release_channel_labels_are_explicit():
