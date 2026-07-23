@@ -6161,6 +6161,16 @@ class _ReleasePreservationNode:
     sha256: str = ""
 
 
+RELEASE_VOLATILE_CACHE_DIRECTORIES = frozenset(
+    {
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+    }
+)
+
+
 class ReleasePreservationService:
     """Inventory and overlay only reviewed, non-executable local data."""
 
@@ -6171,12 +6181,7 @@ class ReleasePreservationService:
         "git_migration",
     }
     TRIGGERS = {"automatic", "manual"}
-    CACHE_DIRECTORIES = {
-        "__pycache__",
-        ".pytest_cache",
-        ".mypy_cache",
-        ".ruff_cache",
-    }
+    CACHE_DIRECTORIES = RELEASE_VOLATILE_CACHE_DIRECTORIES
     EXECUTABLE_SUFFIXES = {
         ".bat",
         ".cmd",
@@ -7385,9 +7390,11 @@ class ChannelPreferenceService:
         )
 
 
-RELEASE_TRANSACTION_SCHEMA_VERSION = 2
+RELEASE_TRANSACTION_SCHEMA_VERSION = 3
+PREVIOUS_RELEASE_TRANSACTION_SCHEMA_VERSION = 2
 LEGACY_RELEASE_TRANSACTION_SCHEMA_VERSION = 1
-RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION = 2
+RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION = 3
+PREVIOUS_RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION = 2
 LEGACY_RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION = 1
 RELEASE_TRANSACTION_OPERATIONS = {
     "release_install",
@@ -7408,6 +7415,38 @@ RELEASE_TRANSACTION_PREACTIVATION_PHASES = {
     "dependencies_staged",
     "dependency_blocked",
 }
+RELEASE_MIGRATION_RESTORE_PHASES = {
+    "migration_restore_pending",
+    "migration_restore_completed",
+}
+RELEASE_GLOBAL_DEPENDENCY_ROLLBACK_PHASES = {
+    "dependencies_backup_pending",
+    "dependencies_backed_up",
+    "dependencies_activation_pending",
+    "dependencies_activated",
+    "code_activation_pending",
+    "release_activated",
+    "restart_pending",
+    "release_managed",
+}
+RELEASE_TRANSACTION_ACTIVE_PHASES = {
+    "created",
+    "staged_verified",
+    "dependency_confirmation_required",
+    "dependencies_staged",
+    "code_backup_pending",
+    "code_backed_up",
+    *RELEASE_MIGRATION_RESTORE_PHASES,
+    "dependencies_backup_pending",
+    "dependencies_backed_up",
+    "dependencies_activation_pending",
+    "dependencies_activated",
+    "code_activation_pending",
+    "release_activated",
+    "rollback_pending",
+    "queued_locked",
+    "restart_pending",
+}
 RELEASE_TRANSACTION_PHASES = RELEASE_TRANSACTION_FINAL_PHASES | {
     "created",
     "staged_verified",
@@ -7415,6 +7454,7 @@ RELEASE_TRANSACTION_PHASES = RELEASE_TRANSACTION_FINAL_PHASES | {
     "dependencies_staged",
     "code_backup_pending",
     "code_backed_up",
+    *RELEASE_MIGRATION_RESTORE_PHASES,
     "dependencies_backup_pending",
     "dependencies_backed_up",
     "dependencies_activation_pending",
@@ -7677,6 +7717,7 @@ class ReleaseTransactionPaths:
 class ReleaseTransaction:
     operation_id: str
     plugin_key: str
+    live_folder: str
     operation: str
     phase: str
     expected_current: dict
@@ -7695,6 +7736,7 @@ class ReleaseTransaction:
             "schema_version": RELEASE_TRANSACTION_SCHEMA_VERSION,
             "operation_id": self.operation_id,
             "package_id": self.plugin_key,
+            "live_folder": self.live_folder,
             "operation": self.operation,
             "phase": self.phase,
             "expected_current": _transaction_json_copy(
@@ -7723,12 +7765,24 @@ class ReleaseTransaction:
 
     @classmethod
     def from_document(cls, document, expected_paths):
-        """Parse one strict schema-v2 transaction journal."""
+        """Parse one strict current transaction journal."""
         return cls._from_document(
             document,
             expected_paths,
             schema_version=RELEASE_TRANSACTION_SCHEMA_VERSION,
             identity_field="package_id",
+            has_live_folder=True,
+        )
+
+    @classmethod
+    def from_previous_document(cls, document, expected_paths):
+        """Normalize one schema-v2 transaction journal."""
+        return cls._from_document(
+            document,
+            expected_paths,
+            schema_version=PREVIOUS_RELEASE_TRANSACTION_SCHEMA_VERSION,
+            identity_field="package_id",
+            has_live_folder=False,
         )
 
     @classmethod
@@ -7739,6 +7793,7 @@ class ReleaseTransaction:
             expected_paths,
             schema_version=LEGACY_RELEASE_TRANSACTION_SCHEMA_VERSION,
             identity_field="plugin_key",
+            has_live_folder=False,
         )
 
     @classmethod
@@ -7749,27 +7804,31 @@ class ReleaseTransaction:
         *,
         schema_version,
         identity_field,
+        has_live_folder,
     ):
+        required_fields = [
+            "schema_version",
+            "operation_id",
+            identity_field,
+            "operation",
+            "phase",
+            "expected_current",
+            "target",
+            "dependency_snapshot",
+            "dependency_state",
+            "staged_snapshot",
+            "paths",
+            "created_at",
+            "updated_at",
+            "error",
+            "rollback_from",
+        ]
+        if has_live_folder:
+            required_fields.insert(3, "live_folder")
         document = _require_document(
             document,
             "release transaction",
-            (
-                "schema_version",
-                "operation_id",
-                identity_field,
-                "operation",
-                "phase",
-                "expected_current",
-                "target",
-                "dependency_snapshot",
-                "dependency_state",
-                "staged_snapshot",
-                "paths",
-                "created_at",
-                "updated_at",
-                "error",
-                "rollback_from",
-            ),
+            tuple(required_fields),
         )
         if (
             type(document["schema_version"]) is not int
@@ -7783,6 +7842,15 @@ class ReleaseTransaction:
         plugin_key = _require_plugin_key(
             document[identity_field], identity_field
         )
+        live_folder = (
+            _require_plugin_key(document["live_folder"], "live_folder")
+            if has_live_folder
+            else plugin_key
+        )
+        if os.path.basename(expected_paths.live_code) != live_folder:
+            raise ValueError(
+                "Release transaction live folder is not manager-owned."
+            )
         operation = _require_nonempty_string(
             document["operation"],
             "operation",
@@ -7834,9 +7902,23 @@ class ReleaseTransaction:
             raise ValueError("rollback_from is unsupported.")
         if phase == "rollback_pending" and not rollback_from:
             raise ValueError("rollback_pending requires rollback_from.")
+        if phase in RELEASE_MIGRATION_RESTORE_PHASES:
+            if schema_version != RELEASE_TRANSACTION_SCHEMA_VERSION:
+                raise ValueError(
+                    "Migration restore phases require the current schema."
+                )
+            if (
+                operation != "release_migration"
+                or rollback_from != "code_backed_up"
+                or not error
+            ):
+                raise ValueError(
+                    "Migration restore phase descriptor is inconsistent."
+                )
         return cls(
             operation_id=operation_id,
             plugin_key=plugin_key,
+            live_folder=live_folder,
             operation=operation,
             phase=phase,
             expected_current=_transaction_json_copy(
@@ -7929,11 +8011,15 @@ class ReleaseTransactionManager:
         plugin_key,
         operation_id,
         *,
+        live_folder=None,
         create_state=False,
     ):
         """Derive manager-owned paths without requiring payload containers."""
         plugin_key = _require_plugin_key(plugin_key)
         operation_id = _require_plugin_key(operation_id, "operation_id")
+        if live_folder is None:
+            live_folder = plugin_key
+        live_folder = _require_plugin_key(live_folder, "live_folder")
         manager_dir, plugins_dir, state_root = self._manager_paths(
             create=create_state
         )
@@ -7959,7 +8045,7 @@ class ReleaseTransactionManager:
             staged_dependencies=os.path.join(staging_root, "dependencies"),
             backup_code=os.path.join(backup_root, "code"),
             backup_dependencies=os.path.join(backup_root, "dependencies"),
-            live_code=os.path.join(plugins_dir, plugin_key),
+            live_code=os.path.join(plugins_dir, live_folder),
             live_dependencies=os.path.join(manager_dir, ".shared_deps"),
         )
 
@@ -8009,10 +8095,18 @@ class ReleaseTransactionManager:
             self._fsync_directory(os.path.dirname(directory))
         self._require_operation_containers(paths)
 
-    def _paths(self, plugin_key, operation_id, create_parents=False):
+    def _paths(
+        self,
+        plugin_key,
+        operation_id,
+        *,
+        live_folder=None,
+        create_parents=False,
+    ):
         paths = self._canonical_paths(
             plugin_key,
             operation_id,
+            live_folder=live_folder,
             create_state=create_parents,
         )
         if create_parents:
@@ -8021,12 +8115,12 @@ class ReleaseTransactionManager:
             self._require_operation_containers(paths)
         return paths
 
-    def _process_lock(self, state_root):
+    def _process_lock(self, lock_path):
         with _RELEASE_TRANSACTION_LOCKS_GUARD:
-            process_lock = _RELEASE_TRANSACTION_LOCKS.get(state_root)
+            process_lock = _RELEASE_TRANSACTION_LOCKS.get(lock_path)
             if process_lock is None:
                 process_lock = threading.Lock()
-                _RELEASE_TRANSACTION_LOCKS[state_root] = process_lock
+                _RELEASE_TRANSACTION_LOCKS[lock_path] = process_lock
         return process_lock
 
     def _lock_file(self, descriptor, blocking):
@@ -8069,17 +8163,17 @@ class ReleaseTransactionManager:
         fcntl.flock(descriptor, fcntl.LOCK_UN)
 
     @contextmanager
-    def operation_lock(self, blocking=True):
+    def _manager_lock(self, lock_name, blocking):
         if type(blocking) is not bool:
             raise ValueError("blocking must be a boolean.")
         _manager, _plugins, state_root = self._manager_paths(create=True)
-        process_lock = self._process_lock(state_root)
+        lock_path = os.path.join(state_root, lock_name)
+        process_lock = self._process_lock(lock_path)
         if not process_lock.acquire(blocking=blocking):
             raise RuntimeError("Another release transaction is already running.")
         descriptor = None
         locked = False
         try:
-            lock_path = os.path.join(state_root, "transactions.lock")
             previous_stat = None
             if os.path.lexists(lock_path):
                 previous_stat = os.lstat(lock_path)
@@ -8121,6 +8215,17 @@ class ReleaseTransactionManager:
                 os.close(descriptor)
             process_lock.release()
 
+    @contextmanager
+    def operation_lock(self, blocking=True):
+        with self._manager_lock("transactions.lock", blocking):
+            yield
+
+    @contextmanager
+    def workflow_lock(self, blocking=True):
+        """Serialize full release preparation around the global dependency tree."""
+        with self._manager_lock("release-workflow.lock", blocking):
+            yield
+
     def _write_transaction(self, transaction, update_timestamp=True):
         if update_timestamp:
             transaction.updated_at = self.plugin.get_host().utc_timestamp()
@@ -8128,6 +8233,7 @@ class ReleaseTransactionManager:
         expected_paths = self._canonical_paths(
             transaction.plugin_key,
             transaction.operation_id,
+            live_folder=transaction.live_folder,
         )
         ReleaseTransaction.from_document(document, expected_paths)
         journal = transaction.paths.journal
@@ -8161,6 +8267,7 @@ class ReleaseTransactionManager:
         return {
             "operation_id": transaction.operation_id,
             "package_id": transaction.plugin_key,
+            "live_folder": transaction.live_folder,
             "operation": transaction.operation,
             "expected_current": transaction.expected_current,
             "target": transaction.target,
@@ -8192,21 +8299,19 @@ class ReleaseTransactionManager:
         schema_version = document["schema_version"]
         if type(schema_version) is not int or schema_version not in {
             RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION,
+            PREVIOUS_RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION,
             LEGACY_RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION,
         }:
             raise ValueError(
                 "Pending release transactions schema is unsupported."
             )
-        is_legacy = (
-            schema_version
+        identity_field = (
+            "plugin_key"
+            if schema_version
             == LEGACY_RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION
+            else "package_id"
         )
-        identity_field = "plugin_key" if is_legacy else "package_id"
-        transaction_parser = (
-            ReleaseTransaction.from_legacy_document
-            if is_legacy
-            else ReleaseTransaction.from_document
-        )
+        transaction_parser = self._transaction_parser(schema_version)
         raw_operations = document["operations"]
         if not isinstance(raw_operations, list):
             raise ValueError(
@@ -8228,7 +8333,16 @@ class ReleaseTransactionManager:
                     "Pending release transactions contain a duplicate operation."
                 )
             plugin_key = raw_operation.get(identity_field, "")
-            expected_paths = self._paths(plugin_key, operation_id)
+            live_folder = self._transaction_live_folder(
+                raw_operation,
+                plugin_key,
+                schema_version,
+            )
+            expected_paths = self._paths(
+                plugin_key,
+                operation_id,
+                live_folder=live_folder,
+            )
             transaction = transaction_parser(
                 raw_operation,
                 expected_paths,
@@ -8252,7 +8366,7 @@ class ReleaseTransactionManager:
                 )
             operation_ids.add(operation_id)
             operations.append(transaction)
-        if is_legacy:
+        if schema_version != RELEASE_PENDING_TRANSACTIONS_SCHEMA_VERSION:
             self._write_pending_transactions_locked(operations)
         return operations
 
@@ -8331,16 +8445,46 @@ class ReleaseTransactionManager:
         schema_version = document.get("schema_version")
         if type(schema_version) is not int or schema_version not in {
             RELEASE_TRANSACTION_SCHEMA_VERSION,
+            PREVIOUS_RELEASE_TRANSACTION_SCHEMA_VERSION,
             LEGACY_RELEASE_TRANSACTION_SCHEMA_VERSION,
         }:
             raise ValueError("Release transaction schema is unsupported.")
-        is_legacy = schema_version == LEGACY_RELEASE_TRANSACTION_SCHEMA_VERSION
-        identity_field = "plugin_key" if is_legacy else "package_id"
+        identity_field = (
+            "plugin_key"
+            if schema_version == LEGACY_RELEASE_TRANSACTION_SCHEMA_VERSION
+            else "package_id"
+        )
         plugin_key = _require_plugin_key(
             document.get(identity_field, ""),
             identity_field,
         )
-        return plugin_key, is_legacy
+        return plugin_key, schema_version
+
+    def _transaction_parser(self, schema_version):
+        return {
+            RELEASE_TRANSACTION_SCHEMA_VERSION: (
+                ReleaseTransaction.from_document
+            ),
+            PREVIOUS_RELEASE_TRANSACTION_SCHEMA_VERSION: (
+                ReleaseTransaction.from_previous_document
+            ),
+            LEGACY_RELEASE_TRANSACTION_SCHEMA_VERSION: (
+                ReleaseTransaction.from_legacy_document
+            ),
+        }[schema_version]
+
+    def _transaction_live_folder(
+        self,
+        document,
+        plugin_key,
+        schema_version,
+    ):
+        if schema_version != RELEASE_TRANSACTION_SCHEMA_VERSION:
+            return plugin_key
+        return _require_plugin_key(
+            document.get("live_folder", ""),
+            "live_folder",
+        )
 
     def _installed_state_matches_expected(self, transaction):
         return bool(
@@ -8461,13 +8605,20 @@ class ReleaseTransactionManager:
         operation_id = _require_plugin_key(operation_id, "operation_id")
         if document is None:
             document = self._read_transaction_document(operation_id)
-        plugin_key, is_legacy = self._transaction_document_identity(document)
-        expected_paths = self._canonical_paths(plugin_key, operation_id)
-        parser = (
-            ReleaseTransaction.from_legacy_document
-            if is_legacy
-            else ReleaseTransaction.from_document
+        plugin_key, schema_version = self._transaction_document_identity(
+            document
         )
+        live_folder = self._transaction_live_folder(
+            document,
+            plugin_key,
+            schema_version,
+        )
+        expected_paths = self._canonical_paths(
+            plugin_key,
+            operation_id,
+            live_folder=live_folder,
+        )
+        parser = self._transaction_parser(schema_version)
         transaction = parser(
             document,
             expected_paths,
@@ -8485,11 +8636,17 @@ class ReleaseTransactionManager:
         except ValueError as path_error:
             repaired = self._repair_missing_pre_activation_container(
                 transaction,
-                is_legacy=is_legacy,
+                is_legacy=(
+                    schema_version
+                    == LEGACY_RELEASE_TRANSACTION_SCHEMA_VERSION
+                ),
             )
             if not repaired:
                 raise path_error
-        if is_legacy and not repaired:
+        if (
+            schema_version != RELEASE_TRANSACTION_SCHEMA_VERSION
+            and not repaired
+        ):
             self._write_transaction(transaction, update_timestamp=False)
         return transaction
 
@@ -8510,7 +8667,7 @@ class ReleaseTransactionManager:
             operation_id = name[:-5]
             try:
                 document = self._read_transaction_document(operation_id)
-                document_plugin_key, _is_legacy = (
+                document_plugin_key, _schema_version = (
                     self._transaction_document_identity(document)
                 )
             except (OSError, ValueError):
@@ -8702,19 +8859,38 @@ class ReleaseTransactionManager:
         operation,
         expected_current,
         target,
+        live_folder=None,
     ):
         plugin_key = _require_plugin_key(plugin_key)
         operation_id = _require_plugin_key(operation_id, "operation_id")
         operation = _require_nonempty_string(operation, "operation")
+        if live_folder is None:
+            live_folder = plugin_key
+        live_folder = _require_plugin_key(live_folder, "live_folder")
+        if operation == "release_install" and live_folder != plugin_key:
+            raise ValueError(
+                "A new release install must use its package folder."
+            )
         expected_current, target = self._validate_descriptors(
             operation,
             expected_current,
             target,
         )
         with self.operation_lock():
+            active = [
+                transaction
+                for transaction in self._transactions_locked()
+                if transaction.phase in RELEASE_TRANSACTION_ACTIVE_PHASES
+            ]
+            if active:
+                raise RuntimeError(
+                    "Another release operation is still active; restart or "
+                    "finish it before starting a new one."
+                )
             paths = self._paths(
                 plugin_key,
                 operation_id,
+                live_folder=live_folder,
                 create_parents=True,
             )
             if os.path.lexists(paths.journal):
@@ -8730,6 +8906,7 @@ class ReleaseTransactionManager:
             transaction = ReleaseTransaction(
                 operation_id=operation_id,
                 plugin_key=plugin_key,
+                live_folder=live_folder,
                 operation=operation,
                 phase="created",
                 expected_current=expected_current,
@@ -8756,6 +8933,7 @@ class ReleaseTransactionManager:
         expected_files=None,
         allow_install_metadata=False,
         capture_tree=False,
+        ignored_directories=frozenset(),
     ):
         """Validate and fsync one manager-owned tree without following links."""
         self._require_real_directory(root, label)
@@ -8818,6 +8996,15 @@ class ReleaseTransactionManager:
                         entry.path,
                         follow_symlinks=False,
                     )
+                except FileNotFoundError:
+                    if (
+                        entry.name.casefold()
+                        in ignored_directories
+                    ):
+                        continue
+                    raise ValueError(
+                        label + " contains an unreadable path."
+                    ) from None
                 except OSError as error:
                     raise ValueError(
                         label + " contains an unreadable path."
@@ -8827,6 +9014,11 @@ class ReleaseTransactionManager:
                         label + " must remain on the transaction filesystem."
                     )
                 if stat.S_ISDIR(path_stat.st_mode):
+                    if (
+                        entry.name.casefold()
+                        in ignored_directories
+                    ):
+                        continue
                     if capture_tree:
                         tree_records.append(("directory", relative_path))
                     stack.append((entry.path, relative_path))
@@ -9058,6 +9250,9 @@ class ReleaseTransactionManager:
                     path,
                     label,
                     capture_tree=True,
+                    ignored_directories=(
+                        RELEASE_VOLATILE_CACHE_DIRECTORIES
+                    ),
                 ),
             },
             label,
@@ -9394,6 +9589,10 @@ class ReleaseTransactionManager:
             for payload in payloads:
                 self._remove_transaction_path(payload)
 
+    def _operation_root_is_empty(self, path):
+        with os.scandir(path) as entries:
+            return next(entries, None) is None
+
     def _restore_component(
         self,
         live,
@@ -9576,6 +9775,61 @@ class ReleaseTransactionManager:
             error=error or transaction.error,
         )
 
+    def _finish_migration_restore_locked(self, transaction, error):
+        """Converge a journaled backup-to-live restore on safe cleanup."""
+        backup_exists = os.path.lexists(transaction.paths.backup_code)
+        live_exists = os.path.lexists(transaction.paths.live_code)
+        if backup_exists == live_exists:
+            transaction.rollback_from = "code_backed_up"
+            self._set_phase(
+                transaction,
+                "rollback_pending",
+                error=(
+                    error
+                    + " Both the live folder and retained checkout require "
+                    "recovery."
+                    if backup_exists
+                    else error + " The retained checkout is unavailable."
+                ),
+            )
+            raise RuntimeError(error)
+        if backup_exists:
+            os.replace(
+                transaction.paths.backup_code,
+                transaction.paths.live_code,
+            )
+            self._fsync_directory(
+                os.path.dirname(transaction.paths.backup_code)
+            )
+            self._fsync_directory(
+                os.path.dirname(transaction.paths.live_code)
+            )
+        self._set_phase(
+            transaction,
+            "migration_restore_completed",
+            error=error,
+            inject=True,
+        )
+        transaction.rollback_from = "dependencies_staged"
+        self._set_phase(transaction, "rollback_pending", error=error)
+        return self._complete_pre_activation_rollback_locked(
+            transaction,
+            error,
+        )
+
+    def _recover_migration_restore_locked(self, transaction):
+        if (
+            transaction.operation != "release_migration"
+            or transaction.phase not in RELEASE_MIGRATION_RESTORE_PHASES
+        ):
+            raise RuntimeError(
+                "Transaction is not a migration checkout restore."
+            )
+        error = transaction.error or (
+            "Recovered an interrupted Git checkout restore."
+        )
+        return self._finish_migration_restore_locked(transaction, error)
+
     def _revalidate_migration_backup_locked(self, transaction):
         """Freeze migration approval to the checkout actually moved aside."""
         if transaction.operation != "release_migration":
@@ -9590,21 +9844,29 @@ class ReleaseTransactionManager:
             "Git checkout changed after migration approval; activation "
             "was cancelled."
         )
-        if (
-            os.path.lexists(transaction.paths.backup_code)
-            and not os.path.lexists(transaction.paths.live_code)
-        ):
-            os.replace(
-                transaction.paths.backup_code,
-                transaction.paths.live_code,
+        backup_exists = os.path.lexists(transaction.paths.backup_code)
+        live_exists = os.path.lexists(transaction.paths.live_code)
+        if backup_exists and not live_exists:
+            transaction.rollback_from = "code_backed_up"
+            self._set_phase(
+                transaction,
+                "migration_restore_pending",
+                error=error,
             )
-            self._fsync_directory(
-                os.path.dirname(transaction.paths.backup_code)
+            self._finish_migration_restore_locked(transaction, error)
+        else:
+            # If another actor recreated the live folder, never discard either
+            # side: backup_code may be the only copy of the approved checkout.
+            transaction.rollback_from = "code_backed_up"
+            self._set_phase(
+                transaction,
+                "rollback_pending",
+                error=(
+                    error
+                    + " Both the live folder and retained checkout require "
+                    "recovery."
+                ),
             )
-            self._fsync_directory(
-                os.path.dirname(transaction.paths.live_code)
-            )
-        self._set_phase(transaction, "stale_target", error=error)
         raise RuntimeError(error)
 
     def _activate_locked(self, transaction, validate_current=True):
@@ -9634,14 +9896,23 @@ class ReleaseTransactionManager:
                 "Installed dependency snapshot",
             )
             if not (current_matches and dependencies_match):
-                self._set_phase(
+                changed = []
+                if not current_matches:
+                    changed.append("the installed plugin folder or its contents")
+                if not dependencies_match:
+                    changed.append("the shared dependencies")
+                error = (
+                    "Release activation stopped because "
+                    + " and ".join(changed)
+                    + " changed while the release was being prepared; the "
+                    "installed state no longer matches expected_current. "
+                    "Refresh and try again."
+                )
+                self._complete_pre_activation_rollback_locked(
                     transaction,
-                    "stale_target",
-                    error="Installed state no longer matches expected_current.",
+                    error,
                 )
-                raise RuntimeError(
-                    "Installed state no longer matches expected_current."
-                )
+                raise RuntimeError(error)
         try:
             self._replace_directory(
                 transaction,
@@ -9674,7 +9945,12 @@ class ReleaseTransactionManager:
             )
             return self._set_phase(transaction, "restart_pending")
         except Exception as error:
-            if transaction.phase == "stale_target":
+            if (
+                transaction.phase
+                in RELEASE_MIGRATION_RESTORE_PHASES
+                or transaction.phase
+                in {"rollback_pending", "stale_target"}
+            ):
                 raise
             host = self.plugin.get_host()
             locked_file = bool(
@@ -9723,6 +9999,17 @@ class ReleaseTransactionManager:
             ):
                 self._discard_transaction_payloads(transaction)
                 return transaction
+            if (
+                transaction.phase == "stale_target"
+                and not transaction.rollback_from
+                and self._operation_root_is_empty(
+                    transaction.paths.backup_root
+                )
+            ):
+                # Schema-v1/v2 builds could record a pre-rename mismatch as a
+                # terminal stale target without its safe rollback origin.
+                self._discard_transaction_payloads(transaction)
+                return transaction
             if not (
                 transaction.phase
                 in RELEASE_TRANSACTION_PREACTIVATION_PHASES
@@ -9741,33 +10028,34 @@ class ReleaseTransactionManager:
             )
 
     def rollback(self, operation_id):
-        with self.operation_lock():
-            transaction = self._load_transaction(operation_id)
-            if transaction.phase not in (
-                "restart_pending",
-                "release_managed",
-            ):
-                raise RuntimeError(
-                    "Only an activated release can be explicitly rolled back."
+        with self.workflow_lock():
+            with self.operation_lock():
+                transaction = self._load_transaction(operation_id)
+                if transaction.phase not in (
+                    "restart_pending",
+                    "release_managed",
+                ):
+                    raise RuntimeError(
+                        "Only an activated release can be explicitly rolled back."
+                    )
+                live_target_matches = self._release_tree_matches_target(
+                    transaction.paths.live_code,
+                    transaction,
+                ) and self._active_dependencies_match_target(transaction)
+                backup_matches = self._code_path_matches(
+                    transaction.paths.backup_code,
+                    transaction.plugin_key,
+                    transaction.expected_current,
+                ) and self._dependency_tree_matches(
+                    transaction.paths.backup_dependencies,
+                    transaction.dependency_state["expected"],
+                    "Retained dependency backup",
                 )
-            live_target_matches = self._release_tree_matches_target(
-                transaction.paths.live_code,
-                transaction,
-            ) and self._active_dependencies_match_target(transaction)
-            backup_matches = self._code_path_matches(
-                transaction.paths.backup_code,
-                transaction.plugin_key,
-                transaction.expected_current,
-            ) and self._dependency_tree_matches(
-                transaction.paths.backup_dependencies,
-                transaction.dependency_state["expected"],
-                "Retained dependency backup",
-            )
-            if not live_target_matches or not backup_matches:
-                raise RuntimeError(
-                    "Rollback snapshots no longer match the transaction."
-                )
-            return self._rollback_locked(transaction)
+                if not live_target_matches or not backup_matches:
+                    raise RuntimeError(
+                        "Rollback snapshots no longer match the transaction."
+                    )
+                return self._rollback_locked(transaction)
 
     def _prune_older_backups_locked(self, transaction):
         """Retain only the backup belonging to the verified live release."""
@@ -9803,20 +10091,40 @@ class ReleaseTransactionManager:
         return transaction
 
     def mark_release_managed(self, operation_id):
-        with self.operation_lock():
-            transaction = self._load_transaction(operation_id)
-            return self._mark_release_managed_locked(transaction)
+        with self.workflow_lock():
+            with self.operation_lock():
+                transaction = self._load_transaction(operation_id)
+                return self._mark_release_managed_locked(transaction)
 
     def finalize_startup(self, blocking=True):
         """Recover durable work, then finish restart-bound transactions."""
-        self.recover_pending(blocking=blocking)
+        with self.workflow_lock(blocking=blocking):
+            self._recover_pending_locked(blocking=blocking)
+            return self._finalize_startup_locked(blocking=blocking)
+
+    def _finalize_startup_locked(self, blocking=True):
         finalized = []
         with self.operation_lock(blocking=blocking):
             transactions = self._transactions_locked()
+            restart_transactions = [
+                transaction
+                for transaction in transactions
+                if transaction.phase == "restart_pending"
+            ]
+            dependency_owner = next(
+                (
+                    transaction
+                    for transaction in reversed(restart_transactions)
+                    if self._release_tree_matches_target(
+                        transaction.paths.live_code,
+                        transaction,
+                    )
+                    and self._active_dependencies_match_target(transaction)
+                ),
+                None,
+            )
             finalized_plugins = set()
-            for transaction in reversed(transactions):
-                if transaction.phase != "restart_pending":
-                    continue
+            for transaction in reversed(restart_transactions):
                 if transaction.plugin_key in finalized_plugins:
                     finalized.append(
                         self._set_phase(
@@ -9838,6 +10146,26 @@ class ReleaseTransactionManager:
                 ):
                     finalized.append(
                         self._mark_release_managed_locked(transaction)
+                    )
+                elif dependency_owner is not None:
+                    code_matches = self._release_tree_matches_target(
+                        transaction.paths.live_code,
+                        transaction,
+                    )
+                    finalized.append(
+                        self._set_phase(
+                            transaction,
+                            (
+                                "release_managed"
+                                if code_matches
+                                else "stale_target"
+                            ),
+                            error=(
+                                "Shared dependencies were superseded by a "
+                                "newer release transaction; this older "
+                                "transaction cannot be rolled back."
+                            ),
+                        )
                     )
                 else:
                     finalized.append(
@@ -9874,6 +10202,8 @@ class ReleaseTransactionManager:
     def _recover_transaction_locked(self, transaction):
         if transaction.phase == "queued_locked":
             return transaction
+        if transaction.phase in RELEASE_MIGRATION_RESTORE_PHASES:
+            return self._recover_migration_restore_locked(transaction)
         if (
             transaction.phase == "rollback_pending"
             and transaction.rollback_from
@@ -9883,6 +10213,21 @@ class ReleaseTransactionManager:
                 transaction
             )
         if transaction.phase == "dependency_confirmation_required":
+            return self._complete_pre_activation_rollback_locked(
+                transaction,
+                "Dependency compatibility confirmation expired during restart.",
+            )
+        if (
+            transaction.phase == "stale_target"
+            and not transaction.rollback_from
+            and self._operation_root_is_empty(
+                transaction.paths.backup_root
+            )
+        ):
+            # Older builds leaked staged payloads after a safe pre-rename
+            # comparison failure. They are manager-owned and no backup was
+            # ever created, so startup can finish that cleanup safely.
+            self._discard_transaction_payloads(transaction)
             return transaction
         if transaction.phase in RELEASE_TRANSACTION_FINAL_PHASES:
             return transaction
@@ -9918,7 +10263,7 @@ class ReleaseTransactionManager:
             or "Recovered an interrupted release transaction.",
         )
 
-    def recover_pending(self, blocking=True):
+    def _recover_pending_locked(self, blocking=True):
         with self.operation_lock(blocking=blocking):
             pending_transactions = self._load_pending_transactions_locked()
             pending_operation_ids = {
@@ -9931,13 +10276,91 @@ class ReleaseTransactionManager:
             }
             _manager, _plugins, state_root = self._manager_paths(create=True)
             transaction_dir = os.path.join(state_root, "transactions")
+            transactions = self._transactions_locked()
+            dependency_owner = next(
+                (
+                    transaction
+                    for transaction in reversed(transactions)
+                    if transaction.phase
+                    in RELEASE_GLOBAL_DEPENDENCY_ROLLBACK_PHASES
+                    and self._release_tree_matches_target(
+                        transaction.paths.live_code,
+                        transaction,
+                    )
+                    and self._active_dependencies_match_target(transaction)
+                ),
+                None,
+            )
+            global_recovery_candidates = []
+            for transaction in transactions:
+                origin_phase = (
+                    transaction.rollback_from
+                    if transaction.phase in {"rollback_pending", "queued_locked"}
+                    and transaction.rollback_from
+                    else transaction.phase
+                )
+                if (
+                    transaction.phase
+                    not in RELEASE_TRANSACTION_FINAL_PHASES
+                    and origin_phase
+                    in RELEASE_GLOBAL_DEPENDENCY_ROLLBACK_PHASES
+                ):
+                    global_recovery_candidates.append(transaction)
+            if (
+                dependency_owner is None
+                and len(global_recovery_candidates) > 1
+            ):
+                raise RuntimeError(
+                    "Recovery found multiple unfinished release activations "
+                    "but could not identify the live shared dependency "
+                    "generation. No files were changed."
+                )
             queued = []
             for name in sorted(os.listdir(transaction_dir)):
                 if not name.endswith(".json"):
                     continue
                 operation_id = name[:-5]
                 transaction = self._load_transaction(operation_id)
-                if transaction.phase == "queued_locked":
+                origin_phase = (
+                    transaction.rollback_from
+                    if transaction.phase in {"rollback_pending", "queued_locked"}
+                    and transaction.rollback_from
+                    else transaction.phase
+                )
+                superseded_dependencies = bool(
+                    dependency_owner is not None
+                    and dependency_owner.operation_id
+                    != transaction.operation_id
+                    and transaction.phase
+                    not in RELEASE_TRANSACTION_FINAL_PHASES
+                    and origin_phase
+                    in RELEASE_GLOBAL_DEPENDENCY_ROLLBACK_PHASES
+                )
+                if superseded_dependencies:
+                    error = (
+                        "Recovery stopped an older activation from replacing "
+                        "newer shared dependencies."
+                    )
+                    if self._release_tree_matches_target(
+                        transaction.paths.live_code,
+                        transaction,
+                    ):
+                        transaction.rollback_from = ""
+                        recovered = self._set_phase(
+                            transaction,
+                            "restart_pending",
+                            error=error,
+                        )
+                    else:
+                        if transaction.phase != "rollback_pending":
+                            transaction.rollback_from = origin_phase
+                        self._set_phase(
+                            transaction,
+                            "rollback_pending",
+                            error=error,
+                        )
+                        raise RuntimeError(error)
+                elif transaction.phase == "queued_locked":
                     if operation_id not in pending_by_operation:
                         pending_by_operation[operation_id] = transaction
                         pending_operation_ids.add(operation_id)
@@ -9953,11 +10376,15 @@ class ReleaseTransactionManager:
                         self._set_phase(
                             transaction,
                             "queued_locked",
-                            error="Plugin files are locked; activation is queued.",
+                            error=(
+                                "Plugin files are locked; activation is "
+                                "queued."
+                            ),
                         )
                     queued.append(transaction)
                     continue
-                recovered = self._recover_transaction_locked(transaction)
+                else:
+                    recovered = self._recover_transaction_locked(transaction)
                 if (
                     operation_id in pending_operation_ids
                     and recovered.phase == "rolled_back"
@@ -9979,6 +10406,10 @@ class ReleaseTransactionManager:
                     if transaction.phase != "stale_target":
                         raise
             self._sync_pending_transactions_locked()
+
+    def recover_pending(self, blocking=True):
+        with self.workflow_lock(blocking=blocking):
+            return self._recover_pending_locked(blocking=blocking)
 
 
 class ReleaseDependencyError(RuntimeError):
@@ -10163,13 +10594,29 @@ class _ReleaseDependencyFilesystem:
         with os.scandir(source) as entries:
             entries = sorted(entries, key=lambda entry: entry.name)
         for entry in entries:
-            entry_stat = os.stat(entry.path, follow_symlinks=False)
+            try:
+                entry_stat = os.stat(
+                    entry.path,
+                    follow_symlinks=False,
+                )
+            except FileNotFoundError:
+                if (
+                    entry.name.casefold()
+                    in RELEASE_VOLATILE_CACHE_DIRECTORIES
+                ):
+                    continue
+                raise
             if entry_stat.st_dev != root_device:
                 raise ValueError(
                     "Dependency snapshot may not cross filesystem boundaries."
                 )
             target = os.path.join(destination, entry.name)
             if stat.S_ISDIR(entry_stat.st_mode):
+                if (
+                    entry.name.casefold()
+                    in RELEASE_VOLATILE_CACHE_DIRECTORIES
+                ):
+                    continue
                 os.mkdir(target, stat.S_IMODE(entry_stat.st_mode))
                 self._copy_directory(entry.path, target, root_device)
                 continue
@@ -12383,6 +12830,7 @@ class ReleaseInstallUpdateStrategy:
         )
         self.preservation_service = preservation_service
         self.migration_preflight = migration_preflight
+        self.last_operation_id = ""
 
     def _preservation(self):
         if self.preservation_service is None:
@@ -12427,7 +12875,10 @@ class ReleaseInstallUpdateStrategy:
         return target
 
     def _installed_metadata(self, entry):
-        plugin_dir = self.plugin.resolve_installed_plugin_dir(entry.key)
+        plugin_dir = self.plugin.resolve_installed_plugin_dir(
+            entry.key,
+            refresh=True,
+        )
         metadata = self.metadata_service.read(plugin_dir)
         if metadata is None:
             raise ValueError(
@@ -12486,7 +12937,20 @@ class ReleaseInstallUpdateStrategy:
                 raise ValueError(
                     "A validated Release channel preflight is required."
                 )
-            plugin_dir = self.plugin.resolve_installed_plugin_dir(entry.key)
+            plugin_dir = self.plugin.resolve_installed_plugin_dir(
+                entry.key,
+                refresh=True,
+            )
+            inventory = migration_preflight.preservation_inventory
+            if (
+                not isinstance(inventory, ReleasePreservationInventory)
+                or os.path.normcase(os.path.abspath(inventory.installed_dir))
+                != os.path.normcase(os.path.abspath(plugin_dir))
+            ):
+                raise ValueError(
+                    "The installed plugin folder changed after Release "
+                    "channel preflight. Refresh and try again."
+                )
             return (
                 {
                     "management_mode": "git",
@@ -12670,6 +13134,56 @@ class ReleaseInstallUpdateStrategy:
         compatibility_confirmed=False,
         migration_preflight=None,
     ):
+        self.last_operation_id = ""
+        arguments = {
+            "index_sequence": index_sequence,
+            "approved_inventory_sha256": approved_inventory_sha256,
+            "compatibility_confirmed": compatibility_confirmed,
+            "migration_preflight": migration_preflight,
+        }
+        workflow_lock = getattr(
+            self.transaction_manager,
+            "workflow_lock",
+            None,
+        )
+        if not callable(workflow_lock):
+            return self._execute_locked(
+                entry,
+                release,
+                trigger,
+                operation,
+                **arguments,
+            )
+        try:
+            with workflow_lock(blocking=False):
+                return self._execute_locked(
+                    entry,
+                    release,
+                    trigger,
+                    operation,
+                    **arguments,
+                )
+        except (OSError, RuntimeError, ValueError) as error:
+            Domoticz.Error(
+                "Release operation failed for "
+                + entry.key
+                + ": "
+                + str(error)
+            )
+            return False, str(error)
+
+    def _execute_locked(
+        self,
+        entry,
+        release,
+        trigger,
+        operation,
+        *,
+        index_sequence,
+        approved_inventory_sha256=None,
+        compatibility_confirmed=False,
+        migration_preflight=None,
+    ):
         if trigger not in ReleaseManagementCoordinator.TRIGGERS:
             raise ValueError(
                 "Release management trigger must be manual or automatic."
@@ -12697,8 +13211,15 @@ class ReleaseInstallUpdateStrategy:
                 )
             )
             operation_id = self._operation_id()
+            self.last_operation_id = operation_id
+            live_folder = (
+                entry.key
+                if installed_dir is None
+                else os.path.basename(os.path.normpath(installed_dir))
+            )
             transaction = self.transaction_manager.create_transaction(
                 plugin_key=entry.key,
+                live_folder=live_folder,
                 operation_id=operation_id,
                 operation=operation,
                 expected_current=expected_current,
@@ -12778,15 +13299,21 @@ class ReleaseInstallUpdateStrategy:
                 compatibility_confirmed=compatibility_confirmed,
             )
             if dependency_result.requires_confirmation:
+                message = (
+                    "Shared dependency compatibility requires a separate "
+                    "review; no plugin files were changed."
+                )
+                self._abort(operation_id, message)
                 return (
                     False,
-                    "Shared dependency compatibility confirmation is required.",
+                    message,
                 )
             activated = self.transaction_manager.activate(operation_id)
             if activated.phase == "queued_locked":
                 return (
-                    False,
-                    "Plugin files are locked; release activation is queued for startup.",
+                    True,
+                    "Plugin files are locked; Release activation is queued "
+                    "for startup. Restart required.",
                 )
             return (
                 True,
@@ -12865,7 +13392,10 @@ class ReleaseInstallUpdateStrategy:
                 "The selected release has no commit to compare with this Git "
                 "checkout."
             )
-        plugin_dir = self.plugin.resolve_installed_plugin_dir(entry.key)
+        plugin_dir = self.plugin.resolve_installed_plugin_dir(
+            entry.key,
+            refresh=True,
+        )
         release_policy = getattr(entry.delivery, "release", None)
         mutable_paths = list(
             getattr(release_policy, "mutable_paths", []) or []
@@ -14072,7 +14602,9 @@ class BasePlugin:
         self.last_update_status_refresh_date = None
         self.host = None
         self.installed_plugin_folders = {}
+        self.ambiguous_installed_plugin_folders = {}
         self.installed_plugin_match_details = {}
+        self.installed_plugin_scan_error = ""
         self.release_metadata_selection = ReleaseMetadataSelection(
             sequence=0,
             registry_bytes=b"",
@@ -15560,6 +16092,7 @@ class BasePlugin:
     def getInstalledPlugins(self, plugins_dir):
         installed_plugins = []
         installed_plugin_folders = {}
+        ambiguous_installed_plugin_folders = {}
         installed_plugin_match_details = {}
         (
             exact_name_lookup,
@@ -15571,13 +16104,19 @@ class BasePlugin:
         ) = self.build_installed_plugin_lookup()
 
         try:
-            plugin_folders = os.listdir(plugins_dir)
+            plugin_folders = sorted(
+                os.listdir(plugins_dir),
+                key=lambda value: str(value).casefold(),
+            )
         except Exception as e:
             Domoticz.Error("Could not scan Domoticz plugins folder: " + str(e))
             self.installed_plugin_folders = {}
+            self.ambiguous_installed_plugin_folders = {}
             self.installed_plugin_match_details = {}
+            self.installed_plugin_scan_error = str(e)
             return installed_plugins
 
+        self.installed_plugin_scan_error = ""
         for plugin_folder in plugin_folders:
             plugin_path = os.path.join(plugins_dir, plugin_folder)
             if not os.path.isdir(plugin_path) or plugin_folder.startswith("."):
@@ -15597,14 +16136,49 @@ class BasePlugin:
             matched_key = match["key"] if match else ""
             if matched_key:
                 self.add_installed_plugin(installed_plugins, matched_key)
-                installed_plugin_folders[matched_key] = plugin_folder
                 detail = self.match_detail_for_response(plugin_folder, match)
                 detail["is_git"] = is_git_repo
                 if is_git_repo:
                     mismatch = self.detect_installed_registry_mismatch(matched_key, plugin_path)
                     if mismatch:
                         detail.update(mismatch)
-                installed_plugin_match_details[matched_key] = detail
+                matching_folders = set(
+                    ambiguous_installed_plugin_folders.get(matched_key, [])
+                )
+                existing_folder = installed_plugin_folders.get(
+                    matched_key, ""
+                )
+                if existing_folder:
+                    matching_folders.add(existing_folder)
+                matching_folders.add(plugin_folder)
+                if len(matching_folders) > 1:
+                    folders = sorted(
+                        matching_folders,
+                        key=lambda value: value.casefold(),
+                    )
+                    ambiguous_installed_plugin_folders[matched_key] = folders
+                    installed_plugin_folders.pop(matched_key, None)
+                    installed_plugin_match_details[matched_key] = {
+                        "folder": "",
+                        "folders": folders,
+                        "source": "ambiguous physical folders",
+                        "detail": (
+                            "Multiple physical folders match this registry "
+                            "plugin: "
+                            + ", ".join(folders)
+                            + ". Remove or rename duplicates before changing "
+                            "it."
+                        ),
+                        "is_git": bool(
+                            is_git_repo
+                            or installed_plugin_match_details.get(
+                                matched_key, {}
+                            ).get("is_git")
+                        ),
+                    }
+                else:
+                    installed_plugin_folders[matched_key] = plugin_folder
+                    installed_plugin_match_details[matched_key] = detail
                 if plugin_folder not in self.plugin_data:
                     self.add_installed_plugin(installed_plugins, plugin_folder)
                     installed_plugin_folders[plugin_folder] = plugin_folder
@@ -15625,29 +16199,82 @@ class BasePlugin:
                 }
 
         self.installed_plugin_folders = installed_plugin_folders
+        self.ambiguous_installed_plugin_folders = (
+            ambiguous_installed_plugin_folders
+        )
         self.installed_plugin_match_details = installed_plugin_match_details
         return installed_plugins
 
-    def get_installed_plugin_folder(self, plugin_key, plugins_dir=None):
+    def get_installed_plugin_folder(
+        self,
+        plugin_key,
+        plugins_dir=None,
+        *,
+        refresh=False,
+    ):
         plugin_key = self.get_host().validate_plugin_key(plugin_key)
         if plugins_dir is None:
             plugins_dir = self.get_host().plugins_dir()
 
+        if refresh:
+            self.getInstalledPlugins(plugins_dir)
+            if self.installed_plugin_scan_error:
+                raise ValueError(
+                    "Installed plugin folders could not be scanned safely."
+                )
+        ambiguous_folders = self.ambiguous_installed_plugin_folders.get(
+            plugin_key, []
+        )
+        if ambiguous_folders:
+            raise ValueError(
+                "Multiple installed folders match "
+                + plugin_key
+                + ": "
+                + ", ".join(ambiguous_folders)
+                + ". Remove or rename duplicates before continuing."
+            )
         plugin_folder = self.installed_plugin_folders.get(plugin_key, "")
         if plugin_folder and os.path.isdir(os.path.join(plugins_dir, plugin_folder)):
             return plugin_folder
 
         self.getInstalledPlugins(plugins_dir)
+        if self.installed_plugin_scan_error:
+            raise ValueError(
+                "Installed plugin folders could not be scanned safely."
+            )
+        ambiguous_folders = self.ambiguous_installed_plugin_folders.get(
+            plugin_key, []
+        )
+        if ambiguous_folders:
+            raise ValueError(
+                "Multiple installed folders match "
+                + plugin_key
+                + ": "
+                + ", ".join(ambiguous_folders)
+                + ". Remove or rename duplicates before continuing."
+            )
         return self.installed_plugin_folders.get(plugin_key, plugin_key)
 
-    def resolve_installed_plugin_dir(self, plugin_key, plugins_dir=None):
+    def resolve_installed_plugin_dir(
+        self,
+        plugin_key,
+        plugins_dir=None,
+        *,
+        refresh=False,
+    ):
         host = self.get_host()
         plugin_key = host.validate_plugin_key(plugin_key)
         if plugins_dir is None:
             plugins_dir = host.plugins_dir()
 
         plugins_dir = os.path.abspath(plugins_dir)
-        plugin_folder = host.validate_plugin_key(self.get_installed_plugin_folder(plugin_key, plugins_dir))
+        plugin_folder = host.validate_plugin_key(
+            self.get_installed_plugin_folder(
+                plugin_key,
+                plugins_dir,
+                refresh=refresh,
+            )
+        )
         plugin_dir = os.path.abspath(os.path.join(plugins_dir, plugin_folder))
         if not host.is_path_inside(plugin_dir, plugins_dir):
             raise ValueError("Invalid plugin path")
@@ -16305,7 +16932,7 @@ class BasePlugin:
                     Devices[1].Update(nValue=0, sValue="")
                     return
 
-                Domoticz.Debug(f"API Payload received: {payload_str}")
+                Domoticz.Debug("API command payload received.")
                 try:
                     # Clear payload device immediately to prevent replay/abuse
                     Devices[1].Update(nValue=0, sValue="")
@@ -16444,12 +17071,7 @@ class BasePlugin:
 
         try:
             shutil.rmtree(plugin_target_dir)
-            removed_folder = os.path.basename(plugin_target_dir)
-            self.installed_plugin_folders = {
-                key: folder
-                for key, folder in self.installed_plugin_folders.items()
-                if folder != removed_folder
-            }
+            self.getInstalledPlugins(host.plugins_dir())
             return True, ""
         except Exception as e:
             if queue_on_lock and host.is_locked_file_error(e):
@@ -16629,6 +17251,12 @@ class BasePlugin:
             "installed_mode": context.get("installed_mode", "absent"),
             "current_preference": context.get("channel_preference") or "",
         }
+        if target["installed_mode"] != "absent":
+            target["live_folder"] = os.path.basename(
+                os.path.normpath(
+                    self.resolve_installed_plugin_dir(entry.key)
+                )
+            )
         installed_release = context.get("installed_release")
         if installed_release is not None:
             target["installed_release_id"] = installed_release.release_id
@@ -16644,6 +17272,89 @@ class BasePlugin:
                 }
             )
         return target
+
+    def _persist_channel_after_activation(self, identity, preference):
+        """Keep filesystem truth successful if preference persistence fails."""
+        try:
+            self.channel_preference_service.set(identity, preference)
+        except (OSError, RuntimeError, ValueError) as error:
+            Domoticz.Error(
+                "Release channel preference could not be saved after "
+                "activation: "
+                + str(error)
+            )
+            return (
+                " The plugin files were changed successfully, but the channel "
+                "preference could not be saved. Select the channel again after "
+                "restart."
+            )
+        return ""
+
+    def _release_operation_transaction(
+        self,
+        release_strategy,
+        plugin_key,
+        release,
+    ):
+        """Re-read the durable result of the release operation, when present."""
+        operation_id = str(
+            getattr(release_strategy, "last_operation_id", "") or ""
+        )
+        if not operation_id:
+            return None, ""
+        transaction_manager = getattr(
+            release_strategy,
+            "transaction_manager",
+            None,
+        )
+        load_transaction = getattr(
+            transaction_manager,
+            "load_transaction",
+            None,
+        )
+        if not callable(load_transaction):
+            return (
+                None,
+                " Release activation was accepted, but its durable state "
+                "could not be re-read. Restart to reconcile the installed "
+                "state.",
+            )
+        try:
+            transaction = load_transaction(operation_id)
+        except (OSError, RuntimeError, ValueError):
+            return (
+                None,
+                " Release activation was accepted, but its durable state "
+                "could not be re-read. Restart to reconcile the installed "
+                "state.",
+            )
+        target = getattr(transaction, "target", {})
+        if (
+            getattr(transaction, "plugin_key", "") != plugin_key
+            or not isinstance(target, dict)
+            or target.get("release_id") != release.release_id
+            or target.get("release_revision") != release.revision
+            or target.get("artifact_tree_sha256")
+            != release.artifact.tree_sha256
+        ):
+            return (
+                None,
+                " Release activation was accepted, but its durable state "
+                "does not match the selected release. Restart to reconcile "
+                "the installed state.",
+            )
+        return transaction, ""
+
+    def _installed_release_matches(self, installed_release, release):
+        return bool(
+            installed_release is not None
+            and getattr(installed_release, "release_id", None)
+            == release.release_id
+            and getattr(installed_release, "release_revision", None)
+            == release.revision
+            and getattr(installed_release, "artifact_tree_sha256", None)
+            == release.artifact.tree_sha256
+        )
 
     def executeReleaseManagementAction(
         self,
@@ -16717,10 +17428,18 @@ class BasePlugin:
                     rolled_back.expected_current.get("management_mode")
                     == "git"
                 ):
-                    self.channel_preference_service.set(identity, "keep_git")
+                    warning = self._persist_channel_after_activation(
+                        identity,
+                        "keep_git",
+                    )
+                else:
+                    warning = ""
                 return {
                     "status": "success",
-                    "message": "Retained backup restored; restart required.",
+                    "message": (
+                        "Retained backup restored; restart required."
+                        + warning
+                    ),
                     "restart_pending": True,
                 }
 
@@ -16875,23 +17594,78 @@ class BasePlugin:
                 raise RuntimeError(
                     message or "Using the Release channel failed."
                 )
-            plugin_dir = self.resolve_installed_plugin_dir(plugin_key)
-            installed_release = self.install_metadata_service.read(plugin_dir)
-            if (
-                installed_release is None
-                or installed_release.release_id != release.release_id
-                or installed_release.release_revision != release.revision
-                or installed_release.artifact_tree_sha256
-                != release.artifact.tree_sha256
-            ):
-                raise RuntimeError(
-                    "Migrated release could not be verified."
+            operation_transaction, journal_warning = (
+                self._release_operation_transaction(
+                    release_strategy,
+                    plugin_key,
+                    release,
                 )
-            self.channel_preference_service.set(identity, "release")
+            )
+            activation_state = "activated"
+            verification_warning = ""
+            if operation_transaction is not None:
+                if operation_transaction.phase == "queued_locked":
+                    activation_state = "queued"
+                elif operation_transaction.phase in {
+                    "restart_pending",
+                    "release_managed",
+                }:
+                    try:
+                        installed_release = (
+                            self.install_metadata_service.read(
+                                operation_transaction.paths.live_code
+                            )
+                        )
+                    except (OSError, RuntimeError, ValueError):
+                        installed_release = None
+                    if not self._installed_release_matches(
+                        installed_release,
+                        release,
+                    ):
+                        verification_warning = (
+                            " Release activation is committed, but "
+                            "post-activation verification could not complete. "
+                            "Restart to complete verification."
+                        )
+                else:
+                    raise RuntimeError(
+                        operation_transaction.error
+                        or (
+                            "Release activation did not complete; durable "
+                            "state is "
+                            + operation_transaction.phase
+                            + "."
+                        )
+                    )
+            elif journal_warning:
+                activation_state = "pending_verification"
+            else:
+                plugin_dir = self.resolve_installed_plugin_dir(plugin_key)
+                installed_release = self.install_metadata_service.read(
+                    plugin_dir
+                )
+                if not self._installed_release_matches(
+                    installed_release,
+                    release,
+                ):
+                    raise RuntimeError(
+                        "Migrated release could not be verified."
+                    )
+            warning = self._persist_channel_after_activation(
+                identity,
+                "release",
+            )
             return {
                 "status": "success",
-                "message": message or "Release channel selected; restart required.",
+                "message": (
+                    message
+                    or "Release channel selected; restart required."
+                )
+                + journal_warning
+                + verification_warning
+                + warning,
                 "restart_pending": True,
+                "activation_state": activation_state,
             }
         except (OSError, ReleaseConfirmationError, RuntimeError, ValueError) as error:
             return {

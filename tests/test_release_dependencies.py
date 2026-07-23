@@ -341,6 +341,30 @@ def test_dependency_stage_starts_with_complete_copy_of_live_shared_tree(
     assert transaction.phase == "dependencies_staged"
 
 
+def test_dependency_snapshot_rebuilds_instead_of_copying_runtime_caches(
+    plugin_core_module,
+    tmp_path,
+):
+    source = tmp_path / "live"
+    destination = tmp_path / "staged"
+    (source / "package" / "__pycache__").mkdir(parents=True)
+    (source / "package" / "__init__.py").write_text(
+        "VALUE = 1\n",
+        encoding="utf-8",
+    )
+    (source / "package" / "__pycache__" / "module.pyc").write_bytes(
+        b"volatile"
+    )
+
+    plugin_core_module._ReleaseDependencyFilesystem().snapshot_tree(
+        source,
+        destination,
+    )
+
+    assert (destination / "package" / "__init__.py").is_file()
+    assert not (destination / "package" / "__pycache__").exists()
+
+
 def test_missing_live_dependency_tree_stages_a_complete_empty_base(
     plugin_core_module, tmp_path
 ):

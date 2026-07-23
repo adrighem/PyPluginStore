@@ -466,6 +466,11 @@ def test_confirmation_request_round_trip_remains_below_2000_byte_api_bound(
 
     assert handled == [payload]
     assert plugin_core_module.Devices[1].sValue == ""
+    debug_messages = "\n".join(
+        str(arguments)
+        for arguments, _keywords in plugin_core_module.Domoticz.calls["Debug"]
+    )
+    assert payload["confirmation_token"] not in debug_messages
 
 
 def test_confirmation_request_over_2000_bytes_is_rejected_before_dispatch(

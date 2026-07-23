@@ -57,7 +57,15 @@ def legacy_transaction_document(document):
     legacy = copy.deepcopy(document)
     legacy["schema_version"] = 1
     legacy["plugin_key"] = legacy.pop("package_id")
+    legacy.pop("live_folder", None)
     return legacy
+
+
+def previous_transaction_document(document):
+    previous = copy.deepcopy(document)
+    previous["schema_version"] = 2
+    previous.pop("live_folder", None)
+    return previous
 
 
 def legacy_install_metadata_document(document):
@@ -160,8 +168,12 @@ def artifact_inventory(directory):
     return inventory
 
 
-def install_current_release(plugins_dir, manager_dir):
-    live_code = plugins_dir / "ExamplePlugin"
+def install_current_release(
+    plugins_dir,
+    manager_dir,
+    live_folder="ExamplePlugin",
+):
+    live_code = plugins_dir / live_folder
     live_dependencies = manager_dir / ".shared_deps"
     write_marker(live_code, "old-code", "old-only.py")
     write_marker(live_dependencies, "old-dependencies", "old-only.py")
@@ -191,10 +203,12 @@ def prepare_transaction(
     operation_id="operation-001",
     *,
     stage_dependencies=True,
+    live_folder="ExamplePlugin",
 ):
     live_code, live_dependencies = install_current_release(
         plugins_dir,
         manager_dir,
+        live_folder,
     )
 
     transaction = manager.create_transaction(
@@ -203,6 +217,7 @@ def prepare_transaction(
         operation="release_update",
         expected_current=expected_current(),
         target=target_release(),
+        live_folder=live_folder,
     )
     write_marker(transaction.paths.staged_code, "new-code", "new-only.py")
     (Path(transaction.paths.staged_code) / "plugin.py").write_text(
@@ -362,6 +377,52 @@ def prepare_migration_transaction(
     return transaction, live_code, installed_commit, preflight
 
 
+def prepare_other_release_install(
+    manager,
+    operation_id="operation-002",
+    dependency_marker="newer-shared-dependencies",
+):
+    transaction = manager.create_transaction(
+        plugin_key="OtherPlugin",
+        operation_id=operation_id,
+        operation="release_install",
+        expected_current={"management_mode": "absent"},
+        target=target_release(),
+    )
+    staged_code = Path(transaction.paths.staged_code)
+    write_marker(staged_code, "other-code", "other-only.py")
+    (staged_code / "plugin.py").write_text(
+        "# other plugin\n",
+        encoding="utf-8",
+    )
+    metadata = install_metadata_document(
+        NEW_COMMIT,
+        NEW_TREE,
+        2,
+        "github:owner/example-plugin:v2.0.0",
+        artifact_inventory(staged_code),
+    )
+    metadata["package_id"] = "OtherPlugin"
+    metadata["repository_identity"] = "github.com/owner/other-plugin"
+    (staged_code / ".pypluginstore.json").write_text(
+        json.dumps(metadata),
+        encoding="utf-8",
+    )
+    shutil.copytree(
+        transaction.paths.live_dependencies,
+        transaction.paths.staged_dependencies,
+    )
+    write_marker(
+        transaction.paths.staged_dependencies,
+        dependency_marker,
+    )
+    manager.mark_staged_verified(transaction.operation_id)
+    return manager.mark_dependencies_staged(
+        transaction.operation_id,
+        dependency_snapshot(),
+    )
+
+
 def assert_old_live(transaction):
     assert read_marker(transaction.paths.live_code) == "old-code"
     assert read_marker(transaction.paths.live_dependencies) == "old-dependencies"
@@ -428,6 +489,37 @@ def test_release_transaction_paths_are_manager_owned_and_same_filesystem(
     )
 
 
+def test_release_transaction_persists_alias_for_recovery_and_rollback(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    live_folder = "domoticz_example_plugin"
+    transaction = prepare_transaction(
+        manager,
+        plugins_dir,
+        manager_dir,
+        live_folder=live_folder,
+    )
+
+    reloaded = new_manager(plugin_core_module).load_transaction(
+        transaction.operation_id
+    )
+
+    assert reloaded.live_folder == live_folder
+    assert Path(reloaded.paths.live_code) == plugins_dir / live_folder
+    assert not (plugins_dir / "ExamplePlugin").exists()
+
+    manager.activate(transaction.operation_id)
+    assert_new_live(transaction)
+    manager.rollback(transaction.operation_id)
+    assert_old_live(transaction)
+    assert not (plugins_dir / "ExamplePlugin").exists()
+
+
 @pytest.mark.parametrize(
     "plugin_key,operation_id",
     [
@@ -456,6 +548,51 @@ def test_release_transaction_rejects_unsafe_path_identifiers(
     assert not (tmp_path / "operation").exists()
     if state_root.exists():
         assert not any(path.name == "operation" for path in state_root.rglob("*"))
+
+
+@pytest.mark.parametrize(
+    "live_folder",
+    [
+        "../OtherPlugin",
+        ".hidden",
+        "nested/Plugin",
+        "Plugin.",
+        "CON",
+    ],
+)
+def test_release_transaction_rejects_unsafe_live_folder(
+    plugin_core_module,
+    tmp_path,
+    live_folder,
+):
+    manager, _, _ = make_manager(plugin_core_module, tmp_path)
+
+    with pytest.raises(ValueError, match="live_folder"):
+        manager.create_transaction(
+            plugin_key="ExamplePlugin",
+            live_folder=live_folder,
+            operation_id="operation-001",
+            operation="release_update",
+            expected_current=expected_current(),
+            target=target_release(),
+        )
+
+
+def test_release_install_cannot_target_an_alias_folder(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, _, _ = make_manager(plugin_core_module, tmp_path)
+
+    with pytest.raises(ValueError, match="package folder"):
+        manager.create_transaction(
+            plugin_key="ExamplePlugin",
+            live_folder="OtherPlugin",
+            operation_id="operation-001",
+            operation="release_install",
+            expected_current={"management_mode": "absent"},
+            target=target_release(),
+        )
 
 
 def test_release_transaction_never_reuses_an_orphan_operation_directory(
@@ -497,9 +634,10 @@ def test_release_transaction_journal_contains_complete_recovery_descriptor(
         Path(transaction.paths.journal).read_text(encoding="utf-8")
     )
 
-    assert document["schema_version"] == 2
+    assert document["schema_version"] == 3
     assert document["operation_id"] == "operation-001"
     assert document["package_id"] == "ExamplePlugin"
+    assert document["live_folder"] == "ExamplePlugin"
     assert "plugin_key" not in document
     assert document["operation"] == "release_update"
     assert document["phase"] == "dependencies_staged"
@@ -570,12 +708,72 @@ def test_release_transaction_v1_requires_explicit_normalization_and_upgrades_on_
     upgraded = json.loads(journal_path.read_text(encoding="utf-8"))
 
     assert loaded.package_id == "ExamplePlugin"
-    assert upgraded["schema_version"] == 2
+    assert upgraded["schema_version"] == 3
     assert upgraded["package_id"] == "ExamplePlugin"
+    assert upgraded["live_folder"] == "ExamplePlugin"
     assert "plugin_key" not in upgraded
     assert upgraded["created_at"] == legacy["created_at"]
     assert upgraded["updated_at"] == legacy["updated_at"]
     assert not journal_path.with_suffix(".json.tmp").exists()
+
+
+def test_release_transaction_v2_upgrades_with_package_folder_default(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+    journal_path = Path(transaction.paths.journal)
+    previous = previous_transaction_document(
+        json.loads(journal_path.read_text(encoding="utf-8"))
+    )
+    journal_path.write_text(json.dumps(previous), encoding="utf-8")
+
+    loaded = new_manager(plugin_core_module).load_transaction(
+        transaction.operation_id
+    )
+    upgraded = json.loads(journal_path.read_text(encoding="utf-8"))
+
+    assert loaded.live_folder == "ExamplePlugin"
+    assert upgraded["schema_version"] == 3
+    assert upgraded["live_folder"] == "ExamplePlugin"
+    assert upgraded["created_at"] == previous["created_at"]
+    assert upgraded["updated_at"] == previous["updated_at"]
+
+
+def test_startup_cleans_v2_stale_pre_activation_payloads(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+    journal_path = Path(transaction.paths.journal)
+    previous = previous_transaction_document(
+        json.loads(journal_path.read_text(encoding="utf-8"))
+    )
+    previous["phase"] = "stale_target"
+    previous["rollback_from"] = ""
+    previous["error"] = (
+        "Installed state no longer matches expected_current."
+    )
+    journal_path.write_text(json.dumps(previous), encoding="utf-8")
+
+    new_manager(plugin_core_module).recover_pending()
+
+    recovered = manager.load_transaction(transaction.operation_id)
+    upgraded = json.loads(journal_path.read_text(encoding="utf-8"))
+    assert recovered.phase == "stale_target"
+    assert_old_live(recovered)
+    assert list(Path(recovered.paths.staging_root).iterdir()) == []
+    assert list(Path(recovered.paths.backup_root).iterdir()) == []
+    assert upgraded["schema_version"] == 3
+    assert upgraded["live_folder"] == "ExamplePlugin"
 
 
 def test_release_transaction_malformed_v1_journal_is_not_rewritten(
@@ -621,8 +819,9 @@ def test_restart_recovery_upgrades_v1_journal_before_rollback(
     document = json.loads(journal_path.read_text(encoding="utf-8"))
     assert recovered.phase == "rolled_back"
     assert_old_live(recovered)
-    assert document["schema_version"] == 2
+    assert document["schema_version"] == 3
     assert document["package_id"] == "ExamplePlugin"
+    assert document["live_folder"] == "ExamplePlugin"
     assert "plugin_key" not in document
 
 
@@ -678,8 +877,9 @@ def test_startup_repairs_v1_pre_activation_journal_with_missing_staging_parent(
     assert backup_parent.is_dir()
     assert list(staging_parent.iterdir()) == []
     assert list(backup_parent.iterdir()) == []
-    assert upgraded["schema_version"] == 2
+    assert upgraded["schema_version"] == 3
     assert upgraded["package_id"] == "ExamplePlugin"
+    assert upgraded["live_folder"] == "ExamplePlugin"
     assert "plugin_key" not in upgraded
     journal_after_recovery = journal_path.read_bytes()
 
@@ -769,7 +969,7 @@ def test_legacy_pre_activation_repair_resumes_after_container_creation_crash(
         new_manager(plugin_core_module).finalize_startup()
 
     interrupted = json.loads(journal_path.read_text(encoding="utf-8"))
-    assert interrupted["schema_version"] == 2
+    assert interrupted["schema_version"] == 3
     assert interrupted["phase"] == "rollback_pending"
     assert interrupted["rollback_from"] == "created"
     assert interrupted["error"] == (
@@ -828,7 +1028,7 @@ def test_changed_state_repair_resumes_after_staging_root_was_recreated(
         interrupted_manager.finalize_startup()
 
     interrupted = json.loads(journal_path.read_text(encoding="utf-8"))
-    assert interrupted["schema_version"] == 2
+    assert interrupted["schema_version"] == 3
     assert interrupted["phase"] == "rollback_pending"
     assert interrupted["rollback_from"] == "created"
     assert staging_parent.is_dir()
@@ -1281,10 +1481,64 @@ def test_activation_refuses_changed_live_dependencies(
 
     stale = manager.load_transaction(transaction.operation_id)
     assert stale.phase == "stale_target"
+    assert stale.rollback_from == "dependencies_staged"
     assert read_marker(stale.paths.live_code) == "old-code"
     assert read_marker(stale.paths.live_dependencies) == (
         "newer live dependency state"
     )
+    assert list(Path(stale.paths.staging_root).iterdir()) == []
+    assert list(Path(stale.paths.backup_root).iterdir()) == []
+
+    aborted = manager.abort(
+        transaction.operation_id,
+        "A retry reached the same stale target.",
+    )
+
+    assert aborted.phase == "stale_target"
+    assert aborted.error == stale.error
+
+
+def test_dependency_cache_churn_does_not_invalidate_release_activation(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+    live_cache = (
+        Path(transaction.paths.live_dependencies)
+        / "__pycache__"
+    )
+    staged_cache = (
+        Path(transaction.paths.staged_dependencies)
+        / "__pycache__"
+    )
+    live_cache.mkdir(parents=True)
+    staged_cache.mkdir(parents=True)
+    (live_cache / "module.pyc").write_bytes(b"runtime cache v1")
+    (staged_cache / "module.pyc").write_bytes(b"staged cache")
+
+    activated = manager.activate(transaction.operation_id)
+
+    assert activated.phase == "restart_pending"
+    (Path(activated.paths.live_dependencies) / "__pycache__").mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    (
+        Path(activated.paths.live_dependencies)
+        / "__pycache__"
+        / "module.pyc"
+    ).write_bytes(b"runtime cache v2")
+
+    completed = new_manager(plugin_core_module).mark_release_managed(
+        transaction.operation_id
+    )
+
+    assert completed.phase == "release_managed"
+    assert_new_live(completed)
 
 
 def test_activation_never_trusts_a_preseeded_backup_leaf(
@@ -1390,10 +1644,13 @@ def test_git_migration_activation_rejects_same_head_content_changes(
 
     stale = manager.load_transaction(transaction.operation_id)
     assert stale.phase == "stale_target"
+    assert stale.rollback_from == "dependencies_staged"
     assert Path(stale.paths.live_code) == live_code
     assert (live_code / ".git").is_dir()
     assert head_commit(live_code) == installed_commit
     assert not Path(stale.paths.backup_code).exists()
+    assert list(Path(stale.paths.staging_root).iterdir()) == []
+    assert list(Path(stale.paths.backup_root).iterdir()) == []
 
 
 @pytest.mark.skipif(GIT is None, reason="Git is required")
@@ -1431,6 +1688,7 @@ def test_migration_backup_revalidation_restores_checkout_changed_during_rename(
 
     stale = manager.load_transaction(transaction.operation_id)
     assert stale.phase == "stale_target"
+    assert stale.rollback_from == "dependencies_staged"
     assert Path(stale.paths.live_code) == live_code
     assert live_code.is_dir()
     assert (live_code / ".git").is_dir()
@@ -1441,6 +1699,111 @@ def test_migration_backup_revalidation_restores_checkout_changed_during_rename(
     assert not Path(stale.paths.backup_code).exists()
     assert read_marker(stale.paths.live_dependencies) == "old-dependencies"
     assert not Path(stale.paths.backup_dependencies).exists()
+    assert list(Path(stale.paths.staging_root).iterdir()) == []
+    assert list(Path(stale.paths.backup_root).iterdir()) == []
+
+
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+def test_migration_revalidation_preserves_both_recreated_live_and_backup(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction, live_code, _installed_commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+        )
+    )
+
+    def recreate_live_after_backup(phase, current_transaction):
+        if phase != "code_backed_up":
+            return
+        Path(current_transaction.paths.backup_code, "README.md").write_text(
+            "changed retained checkout\n",
+            encoding="utf-8",
+        )
+        recreated = Path(current_transaction.paths.live_code)
+        recreated.mkdir()
+        (recreated / "plugin.py").write_text(
+            "# concurrently recreated plugin\n",
+            encoding="utf-8",
+        )
+
+    manager.fault_injector = recreate_live_after_backup
+
+    with pytest.raises(RuntimeError, match="changed after migration approval"):
+        manager.activate(transaction.operation_id)
+
+    blocked = manager.load_transaction(transaction.operation_id)
+    assert blocked.phase == "rollback_pending"
+    assert blocked.rollback_from == "code_backed_up"
+    assert Path(blocked.paths.live_code, "plugin.py").is_file()
+    assert Path(blocked.paths.backup_code, ".git").is_dir()
+    assert Path(blocked.paths.staged_code).is_dir()
+
+    with pytest.raises(RuntimeError, match="could not restore"):
+        new_manager(plugin_core_module).recover_pending()
+
+    assert Path(live_code, "plugin.py").is_file()
+    assert Path(blocked.paths.backup_code, ".git").is_dir()
+    assert Path(blocked.paths.staged_code).is_dir()
+
+
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+def test_migration_restore_recovers_crash_after_backup_returns_live(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction, live_code, _installed_commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+        )
+    )
+    changed_contents = "changed during restore\n"
+
+    def crash_after_restore(phase, current_transaction):
+        if phase == "code_backed_up":
+            Path(
+                current_transaction.paths.backup_code,
+                "README.md",
+            ).write_text(changed_contents, encoding="utf-8")
+        elif phase == "migration_restore_completed":
+            raise SimulatedCrash(phase)
+
+    manager.fault_injector = crash_after_restore
+
+    with pytest.raises(SimulatedCrash):
+        manager.activate(transaction.operation_id)
+
+    interrupted = manager.load_transaction(transaction.operation_id)
+    assert interrupted.phase == "migration_restore_completed"
+    assert live_code.is_dir()
+    assert not Path(interrupted.paths.backup_code).exists()
+
+    new_manager(plugin_core_module).recover_pending()
+
+    recovered = manager.load_transaction(transaction.operation_id)
+    assert recovered.phase == "stale_target"
+    assert recovered.rollback_from == "dependencies_staged"
+    assert (live_code / "README.md").read_text(encoding="utf-8") == (
+        changed_contents
+    )
+    assert (live_code / ".git").is_dir()
+    assert list(Path(recovered.paths.staging_root).iterdir()) == []
+    assert list(Path(recovered.paths.backup_root).iterdir()) == []
 
 
 @pytest.mark.parametrize(
@@ -1471,6 +1834,93 @@ def test_release_transaction_revalidates_loaded_journal_descriptors(
     journal_path.write_text(json.dumps(document), encoding="utf-8")
 
     with pytest.raises(ValueError, match=error):
+        manager.load_transaction(transaction.operation_id)
+
+
+def test_release_transaction_rejects_live_folder_changed_without_paths(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+    journal_path = Path(transaction.paths.journal)
+    document = json.loads(journal_path.read_text(encoding="utf-8"))
+    document["live_folder"] = "OtherPlugin"
+    journal_path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="paths are not manager-owned"):
+        manager.load_transaction(transaction.operation_id)
+
+
+def test_release_transaction_rejects_unsafe_folder_and_path_tampering(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+    journal_path = Path(transaction.paths.journal)
+    document = json.loads(journal_path.read_text(encoding="utf-8"))
+    document["live_folder"] = "../OtherPlugin"
+    document["paths"]["live_code"] = str(plugins_dir.parent / "OtherPlugin")
+    journal_path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="live_folder"):
+        manager.load_transaction(transaction.operation_id)
+
+
+def test_restore_phase_requires_migration_operation_and_origin(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+    journal_path = Path(transaction.paths.journal)
+    document = json.loads(journal_path.read_text(encoding="utf-8"))
+    document["phase"] = "migration_restore_pending"
+    document["rollback_from"] = "code_backed_up"
+    document["error"] = "Interrupted restore."
+    journal_path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="descriptor is inconsistent"):
+        manager.load_transaction(transaction.operation_id)
+
+
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+def test_v2_journal_cannot_claim_a_v3_migration_restore_phase(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction, _live_code, _commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+        )
+    )
+    journal_path = Path(transaction.paths.journal)
+    document = previous_transaction_document(
+        json.loads(journal_path.read_text(encoding="utf-8"))
+    )
+    document["phase"] = "migration_restore_pending"
+    document["rollback_from"] = "code_backed_up"
+    document["error"] = "Impossible legacy restore."
+    journal_path.write_text(json.dumps(document), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="current schema"):
         manager.load_transaction(transaction.operation_id)
 
 
@@ -1694,8 +2144,9 @@ def test_forward_recovery_accepts_and_upgrades_v1_metadata_digest(
     assert upgraded_metadata["schema"] == 2
     assert upgraded_metadata["package_id"] == "ExamplePlugin"
     assert "plugin_key" not in upgraded_metadata
-    assert upgraded_journal["schema_version"] == 2
+    assert upgraded_journal["schema_version"] == 3
     assert upgraded_journal["package_id"] == "ExamplePlugin"
+    assert upgraded_journal["live_folder"] == "ExamplePlugin"
     assert "plugin_key" not in upgraded_journal
 
 
@@ -1767,6 +2218,273 @@ def test_release_transaction_retains_known_good_backup_until_completion(
     assert reloaded.phase == "release_managed"
     assert read_marker(reloaded.paths.backup_code) == "old-code"
     assert read_marker(reloaded.paths.backup_dependencies) == "old-dependencies"
+
+
+def test_startup_never_rolls_back_a_newer_shared_dependency_generation(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    first = prepare_transaction(manager, plugins_dir, manager_dir)
+    manager.activate(first.operation_id)
+    manager.mark_release_managed(first.operation_id)
+
+    second = prepare_other_release_install(manager)
+    manager.activate(second.operation_id)
+
+    first_journal = Path(first.paths.journal)
+    first_document = json.loads(
+        first_journal.read_text(encoding="utf-8")
+    )
+    first_document["phase"] = "restart_pending"
+    first_document["error"] = ""
+    first_journal.write_text(
+        json.dumps(first_document),
+        encoding="utf-8",
+    )
+
+    finalized = new_manager(plugin_core_module).finalize_startup()
+
+    first_after = manager.load_transaction(first.operation_id)
+    second_after = manager.load_transaction(second.operation_id)
+    assert {transaction.operation_id for transaction in finalized} == {
+        first.operation_id,
+        second.operation_id,
+    }
+    assert first_after.phase == "release_managed"
+    assert "superseded" in first_after.error
+    assert second_after.phase == "release_managed"
+    assert read_marker(second_after.paths.live_dependencies) == (
+        "newer-shared-dependencies"
+    )
+    assert read_marker(first_after.paths.live_code) == "new-code"
+    assert read_marker(second_after.paths.live_code) == "other-code"
+    assert (
+        manager.plugin_lifecycle_state(first.plugin_key)[
+            "rollback_available"
+        ]
+        is False
+    )
+
+
+def test_recovery_never_rolls_back_a_newer_active_dependency_generation(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    first = prepare_transaction(
+        manager,
+        plugins_dir,
+        manager_dir,
+        operation_id="a-older-operation",
+    )
+    manager.activate(first.operation_id)
+    manager.mark_release_managed(first.operation_id)
+    second = prepare_other_release_install(
+        manager,
+        operation_id="z-newer-operation",
+    )
+    manager.activate(second.operation_id)
+
+    for transaction, created_at in (
+        (first, "2026-07-23T10:00:00Z"),
+        (second, "2026-07-23T10:01:00Z"),
+    ):
+        journal_path = Path(transaction.paths.journal)
+        document = json.loads(journal_path.read_text(encoding="utf-8"))
+        document["phase"] = "release_activated"
+        document["created_at"] = created_at
+        document["updated_at"] = created_at
+        journal_path.write_text(json.dumps(document), encoding="utf-8")
+
+    recovered_manager = new_manager(plugin_core_module)
+    recovered_manager.recover_pending()
+
+    first_recovered = manager.load_transaction(first.operation_id)
+    second_recovered = manager.load_transaction(second.operation_id)
+    assert first_recovered.phase == "restart_pending"
+    assert "newer shared dependencies" in first_recovered.error
+    assert second_recovered.phase == "restart_pending"
+    assert read_marker(second.paths.live_dependencies) == (
+        "newer-shared-dependencies"
+    )
+
+    recovered_manager.finalize_startup()
+
+    assert manager.load_transaction(first.operation_id).phase == (
+        "release_managed"
+    )
+    assert manager.load_transaction(second.operation_id).phase == (
+        "release_managed"
+    )
+    assert read_marker(second.paths.live_dependencies) == (
+        "newer-shared-dependencies"
+    )
+
+
+def test_queued_recovery_never_rolls_back_a_newer_dependency_generation(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    first = prepare_transaction(
+        manager,
+        plugins_dir,
+        manager_dir,
+        operation_id="a-older-operation",
+    )
+    manager.activate(first.operation_id)
+    manager.mark_release_managed(first.operation_id)
+    second = prepare_other_release_install(
+        manager,
+        operation_id="z-newer-operation",
+    )
+    manager.activate(second.operation_id)
+
+    first_journal = Path(first.paths.journal)
+    first_document = json.loads(
+        first_journal.read_text(encoding="utf-8")
+    )
+    first_document["phase"] = "queued_locked"
+    first_document["rollback_from"] = "release_activated"
+    first_document["error"] = (
+        "Plugin files are locked; activation is queued."
+    )
+    first_journal.write_text(
+        json.dumps(first_document),
+        encoding="utf-8",
+    )
+
+    recovered_manager = new_manager(plugin_core_module)
+    recovered_manager.recover_pending()
+
+    first_recovered = manager.load_transaction(first.operation_id)
+    assert first_recovered.phase == "restart_pending"
+    assert first_recovered.rollback_from == ""
+    assert "newer shared dependencies" in first_recovered.error
+    assert read_marker(second.paths.live_dependencies) == (
+        "newer-shared-dependencies"
+    )
+
+
+def test_recovery_does_not_restore_older_dependencies_with_same_target(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    first = prepare_transaction(
+        manager,
+        plugins_dir,
+        manager_dir,
+        operation_id="a-older-operation",
+        stage_dependencies=False,
+    )
+    write_marker(
+        first.paths.staged_dependencies,
+        "shared-target-dependencies",
+    )
+    first = manager.mark_dependencies_staged(
+        first.operation_id,
+        dependency_snapshot(),
+    )
+    manager.activate(first.operation_id)
+    manager.mark_release_managed(first.operation_id)
+    second = prepare_other_release_install(
+        manager,
+        operation_id="z-newer-operation",
+        dependency_marker="shared-target-dependencies",
+    )
+    manager.activate(second.operation_id)
+
+    first_journal = Path(first.paths.journal)
+    first_document = json.loads(
+        first_journal.read_text(encoding="utf-8")
+    )
+    first_document["phase"] = "dependencies_activated"
+    first_document["error"] = ""
+    first_journal.write_text(
+        json.dumps(first_document),
+        encoding="utf-8",
+    )
+
+    new_manager(plugin_core_module).recover_pending()
+
+    first_recovered = manager.load_transaction(first.operation_id)
+    assert first_recovered.phase == "restart_pending"
+    assert first_recovered.rollback_from == ""
+    assert "newer shared dependencies" in first_recovered.error
+    assert read_marker(second.paths.live_dependencies) == (
+        "shared-target-dependencies"
+    )
+    assert read_marker(first.paths.backup_dependencies) == (
+        "old-dependencies"
+    )
+
+
+def test_recovery_fails_closed_when_dependency_ownership_is_ambiguous(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    first = prepare_transaction(
+        manager,
+        plugins_dir,
+        manager_dir,
+        operation_id="a-older-operation",
+    )
+    manager.activate(first.operation_id)
+    manager.mark_release_managed(first.operation_id)
+    second = prepare_other_release_install(
+        manager,
+        operation_id="z-newer-operation",
+    )
+    manager.activate(second.operation_id)
+
+    for transaction in (first, second):
+        journal_path = Path(transaction.paths.journal)
+        document = json.loads(journal_path.read_text(encoding="utf-8"))
+        document["phase"] = "release_activated"
+        document["error"] = ""
+        journal_path.write_text(json.dumps(document), encoding="utf-8")
+    write_marker(
+        second.paths.live_dependencies,
+        "unidentified-shared-dependencies",
+    )
+    replace_calls = []
+
+    def reject_rename(source, destination):
+        replace_calls.append((source, destination))
+        raise AssertionError("Recovery must not rename files.")
+
+    monkeypatch.setattr(
+        plugin_core_module.os,
+        "replace",
+        reject_rename,
+    )
+
+    with pytest.raises(RuntimeError, match="multiple unfinished"):
+        new_manager(plugin_core_module).recover_pending()
+
+    assert replace_calls == []
+    assert read_marker(second.paths.live_dependencies) == (
+        "unidentified-shared-dependencies"
+    )
 
 
 def test_release_transaction_can_roll_back_from_retained_backup(
@@ -1903,6 +2621,55 @@ def test_release_transactions_are_globally_serialized(
             second_manager.recover_pending(blocking=False)
 
     second_manager.recover_pending(blocking=False)
+
+
+def test_full_release_workflows_are_globally_serialized(
+    plugin_core_module,
+    tmp_path,
+):
+    first_manager, _, _ = make_manager(plugin_core_module, tmp_path)
+    second_manager = new_manager(plugin_core_module)
+
+    with first_manager.workflow_lock(blocking=False):
+        with pytest.raises(RuntimeError):
+            second_manager.recover_pending(blocking=False)
+
+    with second_manager.workflow_lock(blocking=False):
+        pass
+
+
+def test_active_release_must_finish_before_another_snapshot_starts(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, _, _ = make_manager(plugin_core_module, tmp_path)
+    first = manager.create_transaction(
+        plugin_key="ExamplePlugin",
+        operation_id="operation-001",
+        operation="release_install",
+        expected_current={"management_mode": "absent"},
+        target=target_release(),
+    )
+
+    with pytest.raises(RuntimeError, match="still active"):
+        manager.create_transaction(
+            plugin_key="OtherPlugin",
+            operation_id="operation-002",
+            operation="release_install",
+            expected_current={"management_mode": "absent"},
+            target=target_release(),
+        )
+
+    manager.abort(first.operation_id, "Cancelled before staging.")
+    second = manager.create_transaction(
+        plugin_key="OtherPlugin",
+        operation_id="operation-002",
+        operation="release_install",
+        expected_current={"management_mode": "absent"},
+        target=target_release(),
+    )
+
+    assert second.phase == "created"
 
 
 def test_release_transaction_rejects_a_symlink_lock_file(

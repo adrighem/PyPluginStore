@@ -2654,7 +2654,7 @@
                 throw new Error("Request is too large for the Domoticz API bridge.");
             }
 
-            console.log("Sending command: " + action, payload);
+            console.log("Sending command: " + action);
             await fetch(`json.htm?type=command&param=udevice&idx=${payloadIdx}&nvalue=0&svalue=${encodeURIComponent(payload)}`);
             await fetch(`json.htm?type=command&param=switchlight&idx=${triggerIdx}&switchcmd=On`);
 
@@ -2689,7 +2689,10 @@
                         const isExpectedActionResponse = data.action === action && data.tx_id === txId;
                         const isExpectedErrorResponse = data.status === 'error' && !data.action && data.tx_id === txId;
                         if (isExpectedActionResponse || isExpectedErrorResponse) {
-                            console.log("Received response:", data);
+                            console.log(
+                                "Received response for " + action + ": "
+                                + String(data.status || "unknown")
+                            );
                             await clearApiBridgePayload();
                             if (typeof applyManagerIdentityVerdict === 'function') {
                                 applyManagerIdentityVerdict(data.manager_identity);

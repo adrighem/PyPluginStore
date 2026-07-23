@@ -129,12 +129,15 @@ class StagingValidator:
 
 
 class RecordingDependencies:
-    def __init__(self):
+    def __init__(self, requires_confirmation=False):
         self.calls = []
+        self.requires_confirmation = requires_confirmation
 
     def stage(self, operation_id, **arguments):
         self.calls.append((operation_id, arguments))
-        return SimpleNamespace(requires_confirmation=False)
+        return SimpleNamespace(
+            requires_confirmation=self.requires_confirmation
+        )
 
 
 def make_strategy(plugin_core_module, tmp_path, *, http_failure=None):
@@ -296,6 +299,37 @@ def test_release_failure_aborts_without_falling_back_to_git(
     assert dependencies.calls == []
 
 
+def test_unhandled_dependency_confirmation_aborts_without_stranding_work(
+    plugin_core_module,
+    tmp_path,
+):
+    plugin, strategy, manager, _http, _dependencies = make_strategy(
+        plugin_core_module,
+        tmp_path,
+    )
+    strategy.dependency_service = RecordingDependencies(
+        requires_confirmation=True
+    )
+    entry = plugin.get_registry_entry("ExamplePlugin")
+
+    result = strategy.install(
+        entry,
+        descriptor(plugin_core_module),
+        "manual",
+    )
+
+    assert result == (
+        False,
+        "Shared dependency compatibility requires a separate review; no "
+        "plugin files were changed.",
+    )
+    assert [call[0] for call in manager.calls] == [
+        "create",
+        "verified",
+        "abort",
+    ]
+
+
 def test_identity_rejection_keeps_one_reloadable_clean_transaction(
     plugin_core_module,
     tmp_path,
@@ -429,6 +463,74 @@ def test_clean_git_checkout_migrates_through_the_same_pinned_pipeline(
     assert len(metadata.migration_inventory_sha256) == 64
     assert metadata.preserved_files == {}
     assert repository.is_dir()
+
+
+def test_git_migration_keeps_a_discovered_physical_folder_alias(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    configure_home(plugin_core_module, tmp_path)
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "ExamplePlugin": [
+            "owner",
+            "example-plugin",
+            "Example plugin",
+            "main",
+        ]
+    }
+    plugin.release_metadata_selection = (
+        plugin_core_module.ReleaseMetadataSelection(
+            sequence=42,
+            registry_bytes=b"{}",
+            release_index_bytes=b"{}",
+            release_index=None,
+            release_authorized=True,
+        )
+    )
+    physical_folder = "domoticz_example_plugin"
+    plugins_dir = Path(plugin.get_host().plugins_dir())
+    repository, installed_commit = initialize_repository(
+        plugins_dir / physical_folder
+    )
+    plugin.installed_plugin_folders["ExamplePlugin"] = physical_folder
+    strategy = plugin_core_module.ReleaseInstallUpdateStrategy(
+        plugin,
+        http_client=RecordingHttpClient(),
+        extractor=StagingExtractor(),
+        validator=StagingValidator(plugin_core_module),
+    )
+    monkeypatch.setattr(strategy, "_operation_id", lambda: "operation-alias")
+    entry = plugin.get_registry_entry("ExamplePlugin")
+
+    result = strategy.migrate(
+        entry,
+        descriptor(plugin_core_module, installed_commit),
+        "automatic",
+        index_sequence=42,
+    )
+
+    assert result == (
+        True,
+        "Release 2.0.0 staged successfully; restart required.",
+    )
+    transaction = strategy.transaction_manager.load_transaction(
+        "operation-alias"
+    )
+    assert transaction.live_folder == physical_folder
+    assert Path(transaction.paths.live_code) == repository
+    assert repository.is_dir()
+    assert not (repository / ".git").exists()
+    assert not (plugins_dir / "ExamplePlugin").exists()
+    assert strategy.metadata_service.read(repository).management_mode == (
+        "release"
+    )
+
+    strategy.transaction_manager.rollback(transaction.operation_id)
+
+    assert (repository / ".git").is_dir()
+    assert not (plugins_dir / "ExamplePlugin").exists()
 
 
 @pytest.mark.parametrize(

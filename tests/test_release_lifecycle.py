@@ -251,6 +251,55 @@ def test_rollback_to_git_preserves_internal_safety_hold(
     ) == "keep_git"
 
 
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+def test_rollback_reports_success_when_preference_persistence_fails(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction, live_code, _installed_commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+        )
+    )
+    manager.activate(transaction.operation_id)
+    manager.mark_release_managed(transaction.operation_id)
+    plugin = manager.plugin
+    configure_registry_entry(plugin_core_module, plugin)
+    challenge = call_action(
+        plugin,
+        monkeypatch,
+        "rollback",
+    )["challenge"]
+
+    def fail_preference_write(*_arguments):
+        raise OSError("preference storage unavailable")
+
+    monkeypatch.setattr(
+        plugin.channel_preference_service,
+        "set",
+        fail_preference_write,
+    )
+    response = call_action(
+        plugin,
+        monkeypatch,
+        "rollback",
+        challenge["token"],
+    )
+
+    assert response["status"] == "success"
+    assert response["restart_pending"] is True
+    assert "could not be saved" in response["message"]
+    assert (live_code / ".git").is_dir()
+
+
 def test_older_backup_is_pruned_only_after_newer_release_is_managed(
     plugin_core_module, tmp_path
 ):

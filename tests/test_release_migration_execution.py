@@ -9,6 +9,8 @@ from plugin_core_helpers import configure_home
 from test_release_migration import commit_files, git, initialize_repository
 from test_release_runtime_strategy import (
     RecordingHttpClient,
+    StagingExtractor,
+    StagingValidator,
     descriptor,
     make_strategy,
 )
@@ -111,6 +113,56 @@ def test_release_switch_planner_shares_manual_actionability_with_the_ui(
 
     assert blocked.action_state == "blocked"
     assert blocked.message == "Release ancestry could not be verified."
+
+
+def test_release_confirmation_target_binds_the_physical_plugin_folder(
+    plugin_core_module,
+    tmp_path,
+):
+    configure_home(plugin_core_module, tmp_path)
+    plugin = plugin_core_module.BasePlugin()
+    physical_folder = "domoticz_example_plugin"
+    plugin_dir = Path(plugin.get_host().plugins_dir()) / physical_folder
+    plugin_dir.mkdir()
+    plugin.installed_plugin_folders[PLUGIN_KEY] = physical_folder
+    entry = configure_release_entry(plugin_core_module, plugin)
+
+    target = plugin._channel_action_target(
+        entry,
+        {
+            "installed_mode": "git",
+            "channel_preference": "keep_git",
+            "release": None,
+            "installed_release": None,
+        },
+        "release",
+    )
+
+    assert target["live_folder"] == physical_folder
+
+
+def test_release_migration_blocks_duplicate_matching_plugin_folders(
+    plugin_core_module,
+    tmp_path,
+):
+    configure_home(plugin_core_module, tmp_path)
+    plugin = plugin_core_module.BasePlugin()
+    _repository, installed_commit = initialize_repository(
+        os.path.join(plugin.get_host().plugins_dir(), PLUGIN_KEY)
+    )
+    Path(
+        plugin.get_host().plugins_dir(),
+        "example-plugin",
+    ).mkdir()
+    entry = configure_release_entry(plugin_core_module, plugin)
+    release = descriptor(plugin_core_module, installed_commit)
+
+    with pytest.raises(ValueError, match="Multiple installed folders"):
+        plugin.install_update_strategy.release_strategy.preflight_migration(
+            entry,
+            release,
+            "manual",
+        )
 
 
 def test_management_map_exposes_confirmable_release_switch_not_artifact_only(
@@ -406,6 +458,331 @@ def call_use_release(plugin, monkeypatch, token=""):
     plugin.handleApiCommand(payload)
     assert len(responses) == 1
     return responses[0]
+
+
+def configure_use_release_action(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+    *,
+    physical_folder=PLUGIN_KEY,
+    windows=False,
+):
+    configure_home(plugin_core_module, tmp_path)
+    plugin = plugin_core_module.BasePlugin()
+    if windows:
+        plugin.host = plugin_core_module.WindowsHostRuntime(
+            plugin_core_module.Parameters
+        )
+    repository, installed_commit = initialize_repository(
+        os.path.join(plugin.get_host().plugins_dir(), physical_folder)
+    )
+    plugin.installed_plugin_folders[PLUGIN_KEY] = physical_folder
+    entry = configure_release_entry(plugin_core_module, plugin)
+    release = descriptor(plugin_core_module, installed_commit)
+    plugin.release_metadata_selection = (
+        plugin_core_module.ReleaseMetadataSelection(
+            sequence=42,
+            registry_bytes=b"{}",
+            release_index_bytes=b"{}",
+            release_index=None,
+            release_authorized=True,
+        )
+    )
+    context = {
+        "installed_mode": "git",
+        "release": release,
+        "tombstone": None,
+        "metadata_authorized": True,
+        "metadata_reason": "",
+        "installed_release": None,
+        "channel_preference": None,
+        "downgrade_confirmed": False,
+        "release_was_activated": False,
+        "git_status": "unknown",
+        "index_sequence": 42,
+    }
+    monkeypatch.setattr(
+        plugin,
+        "_release_action_context",
+        lambda requested_entry, trigger: dict(context),
+    )
+    return (
+        plugin,
+        repository,
+        entry,
+        release,
+        plugin.install_update_strategy.release_strategy,
+    )
+
+
+def test_use_release_reports_locked_activation_as_queued_success(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugin, repository, _entry, release, release_strategy = (
+        configure_use_release_action(
+            plugin_core_module,
+            tmp_path,
+            monkeypatch,
+        )
+    )
+    operation_id = "queued-release-operation"
+
+    def queue_migration(*arguments, **keywords):
+        del arguments, keywords
+        release_strategy.last_operation_id = operation_id
+        return (
+            True,
+            "Plugin files are locked; Release activation is queued for "
+            "startup. Restart required.",
+        )
+
+    monkeypatch.setattr(release_strategy, "migrate", queue_migration)
+    monkeypatch.setattr(
+        release_strategy.transaction_manager,
+        "load_transaction",
+        lambda requested_operation_id: SimpleNamespace(
+            operation_id=requested_operation_id,
+            plugin_key=PLUGIN_KEY,
+            phase="queued_locked",
+            target={
+                "release_id": release.release_id,
+                "release_revision": release.revision,
+                "artifact_tree_sha256": release.artifact.tree_sha256,
+            },
+            paths=SimpleNamespace(live_code=str(repository)),
+        ),
+    )
+
+    def reject_metadata_read(plugin_dir):
+        raise AssertionError(
+            "Queued activation must not verify the still-live Git checkout."
+        )
+
+    monkeypatch.setattr(
+        plugin.install_metadata_service,
+        "read",
+        reject_metadata_read,
+    )
+
+    challenge = call_use_release(plugin, monkeypatch)
+    response = call_use_release(
+        plugin,
+        monkeypatch,
+        challenge["challenge"]["token"],
+    )
+
+    assert response["status"] == "success"
+    assert response["restart_pending"] is True
+    assert response["activation_state"] == "queued"
+    assert "queued" in response["message"].lower()
+    assert plugin.channel_preference_service.get(
+        REPOSITORY_IDENTITY
+    ) == "release"
+    assert (repository / ".git").is_dir()
+
+
+def test_use_release_queues_locked_alias_then_activates_on_startup(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugin, repository, _entry, release, release_strategy = (
+        configure_use_release_action(
+            plugin_core_module,
+            tmp_path,
+            monkeypatch,
+            physical_folder="domoticz_example_plugin",
+            windows=True,
+        )
+    )
+    release_strategy.http_client = RecordingHttpClient()
+    release_strategy.extractor = StagingExtractor()
+    release_strategy.validator = StagingValidator(plugin_core_module)
+    challenge = call_use_release(plugin, monkeypatch)
+    real_replace = plugin_core_module.os.replace
+    locked_once = False
+
+    def lock_live_checkout_once(source, destination):
+        nonlocal locked_once
+        if (
+            os.path.abspath(os.fspath(source))
+            == os.path.abspath(os.fspath(repository))
+            and not locked_once
+        ):
+            locked_once = True
+            error = PermissionError("file is in use")
+            error.winerror = 32
+            raise error
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(
+        plugin_core_module.os,
+        "replace",
+        lock_live_checkout_once,
+    )
+
+    response = call_use_release(
+        plugin,
+        monkeypatch,
+        challenge["challenge"]["token"],
+    )
+
+    assert response["status"] == "success"
+    assert response["activation_state"] == "queued"
+    assert response["restart_pending"] is True
+    assert (repository / ".git").is_dir()
+    transaction = release_strategy.transaction_manager.load_transaction(
+        release_strategy.last_operation_id
+    )
+    assert transaction.phase == "queued_locked"
+    assert transaction.live_folder == "domoticz_example_plugin"
+
+    monkeypatch.setattr(plugin_core_module.os, "replace", real_replace)
+    release_strategy.transaction_manager.recover_pending()
+    recovered = release_strategy.transaction_manager.load_transaction(
+        release_strategy.last_operation_id
+    )
+
+    assert recovered.phase == "restart_pending"
+    assert Path(recovered.paths.live_code) == repository
+    assert not (repository / ".git").exists()
+    assert plugin.install_metadata_service.read(
+        repository
+    ).management_mode == "release"
+    assert plugin.channel_preference_service.get(
+        REPOSITORY_IDENTITY
+    ) == "release"
+
+
+@pytest.mark.parametrize(
+    "committed_phase",
+    ["restart_pending", "release_managed"],
+)
+def test_use_release_keeps_committed_success_when_verification_cannot_run(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+    committed_phase,
+):
+    plugin, repository, _entry, release, release_strategy = (
+        configure_use_release_action(
+            plugin_core_module,
+            tmp_path,
+            monkeypatch,
+        )
+    )
+    operation_id = "activated-release-operation"
+
+    def activate_migration(*arguments, **keywords):
+        del arguments, keywords
+        release_strategy.last_operation_id = operation_id
+        return True, "Release activation committed; restart required."
+
+    monkeypatch.setattr(release_strategy, "migrate", activate_migration)
+    monkeypatch.setattr(
+        release_strategy.transaction_manager,
+        "load_transaction",
+        lambda requested_operation_id: SimpleNamespace(
+            operation_id=requested_operation_id,
+            plugin_key=PLUGIN_KEY,
+            phase=committed_phase,
+            target={
+                "release_id": release.release_id,
+                "release_revision": release.revision,
+                "artifact_tree_sha256": release.artifact.tree_sha256,
+            },
+            paths=SimpleNamespace(live_code=str(repository)),
+        ),
+    )
+
+    def fail_metadata_read(plugin_dir):
+        del plugin_dir
+        raise ValueError("simulated metadata read failure")
+
+    monkeypatch.setattr(
+        plugin.install_metadata_service,
+        "read",
+        fail_metadata_read,
+    )
+
+    challenge = call_use_release(plugin, monkeypatch)
+    response = call_use_release(
+        plugin,
+        monkeypatch,
+        challenge["challenge"]["token"],
+    )
+
+    assert response["status"] == "success"
+    assert response["restart_pending"] is True
+    assert response["activation_state"] == "activated"
+    assert "verification could not complete" in response["message"]
+    assert plugin.channel_preference_service.get(
+        REPOSITORY_IDENTITY
+    ) == "release"
+
+
+@pytest.mark.parametrize(
+    "terminal_phase",
+    ["rolled_back", "stale_target", "dependency_blocked"],
+)
+def test_use_release_does_not_report_a_terminal_transaction_as_success(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+    terminal_phase,
+):
+    plugin, repository, _entry, release, release_strategy = (
+        configure_use_release_action(
+            plugin_core_module,
+            tmp_path,
+            monkeypatch,
+        )
+    )
+    operation_id = "failed-release-operation"
+
+    def migrate_then_recover(*arguments, **keywords):
+        del arguments, keywords
+        release_strategy.last_operation_id = operation_id
+        return True, "Release activation initially completed."
+
+    monkeypatch.setattr(
+        release_strategy,
+        "migrate",
+        migrate_then_recover,
+    )
+    monkeypatch.setattr(
+        release_strategy.transaction_manager,
+        "load_transaction",
+        lambda requested_operation_id: SimpleNamespace(
+            operation_id=requested_operation_id,
+            plugin_key=PLUGIN_KEY,
+            phase=terminal_phase,
+            error="Release recovery restored the previous checkout.",
+            target={
+                "release_id": release.release_id,
+                "release_revision": release.revision,
+                "artifact_tree_sha256": release.artifact.tree_sha256,
+            },
+            paths=SimpleNamespace(live_code=str(repository)),
+        ),
+    )
+
+    challenge = call_use_release(plugin, monkeypatch)
+    response = call_use_release(
+        plugin,
+        monkeypatch,
+        challenge["challenge"]["token"],
+    )
+
+    assert response["status"] == "error"
+    assert response["restart_pending"] is False
+    assert "restored the previous checkout" in response["message"]
+    assert plugin.channel_preference_service.get(
+        REPOSITORY_IDENTITY
+    ) is None
 
 
 def test_use_release_api_challenge_is_opaque_and_rejects_stale_inventory(

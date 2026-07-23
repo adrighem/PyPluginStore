@@ -21,17 +21,25 @@ from test_release_transactions import (
 def load_pending_document(manager_dir):
     pending_file = manager_dir / ".pypluginstore" / "pending_transactions.json"
     if not pending_file.exists():
-        return {"schema_version": 2, "operations": []}
+        return {"schema_version": 3, "operations": []}
     return json.loads(pending_file.read_text(encoding="utf-8"))
 
 
 def queue_windows_locked_transaction(
-    plugin_core_module, tmp_path, monkeypatch
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+    live_folder="ExamplePlugin",
 ):
     manager, plugins_dir, manager_dir = make_manager(
         plugin_core_module, tmp_path, windows=True
     )
-    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+    transaction = prepare_transaction(
+        manager,
+        plugins_dir,
+        manager_dir,
+        live_folder=live_folder,
+    )
     real_replace = plugin_core_module.os.replace
     locked_once = False
 
@@ -61,11 +69,12 @@ def test_windows_locked_transaction_queues_complete_pinned_descriptor(
     assert queued.phase == "queued_locked"
     assert_old_live(queued)
     pending = load_pending_document(manager_dir)
-    assert pending["schema_version"] == 2
+    assert pending["schema_version"] == 3
     assert len(pending["operations"]) == 1
     descriptor = pending["operations"][0]
     assert descriptor["operation_id"] == queued.operation_id
     assert descriptor["package_id"] == "ExamplePlugin"
+    assert descriptor["live_folder"] == "ExamplePlugin"
     assert "plugin_key" not in descriptor
     assert descriptor["expected_current"] == expected_current()
     assert descriptor["target"] == target_release()
@@ -90,6 +99,30 @@ def test_windows_locked_transaction_retries_once_and_recovers_idempotently(
     first_journal = Path(recovered.paths.journal).read_bytes()
     recovered_manager.recover_pending()
     assert Path(recovered.paths.journal).read_bytes() == first_journal
+    assert_new_live(recovered)
+
+
+def test_windows_queued_alias_recovers_before_folder_discovery(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    live_folder = "domoticz_example_plugin"
+    queued, _manager_dir = queue_windows_locked_transaction(
+        plugin_core_module,
+        tmp_path,
+        monkeypatch,
+        live_folder=live_folder,
+    )
+
+    recovered_manager = new_manager(plugin_core_module, windows=True)
+    recovered_manager.plugin.installed_plugin_folders = {}
+    recovered_manager.recover_pending()
+    recovered = recovered_manager.load_transaction(queued.operation_id)
+
+    assert recovered.phase == "restart_pending"
+    assert recovered.live_folder == live_folder
+    assert Path(recovered.paths.live_code).name == live_folder
     assert_new_live(recovered)
 
 
@@ -124,10 +157,11 @@ def test_windows_restart_upgrades_v1_pending_queue_and_journal(
     )
     upgraded_pending = load_pending_document(manager_dir)
     assert recovered.phase == "restart_pending"
-    assert upgraded_journal["schema_version"] == 2
+    assert upgraded_journal["schema_version"] == 3
     assert upgraded_journal["package_id"] == "ExamplePlugin"
+    assert upgraded_journal["live_folder"] == "ExamplePlugin"
     assert "plugin_key" not in upgraded_journal
-    assert upgraded_pending == {"schema_version": 2, "operations": []}
+    assert upgraded_pending == {"schema_version": 3, "operations": []}
 
 
 def test_windows_queued_transaction_refuses_a_stale_current_target(

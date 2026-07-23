@@ -331,6 +331,19 @@ def test_every_frontend_command_includes_the_embedded_manager_identity():
     assert data_position < identity_position
 
 
+def test_api_bridge_logs_never_include_request_or_response_payloads():
+    script = load_inline_script()
+    send_command = extract_js_function(script, "sendCommand")
+    poll_response = extract_js_function(script, "pollResponse")
+
+    assert 'console.log("Sending command: " + action, payload)' not in (
+        send_command
+    )
+    assert 'console.log("Received response:", data)' not in poll_response
+    assert 'console.log("Sending command: " + action);' in send_command
+    assert "String(data.status || \"unknown\")" in poll_response
+
+
 def test_local_registry_payload_sizing_includes_the_frontend_identity():
     request_fits = extract_js_function(
         load_inline_script(),

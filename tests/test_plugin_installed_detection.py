@@ -1,4 +1,7 @@
+import pytest
+
 from plugin_core_helpers import configure_home, debug_messages, write_plugin_py
+
 
 def test_list_plugins_detects_repository_named_existing_folder(plugin_core_module, tmp_path, monkeypatch):
     plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
@@ -119,6 +122,49 @@ def test_repository_named_folder_without_metadata_is_inferred(plugin_core_module
     assert "deCONZ" in installed
     assert plugin.installed_plugin_folders["deCONZ"] == "Domoticz-deCONZ"
     assert plugin.installed_plugin_match_details["deCONZ"]["source"] == "repository/archive folder name"
+
+
+def test_multiple_physical_folders_for_one_plugin_are_blocked(
+    plugin_core_module,
+    tmp_path,
+):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    canonical = plugins_dir / "deCONZ"
+    repository_named = plugins_dir / "Domoticz-deCONZ"
+    canonical.mkdir()
+    repository_named.mkdir()
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "deCONZ": [
+            "Smanar",
+            "Domoticz-deCONZ",
+            "description",
+            "master",
+            "",
+        ],
+    }
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert "deCONZ" in installed
+    assert "deCONZ" not in plugin.installed_plugin_folders
+    assert plugin.ambiguous_installed_plugin_folders["deCONZ"] == [
+        "deCONZ",
+        "Domoticz-deCONZ",
+    ]
+    detail = plugin.installed_plugin_match_details["deCONZ"]
+    assert detail["source"] == "ambiguous physical folders"
+    assert detail["folders"] == ["deCONZ", "Domoticz-deCONZ"]
+    with pytest.raises(ValueError, match="Multiple installed folders"):
+        plugin.resolve_installed_plugin_dir("deCONZ")
+
+    repository_named.rmdir()
+
+    assert plugin.resolve_installed_plugin_dir(
+        "deCONZ",
+        refresh=True,
+    ) == str(canonical)
+    assert plugin.ambiguous_installed_plugin_folders == {}
 
 
 def test_repository_named_folder_matches_flexible_punctuation(plugin_core_module, tmp_path):
