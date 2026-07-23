@@ -251,6 +251,34 @@ def test_windows_git_commands_enable_long_paths_without_global_config(
     scenario.assert_complete()
 
 
+def test_windows_git_commands_override_disabled_long_paths(
+    plugin_core_module,
+    tmp_path,
+):
+    _plugins_dir, manager_dir = configure_home(
+        plugin_core_module,
+        tmp_path,
+    )
+    runtime = plugin_core_module.WindowsHostRuntime(
+        plugin_core_module.Parameters
+    )
+
+    command = runtime.safe_git_command(
+        [
+            "git",
+            "-c",
+            "core.longPaths=false",
+            "rev-parse",
+            "--verify",
+            "HEAD^{commit}",
+        ],
+        manager_dir,
+    )
+
+    assert "core.longPaths=false" not in command
+    assert command.count("core.longpaths=true") == 1
+
+
 def test_git_runners_decode_captured_output_as_utf8(
     plugin_core_module,
     tmp_path,
@@ -621,11 +649,21 @@ def test_update_command_uses_detected_repository_folder(plugin_core_module, tmp_
         "plugin_key": "deCONZ",
     }
     assert all(cwd == plugin_dir for _, cwd in git_calls)
+    safe_command = plugin.get_host().safe_git_command
     assert [command for command, _ in git_calls[-4:]] == [
-        safe_git_command(plugin_dir, ["git", "fetch", "origin"]),
-        safe_git_command(plugin_dir, ["git", "diff", "--quiet", "HEAD...origin/master"]),
-        safe_git_command(plugin_dir, ["git", "checkout", "-B", "master", "origin/master"]),
-        safe_git_command(plugin_dir, ["git", "reset", "--hard", "origin/master"]),
+        safe_command(["git", "fetch", "origin"], plugin_dir),
+        safe_command(
+            ["git", "diff", "--quiet", "HEAD...origin/master"],
+            plugin_dir,
+        ),
+        safe_command(
+            ["git", "checkout", "-B", "master", "origin/master"],
+            plugin_dir,
+        ),
+        safe_command(
+            ["git", "reset", "--hard", "origin/master"],
+            plugin_dir,
+        ),
     ]
     assert status_calls == [("deCONZ", plugin_dir, False)]
 

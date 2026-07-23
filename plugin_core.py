@@ -581,9 +581,10 @@ class HostRuntime:
         return retry_result
 
     def run_git(self, command, cwd, timeout=15):
-        actual_command = self.platform_git_command(command)
         if self.should_use_safe_git_directory(command, cwd):
-            actual_command = self.safe_git_command(actual_command, cwd)
+            actual_command = self.safe_git_command(command, cwd)
+        else:
+            actual_command = self.platform_git_command(command)
         result = self._run_git_once(actual_command, cwd, timeout=timeout)
         if result is not None and result.returncode != 0 and self.is_git_dubious_ownership(result):
             return self.handle_git_ownership_failure(result, actual_command, cwd, timeout)
@@ -1300,12 +1301,28 @@ class WindowsHostRuntime(HostRuntime):
 
     def platform_git_command(self, command):
         platform_command = list(command)
-        if (
-            platform_command
-            and platform_command[0] == "git"
-            and "core.longpaths=true" not in platform_command
+        if not platform_command or platform_command[0] != "git":
+            return platform_command
+
+        option_index = 1
+        long_paths_configured = False
+        while (
+            option_index + 1 < len(platform_command)
+            and platform_command[option_index] == "-c"
         ):
-            platform_command[1:1] = ["-c", "core.longpaths=true"]
+            config_index = option_index + 1
+            name, separator, _value = str(
+                platform_command[config_index]
+            ).partition("=")
+            if separator and name.casefold() == "core.longpaths":
+                platform_command[config_index] = "core.longpaths=true"
+                long_paths_configured = True
+            option_index += 2
+        if not long_paths_configured:
+            platform_command[option_index:option_index] = [
+                "-c",
+                "core.longpaths=true",
+            ]
         return platform_command
 
     def windows_restart_script_file(self):

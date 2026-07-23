@@ -601,6 +601,24 @@ def test_use_release_queues_locked_alias_then_activates_on_startup(
     release_strategy.http_client = RecordingHttpClient()
     release_strategy.extractor = StagingExtractor()
     release_strategy.validator = StagingValidator(plugin_core_module)
+    git_calls = []
+    real_subprocess_run = plugin_core_module.subprocess.run
+
+    def record_git_commands(command, cwd=None, **kwargs):
+        if command and command[0] == "git":
+            git_calls.append(
+                (
+                    list(command),
+                    os.path.abspath(os.fspath(cwd)) if cwd else "",
+                )
+            )
+        return real_subprocess_run(command, cwd=cwd, **kwargs)
+
+    monkeypatch.setattr(
+        plugin_core_module.subprocess,
+        "run",
+        record_git_commands,
+    )
     challenge = call_use_release(plugin, monkeypatch)
     real_replace = plugin_core_module.os.replace
     locked_once = False
@@ -655,6 +673,16 @@ def test_use_release_queues_locked_alias_then_activates_on_startup(
     assert plugin.channel_preference_service.get(
         REPOSITORY_IDENTITY
     ) == "release"
+    backup_git_commands = [
+        command
+        for command, cwd in git_calls
+        if cwd == os.path.abspath(recovered.paths.backup_code)
+    ]
+    assert backup_git_commands
+    assert all(
+        "core.longpaths=true" in command
+        for command in backup_git_commands
+    )
 
 
 @pytest.mark.parametrize(
