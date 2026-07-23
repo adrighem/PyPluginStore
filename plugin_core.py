@@ -153,6 +153,18 @@ REPOSITORY_PATH_STOP_PARTS = {
 }
 
 
+def is_git_checkout(plugin_dir):
+    """Recognize normal clones and Git worktrees without following links."""
+    git_control_path = os.path.join(plugin_dir, ".git")
+    return bool(
+        not os.path.islink(git_control_path)
+        and (
+            os.path.isdir(git_control_path)
+            or os.path.isfile(git_control_path)
+        )
+    )
+
+
 def parameter_get(parameters, key, default):
     try:
         return parameters.get(key, default)
@@ -507,7 +519,11 @@ class HostRuntime:
             inside_plugins_dir = os.path.commonpath([repo_dir, plugins_dir]) == plugins_dir
         except ValueError:
             inside_plugins_dir = False
-        return repo_dir != plugins_dir and inside_plugins_dir and os.path.isdir(os.path.join(repo_dir, ".git"))
+        return (
+            repo_dir != plugins_dir
+            and inside_plugins_dir
+            and is_git_checkout(repo_dir)
+        )
 
     def chown_path(self, path, uid, gid):
         stat_result = os.lstat(path)
@@ -889,7 +905,7 @@ else:
     def preflight_self_update(self, plugin_dir):
         if not self.command_available("git"):
             return False, "Git is not available, so PyPluginStore cannot self-update.", {}
-        if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+        if not is_git_checkout(plugin_dir):
             return False, "PyPluginStore is not installed as a git repository.", {}
         if self.has_git_index_lock(plugin_dir):
             return False, self.git_index_lock_message(plugin_dir), {}
@@ -1073,7 +1089,14 @@ write_state("running", "Self update helper is running.")
 if startup_delay:
     time.sleep(startup_delay)
 
-if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+git_control_path = os.path.join(plugin_dir, ".git")
+if (
+    os.path.islink(git_control_path)
+    or not (
+        os.path.isdir(git_control_path)
+        or os.path.isfile(git_control_path)
+    )
+):
     write_log("not a git repository: {}".format(plugin_dir))
     write_state("failed", "PyPluginStore is not installed as a git repository.")
     raise SystemExit(1)
@@ -6031,12 +6054,8 @@ class InstallMetadataService:
         os.unlink(temporary_path)
         self._fsync_directory(plugin_dir)
 
-    def read(self, plugin_dir):
-        """Read committed metadata after discarding any orphan temporary file."""
-        plugin_dir, metadata_path, temporary_path = self._paths(plugin_dir)
-        self._discard_temp(plugin_dir, temporary_path)
-        if not os.path.lexists(metadata_path):
-            return None
+    def _read_committed(self, metadata_path):
+        """Parse one committed metadata file without changing the filesystem."""
         if os.path.islink(metadata_path) or not os.path.isfile(metadata_path):
             raise ValueError("Install metadata path is not a regular file.")
         try:
@@ -6045,7 +6064,9 @@ class InstallMetadataService:
                     metadata_file.read(), self.FILE_NAME
                 )
         except OSError as error:
-            raise ValueError("Could not read install metadata: " + str(error)) from error
+            raise ValueError(
+                "Could not read install metadata: " + str(error)
+            ) from error
         is_legacy = (
             type(document.get("schema")) is int
             and document.get("schema")
@@ -6056,7 +6077,23 @@ class InstallMetadataService:
             if is_legacy
             else InstallMetadata.from_document
         )
-        metadata = parser(document)
+        return parser(document), is_legacy
+
+    def inspect(self, plugin_dir):
+        """Read committed metadata without cleanup or schema upgrades."""
+        _plugin_dir, metadata_path, _temporary_path = self._paths(plugin_dir)
+        if not os.path.lexists(metadata_path):
+            return None
+        metadata, _is_legacy = self._read_committed(metadata_path)
+        return metadata
+
+    def read(self, plugin_dir):
+        """Read committed metadata after discarding any orphan temporary file."""
+        plugin_dir, metadata_path, temporary_path = self._paths(plugin_dir)
+        self._discard_temp(plugin_dir, temporary_path)
+        if not os.path.lexists(metadata_path):
+            return None
+        metadata, is_legacy = self._read_committed(metadata_path)
         if is_legacy:
             self.write(plugin_dir, metadata)
         return metadata
@@ -8876,6 +8913,8 @@ class ReleaseTransactionManager:
                     "Another release operation is still active; restart or "
                     "finish it before starting a new one."
                 )
+            if operation == "release_install":
+                self.plugin.assert_release_install_absent_locked(plugin_key)
             paths = self._paths(
                 plugin_key,
                 operation_id,
@@ -9400,6 +9439,20 @@ class ReleaseTransactionManager:
         pending_phase,
         completed_phase,
     ):
+        if (
+            transaction.operation == "release_install"
+            and pending_phase == "code_backup_pending"
+        ):
+            if os.path.lexists(source):
+                raise ValueError(
+                    "A plugin folder appeared after Release install "
+                    "preflight; it was left untouched."
+                )
+            # A fresh install has no approved live tree to back up. Never move
+            # a late writer aside as though it were expected_current.
+            self._set_phase(transaction, pending_phase)
+            self._set_phase(transaction, completed_phase, inject=True)
+            return
         self._set_phase(transaction, pending_phase)
         if os.path.lexists(source):
             if os.path.lexists(destination):
@@ -9511,7 +9564,7 @@ class ReleaseTransactionManager:
             if (
                 not os.path.isdir(path)
                 or os.path.islink(path)
-                or not os.path.isdir(os.path.join(path, ".git"))
+                or not is_git_checkout(path)
             ):
                 return False
             return self._git_migration_snapshot_matches(
@@ -9929,6 +9982,22 @@ class ReleaseTransactionManager:
             self._rollback_locked(transaction, error)
             raise ValueError(error)
         if validate_current:
+            if transaction.operation == "release_install":
+                try:
+                    self.plugin.assert_release_install_absent_locked(
+                        transaction.plugin_key
+                    )
+                except (OSError, RuntimeError, ValueError) as error:
+                    message = (
+                        "Release activation stopped because another installed "
+                        "folder now claims this plugin: "
+                        + str(error)
+                    )
+                    self._complete_pre_activation_rollback_locked(
+                        transaction,
+                        message,
+                    )
+                    raise RuntimeError(message) from None
             current_matches = self._metadata_matches(transaction)
             dependencies_match = self._dependency_tree_matches(
                 transaction.paths.live_dependencies,
@@ -11958,7 +12027,7 @@ class UpdateStatusService:
         return update_status
 
     def get_git_update_status(self, plugin_dir, plugin_key=None, fetch_first=True):
-        if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+        if not is_git_checkout(plugin_dir):
             return "unknown"
 
         try:
@@ -12005,7 +12074,11 @@ class GitInstallUpdateStrategy:
             return False, str(e)
 
         try:
-            existing_plugin_dir = self.plugin.resolve_installed_plugin_dir(plugin_key, plugins_dir)
+            existing_plugin_dir = self.plugin.resolve_installed_plugin_dir(
+                plugin_key,
+                plugins_dir,
+                refresh=True,
+            )
         except ValueError as e:
             Domoticz.Error(str(e))
             return False, str(e)
@@ -12029,21 +12102,32 @@ class GitInstallUpdateStrategy:
         ]
         Domoticz.Log("Calling: " + " ".join(clone_command))
 
-        result, clone_message = host.require_git_success(
-            plugins_dir,
-            clone_command,
-            timeout=120,
-            fallback="Git clone failed",
-            log_label="Clone",
-        )
-        if clone_message:
-            Domoticz.Error("Git clone failed for plugin " + plugin_key + ".")
-            return False, clone_message
+        try:
+            with self.plugin.release_transaction_manager.operation_lock():
+                self.plugin.assert_release_install_absent_locked(plugin_key)
+                result, clone_message = host.require_git_success(
+                    plugins_dir,
+                    clone_command,
+                    timeout=120,
+                    fallback="Git clone failed",
+                    log_label="Clone",
+                )
+                if clone_message:
+                    Domoticz.Error(
+                        "Git clone failed for plugin "
+                        + plugin_key
+                        + "."
+                    )
+                    return False, clone_message
+                if not os.path.isdir(plugin_dir):
+                    Domoticz.Error(
+                        "Plugin folder was not created: " + plugin_dir
+                    )
+                    return False, "Plugin folder was not created."
+        except (OSError, RuntimeError, ValueError) as error:
+            Domoticz.Error(str(error))
+            return False, str(error)
         Domoticz.Log("Plugin " + plugin_key + " installed successfully.")
-
-        if not os.path.isdir(plugin_dir):
-            Domoticz.Error("Plugin folder was not created: " + plugin_dir)
-            return False, "Plugin folder was not created."
 
         self.plugin.refresh_single_plugin_update_time(plugin_key, plugin_dir, fetch_first=False)
         self.plugin.refresh_single_plugin_update_status(plugin_key, plugin_dir, fetch_first=False)
@@ -12057,7 +12141,10 @@ class GitInstallUpdateStrategy:
         host = self.plugin.get_host()
         try:
             plugin_key = host.validate_plugin_key(entry.key)
-            plugin_dir = self.plugin.resolve_installed_plugin_dir(plugin_key)
+            plugin_dir = self.plugin.resolve_installed_plugin_dir(
+                plugin_key,
+                refresh=True,
+            )
         except ValueError as e:
             Domoticz.Error(str(e))
             return False, str(e)
@@ -12168,7 +12255,7 @@ class GitInstallUpdateStrategy:
             Domoticz.Error(str(e))
             return None
 
-        if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+        if not is_git_checkout(plugin_dir):
             self.plugin.update_status[entry.key] = "unknown"
             Domoticz.Log("Plugin:" + entry.key + " is not installed from gitHub. Ignoring!!.")
             return None
@@ -12974,8 +13061,11 @@ class ReleaseInstallUpdateStrategy:
         migration_preflight=None,
     ):
         if operation == "release_install":
-            plugin_dir = self.plugin.get_host().resolve_plugin_dir(entry.key)
-            if os.path.lexists(plugin_dir):
+            discovered_dir = self.plugin.resolve_installed_plugin_dir(
+                entry.key,
+                refresh=True,
+            )
+            if os.path.lexists(discovered_dir):
                 raise ValueError("Plugin folder already exists.")
             return {"management_mode": "absent"}, None, None
         if operation == "release_migration":
@@ -13930,6 +14020,13 @@ class ReleaseManagementCoordinator:
             channel_preference = _require_channel_preference(
                 channel_preference
             )
+        if operation == "install" and installed_mode != "absent":
+            return self._decision(
+                "none",
+                "current",
+                reason="plugin_already_installed",
+                trigger=trigger,
+            )
 
         policy = entry.delivery
         if channel_preference == "keep_git":
@@ -14653,6 +14750,9 @@ class BasePlugin:
         self.installed_plugin_folders = {}
         self.ambiguous_installed_plugin_folders = {}
         self.installed_plugin_match_details = {}
+        self.installed_plugin_install_conflicts = {}
+        self.installed_plugins_snapshot = []
+        self.installed_plugins_snapshot_available = False
         self.installed_plugin_scan_error = ""
         self.release_metadata_selection = ReleaseMetadataSelection(
             sequence=0,
@@ -14885,10 +14985,29 @@ class BasePlugin:
             if os.path.lexists(metadata_path):
                 installed_mode = "release"
                 release_was_activated = True
+                if os.path.lexists(os.path.join(plugin_dir, ".git")):
+                    return {
+                        "error": (
+                            "The plugin contains both Release metadata and Git "
+                            "control data. Resolve the mixed management state "
+                            "before changing it."
+                        ),
+                        "installed_mode": "release",
+                        "index_sequence": selection.sequence,
+                    }
                 try:
                     installed_release = self.install_metadata_service.read(
                         plugin_dir
                     )
+                except OSError:
+                    return {
+                        "error": (
+                            "Installed release metadata could not be upgraded "
+                            "or cleaned up safely."
+                        ),
+                        "installed_mode": "release",
+                        "index_sequence": selection.sequence,
+                    }
                 except ValueError as error:
                     return {
                         "error": "Installed release metadata is invalid: "
@@ -14896,7 +15015,43 @@ class BasePlugin:
                         "installed_mode": "release",
                         "index_sequence": selection.sequence,
                     }
-            elif os.path.isdir(os.path.join(plugin_dir, ".git")):
+                expected_identity = normalize_repository_identity(
+                    entry.author,
+                    entry.repository,
+                )
+                installed_package_id = getattr(
+                    installed_release,
+                    "package_id",
+                    getattr(installed_release, "plugin_key", None),
+                )
+                installed_repository_identity = getattr(
+                    installed_release,
+                    "repository_identity",
+                    None,
+                )
+                if (
+                    installed_release is None
+                    or not expected_identity
+                    or (
+                        installed_package_id is not None
+                        and installed_package_id != entry.key
+                    )
+                    or (
+                        installed_repository_identity is not None
+                        and installed_repository_identity
+                        != expected_identity
+                    )
+                    or entry.local
+                ):
+                    return {
+                        "error": (
+                            "Installed release metadata does not match the "
+                            "current registry entry."
+                        ),
+                        "installed_mode": "release",
+                        "index_sequence": selection.sequence,
+                    }
+            elif is_git_checkout(plugin_dir):
                 installed_mode = "git"
             elif entry.key == self.get_current_plugin_folder():
                 installed_mode = "git"
@@ -15208,7 +15363,12 @@ class BasePlugin:
 
         repo_folder = self.plugin_folder_name_from_clone_url(clone_url)
         expected_names = set()
-        for expected_name in (plugin_key, entry.repository, repo_folder):
+        for expected_name in (
+            plugin_key,
+            entry.repository,
+            repo_folder,
+            entry.domoticz_key,
+        ):
             expected_names.add(self.normalize_plugin_metadata_value(expected_name))
             expected_names.add(
                 self.normalize_plugin_metadata_value(
@@ -15257,6 +15417,26 @@ class BasePlugin:
 
     def add_domoticz_affix_name_candidate(self, name_lookup, candidate, plugin_key):
         self.add_flexible_name_candidate(name_lookup, self.strip_domoticz_plugin_affixes(candidate), plugin_key)
+
+    def build_registry_repository_identity_lookup(self):
+        """Return every registry owner for each repository identity."""
+        lookup = {}
+        for plugin_key in self.plugin_data:
+            if plugin_key == "Idle":
+                continue
+            entry = self.get_registry_entry(plugin_key)
+            if entry is None:
+                continue
+            clone_url = self.build_git_clone_url(
+                entry.author,
+                entry.repository,
+            )
+            self.add_lookup_candidate(
+                lookup,
+                self.normalize_github_repo_identity(clone_url),
+                plugin_key,
+            )
+        return lookup
 
     def build_installed_plugin_lookup(self):
         exact_name_lookup = {}
@@ -15325,6 +15505,77 @@ class BasePlugin:
             repo_identity_lookup,
         )
 
+    def add_release_install_conflict(
+        self,
+        conflicts,
+        plugin_key,
+        plugin_folder,
+        match,
+        reason,
+    ):
+        """Aggregate authoritative metadata claims that block an install."""
+        conflict = conflicts.get(plugin_key, {})
+        folders = set(conflict.get("folders", []))
+        folders.add(plugin_folder)
+        folders = sorted(folders, key=lambda value: value.casefold())
+        package_ids = set(conflict.get("package_ids", []))
+        if match.get("package_id"):
+            package_ids.add(match["package_id"])
+        package_ids = sorted(package_ids, key=lambda value: value.casefold())
+        repository_identities = set(
+            conflict.get("repository_identities", [])
+        )
+        if match.get("repository_identity"):
+            repository_identities.add(match["repository_identity"])
+        repository_identities = sorted(repository_identities)
+        reasons = set(conflict.get("reasons", []))
+        reasons.add(reason)
+        reasons = sorted(reasons)
+        sources = set(conflict.get("sources", []))
+        sources.add(
+            match.get("source", "release install metadata conflict")
+        )
+        sources = sorted(sources)
+        folder_label = ", ".join(folders)
+        package_label = ", ".join(package_ids) or "an unknown package"
+        conflicts[plugin_key] = {
+            "folder": folders[0] if len(folders) == 1 else "",
+            "folders": folders,
+            "source": (
+                sources[0]
+                if len(sources) == 1
+                else "release install metadata conflict"
+            ),
+            "sources": sources,
+            "detail": (
+                "Committed Release metadata in "
+                + folder_label
+                + " conflicts with this registry plugin by "
+                + " and ".join(reasons)
+                + "."
+            ),
+            "management_error": (
+                "Release-managed folder "
+                + folder_label
+                + " is recorded for "
+                + package_label
+                + " and already uses this repository or package folder. "
+                "Restore the matching registry entry or reinstall that "
+                "folder before changing "
+                + plugin_key
+                + "."
+            ),
+            "package_id": package_ids[0] if len(package_ids) == 1 else "",
+            "package_ids": package_ids,
+            "repository_identity": (
+                repository_identities[0]
+                if len(repository_identities) == 1
+                else ""
+            ),
+            "repository_identities": repository_identities,
+            "reasons": reasons,
+        }
+
     def get_git_remote_urls(self, plugin_dir):
         result = self.run_git_command(plugin_dir, ["git", "remote", "-v"], timeout=10)
         remote_urls = []
@@ -15349,11 +15600,203 @@ class BasePlugin:
         }
 
     def match_detail_for_response(self, plugin_folder, match):
-        return {
+        detail = {
             "folder": plugin_folder,
             "source": match.get("source", ""),
             "detail": match.get("detail", ""),
         }
+        for field in (
+            "management_mode",
+            "management_error",
+            "release_metadata_state",
+            "package_id",
+            "repository_identity",
+        ):
+            if field in match:
+                detail[field] = match[field]
+        return detail
+
+    def inspect_release_install_match(self, plugin_path):
+        """Return discovery evidence from committed Release install metadata."""
+        plugin_folder = os.path.basename(os.path.normpath(plugin_path))
+        metadata_path = os.path.join(
+            plugin_path,
+            InstallMetadataService.FILE_NAME,
+        )
+        if not os.path.lexists(metadata_path):
+            return None
+
+        try:
+            metadata = self.install_metadata_service.inspect(plugin_path)
+        except ValueError:
+            match = self.make_installed_plugin_match(
+                "",
+                "invalid release install metadata",
+                0,
+                (
+                    "A committed Release metadata marker exists but could not "
+                    "be validated."
+                ),
+            )
+            match.update(
+                {
+                    "management_mode": "release",
+                    "management_error": (
+                        "Installed release metadata in folder "
+                        + plugin_folder
+                        + " is invalid or unreadable. Restore the verified "
+                        "plugin backup or reinstall it before making changes."
+                    ),
+                    "release_metadata_state": "invalid",
+                    "authoritative": False,
+                }
+            )
+            return match
+
+        if metadata is None:
+            match = self.make_installed_plugin_match(
+                "",
+                "invalid release install metadata",
+                0,
+                (
+                    "A committed Release metadata marker changed while the "
+                    "plugin folder was being inspected."
+                ),
+            )
+            match.update(
+                {
+                    "management_mode": "release",
+                    "management_error": (
+                        "Installed release metadata in folder "
+                        + plugin_folder
+                        + " changed during discovery. Refresh before making "
+                        "changes."
+                    ),
+                    "release_metadata_state": "invalid",
+                    "authoritative": False,
+                }
+            )
+            return match
+
+        package_id = metadata.package_id
+        match = self.make_installed_plugin_match(
+            "",
+            "release install metadata",
+            0,
+            "Committed Release metadata identifies the installed package.",
+        )
+        match.update(
+            {
+                "management_mode": "release",
+                "release_metadata_state": "valid",
+                "package_id": package_id,
+                "repository_identity": metadata.repository_identity,
+                "authoritative": True,
+            }
+        )
+
+        if package_id not in self.plugin_data:
+            match.update(
+                {
+                    "source": "orphan release install metadata",
+                    "detail": (
+                        "Committed Release metadata references a package that "
+                        "is not in the current registry."
+                    ),
+                    "management_error": (
+                        "Installed release metadata in folder "
+                        + plugin_folder
+                        + " references package "
+                        + package_id
+                        + ", which is not present in the current registry. "
+                        "Restore the registry entry before changing this plugin."
+                    ),
+                    "release_metadata_state": "orphan",
+                }
+            )
+            return match
+
+        entry = self.get_registry_entry(package_id)
+        if entry is None:
+            match.update(
+                {
+                    "source": "orphan release install metadata",
+                    "detail": (
+                        "Committed Release metadata references a registry "
+                        "package whose entry is invalid."
+                    ),
+                    "management_error": (
+                        "The registry entry referenced by installed release "
+                        "metadata is invalid. Repair the registry entry before "
+                        "changing this plugin."
+                    ),
+                    "release_metadata_state": "orphan",
+                }
+            )
+            return match
+
+        match["key"] = package_id
+        errors = []
+        expected_identity = normalize_repository_identity(
+            entry.author,
+            entry.repository,
+        )
+        if (
+            not expected_identity
+            or metadata.repository_identity != expected_identity
+        ):
+            errors.append(
+                "Installed release metadata in folder "
+                + plugin_folder
+                + " does not match the current registry repository. Restore "
+                "the matching registry entry or reinstall the plugin before "
+                "changing it."
+            )
+            match["release_metadata_state"] = "repository_mismatch"
+        if entry.local:
+            errors.append(
+                "Installed release metadata in folder "
+                + plugin_folder
+                + " belongs to a Git-only local registry entry. Restore the "
+                "intended Git checkout or matching Release registry entry "
+                "before changing it."
+            )
+            match["release_metadata_state"] = "local_registry_conflict"
+        if os.path.lexists(os.path.join(plugin_path, ".git")):
+            errors.append(
+                "Folder "
+                + plugin_folder
+                + " contains both Release metadata and Git control data. "
+                "Restore either the verified Release installation or the "
+                "intended Git checkout before changing it."
+            )
+            match["release_metadata_state"] = "mixed"
+        if errors:
+            match["management_error"] = " ".join(errors)
+            match["detail"] += " The folder has a conflicting management state."
+        return match
+
+    def merge_release_install_diagnostic(self, match, diagnostic):
+        """Attach an invalid-marker diagnostic to a legacy discovery match."""
+        if not diagnostic:
+            return match
+        if not match:
+            return diagnostic
+        for field in (
+            "management_mode",
+            "management_error",
+            "release_metadata_state",
+            "package_id",
+            "repository_identity",
+        ):
+            if field in diagnostic:
+                match[field] = diagnostic[field]
+        diagnostic_detail = diagnostic.get("detail", "")
+        if diagnostic_detail:
+            match["detail"] = (
+                match.get("detail", "").rstrip() + " " + diagnostic_detail
+            ).strip()
+        return match
 
     def registry_target_details(self, plugin_key):
         entry = self.get_registry_entry(plugin_key)
@@ -15380,7 +15823,7 @@ class BasePlugin:
         }
 
     def detect_installed_registry_mismatch(self, plugin_key, plugin_dir):
-        if not plugin_key or not os.path.isdir(os.path.join(plugin_dir, ".git")):
+        if not plugin_key or not is_git_checkout(plugin_dir):
             return {}
 
         configured = self.registry_target_details(plugin_key)
@@ -15585,6 +16028,16 @@ class BasePlugin:
         valid_candidates = [candidate for candidate in candidates if candidate]
         if not valid_candidates:
             return None
+        authoritative_candidates = [
+            candidate
+            for candidate in valid_candidates
+            if candidate.get("authoritative")
+        ]
+        if authoritative_candidates:
+            authoritative_candidates.sort(
+                key=lambda candidate: candidate.get("priority", 1000)
+            )
+            return authoritative_candidates[0]
         local_plugin_keys = set(self.local_plugin_keys)
         local_candidates = [candidate for candidate in valid_candidates if candidate.get("key") in local_plugin_keys]
         if local_candidates:
@@ -15605,7 +16058,26 @@ class BasePlugin:
     ):
         candidates = []
         plugin_file = os.path.join(plugin_path, "plugin.py")
-        is_git_repo = os.path.isdir(os.path.join(plugin_path, ".git"))
+        is_git_repo = is_git_checkout(plugin_path)
+        release_install_match = self.inspect_release_install_match(
+            plugin_path
+        )
+        if release_install_match and release_install_match.get(
+            "authoritative"
+        ):
+            if release_install_match.get("key"):
+                self.log_installed_plugin_match(
+                    plugin_folder,
+                    release_install_match,
+                )
+            else:
+                Domoticz.Debug(
+                    "Release metadata for folder "
+                    + plugin_folder
+                    + " references a package outside the current registry."
+                )
+            return release_install_match
+
         remote_urls = self.get_git_remote_urls(plugin_path) if is_git_repo else []
         for remote_url in remote_urls:
             match = self.match_lookup_candidate(
@@ -15660,8 +16132,19 @@ class BasePlugin:
             Domoticz.Debug("No registry match found for folder " + plugin_folder + " from git, folder, or metadata because plugin.py was not found.")
 
         match = self.choose_installed_plugin_match(candidates)
+        match = self.merge_release_install_diagnostic(
+            match,
+            release_install_match,
+        )
         if match:
-            self.log_installed_plugin_match(plugin_folder, match)
+            if match.get("key"):
+                self.log_installed_plugin_match(plugin_folder, match)
+            else:
+                Domoticz.Debug(
+                    "No registry match found for folder "
+                    + plugin_folder
+                    + "; its Release metadata is invalid."
+                )
         else:
             Domoticz.Debug("No registry match found for folder " + plugin_folder + ".")
         return match
@@ -15811,8 +16294,7 @@ class BasePlugin:
         )
         if not os.path.lexists(metadata_path):
             return ""
-        git_dir = os.path.join(plugin_dir, ".git")
-        if os.path.isdir(git_dir) and not os.path.islink(git_dir):
+        if is_git_checkout(plugin_dir):
             return ""
         return (
             "This Local registry override requires a Git checkout. "
@@ -16104,7 +16586,7 @@ class BasePlugin:
             return None
 
     def refresh_git_update_time(self, plugin_key, plugin_dir, update_times=None, remote_ref=""):
-        if not plugin_key or not os.path.isdir(os.path.join(plugin_dir, ".git")):
+        if not plugin_key or not is_git_checkout(plugin_dir):
             return False
         if self.installed_registry_mismatch(plugin_key, plugin_dir):
             return False
@@ -16121,7 +16603,7 @@ class BasePlugin:
         return self.overlay_git_update_time(plugin_key, updated_at, update_times, remote_url, remote_ref)
 
     def refresh_single_plugin_update_time(self, plugin_key, plugin_dir, fetch_first=True):
-        if not os.path.isdir(os.path.join(plugin_dir, ".git")):
+        if not is_git_checkout(plugin_dir):
             return False
 
         if fetch_first and not self.fetch_git_repo(plugin_dir):
@@ -16139,10 +16621,111 @@ class BasePlugin:
             installed_plugins.append(plugin_key)
 
     def getInstalledPlugins(self, plugins_dir):
+        """Scan only while Release activation paths are filesystem-stable."""
+        configured_plugins_dir = self.get_host().plugins_dir()
+        if (
+            os.path.normcase(os.path.realpath(str(plugins_dir)))
+            != os.path.normcase(os.path.realpath(configured_plugins_dir))
+        ):
+            return self._get_installed_plugins_unlocked(
+                plugins_dir,
+                publish=False,
+            )
+
+        lock_entered = False
+        try:
+            with self.release_transaction_manager.operation_lock(
+                blocking=False
+            ):
+                lock_entered = True
+                return self._get_installed_plugins_unlocked(plugins_dir)
+        except (OSError, RuntimeError, ValueError) as error:
+            error_detail = str(error).strip() or type(error).__name__
+            if not lock_entered:
+                if self.installed_plugins_snapshot_available:
+                    installed_plugins = list(
+                        self.installed_plugins_snapshot
+                    )
+                else:
+                    try:
+                        installed_plugins = (
+                            self._get_installed_plugins_unlocked(
+                                plugins_dir,
+                                publish=False,
+                            )
+                        )
+                    except (OSError, RuntimeError, ValueError):
+                        installed_plugins = []
+                self.installed_plugin_scan_error = (
+                    "Installed plugins could not be scanned with transaction "
+                    "coordination: "
+                    + error_detail
+                    + ". Wait for the current operation or restore access to "
+                    "the .pypluginstore manager state, then Refresh. The last "
+                    "trusted snapshot is retained and plugin changes are "
+                    "paused."
+                )
+                Domoticz.Error(self.installed_plugin_scan_error)
+                return installed_plugins
+
+            self.installed_plugin_scan_error = (
+                "Installed plugin discovery failed: "
+                + error_detail
+                + ". Check the plugins folder and .pypluginstore manager "
+                "state, then Refresh. The last successful installed-plugin "
+                "snapshot is retained and plugin changes are paused."
+            )
+            Domoticz.Error(
+                self.installed_plugin_scan_error
+            )
+            return list(self.installed_plugins_snapshot)
+
+    def assert_release_install_absent_locked(self, plugin_key):
+        """Revalidate install absence while the transaction lock is held."""
+        plugin_key = self.get_host().validate_plugin_key(plugin_key)
+        plugins_dir = self.get_host().plugins_dir()
+        installed_plugins = self._get_installed_plugins_unlocked(
+            plugins_dir
+        )
+        if self.installed_plugin_scan_error:
+            raise RuntimeError(self.installed_plugin_scan_error)
+        conflict = self.installed_plugin_install_conflicts.get(
+            plugin_key,
+            {},
+        ).get("management_error", "")
+        if conflict:
+            raise ValueError(conflict)
+        ambiguous = self.ambiguous_installed_plugin_folders.get(
+            plugin_key,
+            [],
+        )
+        if ambiguous:
+            raise ValueError(
+                "Multiple installed folders match "
+                + plugin_key
+                + ": "
+                + ", ".join(ambiguous)
+                + "."
+            )
+        if (
+            plugin_key in installed_plugins
+            or plugin_key in self.installed_plugin_folders
+            or os.path.lexists(
+                self.get_host().resolve_plugin_dir(plugin_key)
+            )
+        ):
+            raise ValueError(
+                "Plugin "
+                + plugin_key
+                + " is already installed or claimed by an existing folder."
+            )
+
+    def _get_installed_plugins_unlocked(self, plugins_dir, *, publish=True):
         installed_plugins = []
         installed_plugin_folders = {}
         ambiguous_installed_plugin_folders = {}
         installed_plugin_match_details = {}
+        installed_plugin_install_conflicts = {}
         (
             exact_name_lookup,
             archive_name_lookup,
@@ -16151,6 +16734,9 @@ class BasePlugin:
             remote_lookup,
             repo_identity_lookup,
         ) = self.build_installed_plugin_lookup()
+        all_repo_identity_lookup = (
+            self.build_registry_repository_identity_lookup()
+        )
 
         try:
             plugin_folders = sorted(
@@ -16159,19 +16745,24 @@ class BasePlugin:
             )
         except Exception as e:
             Domoticz.Error("Could not scan Domoticz plugins folder: " + str(e))
-            self.installed_plugin_folders = {}
-            self.ambiguous_installed_plugin_folders = {}
-            self.installed_plugin_match_details = {}
-            self.installed_plugin_scan_error = str(e)
-            return installed_plugins
+            if publish:
+                self.installed_plugin_scan_error = (
+                    "Could not scan the Domoticz plugins folder: "
+                    + str(e)
+                    + ". Restore folder access, then Refresh. Plugin changes "
+                    "are paused."
+                )
+                return list(self.installed_plugins_snapshot)
+            return []
 
-        self.installed_plugin_scan_error = ""
+        if publish:
+            self.installed_plugin_scan_error = ""
         for plugin_folder in plugin_folders:
             plugin_path = os.path.join(plugins_dir, plugin_folder)
             if not os.path.isdir(plugin_path) or plugin_folder.startswith("."):
                 continue
 
-            is_git_repo = os.path.isdir(os.path.join(plugin_path, ".git"))
+            is_git_repo = is_git_checkout(plugin_path)
             match = self.match_installed_plugin(
                 plugin_folder,
                 plugin_path,
@@ -16182,6 +16773,40 @@ class BasePlugin:
                 remote_lookup,
                 repo_identity_lookup,
             )
+            if (
+                match
+                and match.get("authoritative")
+                and match.get("management_mode") == "release"
+            ):
+                conflict_reasons = {}
+                repository_identity = match.get("repository_identity", "")
+                for conflict_key in all_repo_identity_lookup.get(
+                    repository_identity,
+                    [],
+                ):
+                    conflict_reasons.setdefault(conflict_key, set()).add(
+                        "repository identity"
+                    )
+                folder_owner = exact_name_lookup.get(
+                    self.normalize_plugin_folder_name(plugin_folder),
+                    "",
+                )
+                if folder_owner:
+                    conflict_reasons.setdefault(folder_owner, set()).add(
+                        "package folder"
+                    )
+                matched_key = match.get("key", "")
+                for conflict_key, reasons in conflict_reasons.items():
+                    if conflict_key == matched_key:
+                        continue
+                    for reason in sorted(reasons):
+                        self.add_release_install_conflict(
+                            installed_plugin_install_conflicts,
+                            conflict_key,
+                            plugin_folder,
+                            match,
+                            reason,
+                        )
             matched_key = match["key"] if match else ""
             if matched_key:
                 self.add_installed_plugin(installed_plugins, matched_key)
@@ -16201,6 +16826,10 @@ class BasePlugin:
                     matching_folders.add(existing_folder)
                 matching_folders.add(plugin_folder)
                 if len(matching_folders) > 1:
+                    previous_detail = installed_plugin_match_details.get(
+                        matched_key,
+                        {},
+                    )
                     folders = sorted(
                         matching_folders,
                         key=lambda value: value.casefold(),
@@ -16220,9 +16849,16 @@ class BasePlugin:
                         ),
                         "is_git": bool(
                             is_git_repo
-                            or installed_plugin_match_details.get(
-                                matched_key, {}
-                            ).get("is_git")
+                            or previous_detail.get("is_git")
+                        ),
+                        "management_mode": (
+                            "release"
+                            if (
+                                detail.get("management_mode") == "release"
+                                or previous_detail.get("management_mode")
+                                == "release"
+                            )
+                            else "git"
                         ),
                     }
                 else:
@@ -16231,27 +16867,53 @@ class BasePlugin:
                 if plugin_folder not in self.plugin_data:
                     self.add_installed_plugin(installed_plugins, plugin_folder)
                     installed_plugin_folders[plugin_folder] = plugin_folder
-                    installed_plugin_match_details[plugin_folder] = {
+                    alias_detail = {
                         "folder": plugin_folder,
                         "source": "local folder alias",
                         "detail": "Physical folder is also listed because it is not a registry plugin key.",
                         "is_git": is_git_repo,
                     }
+                    for field in (
+                        "management_mode",
+                        "management_error",
+                        "release_metadata_state",
+                        "package_id",
+                        "repository_identity",
+                    ):
+                        if field in detail:
+                            alias_detail[field] = detail[field]
+                    installed_plugin_match_details[plugin_folder] = alias_detail
             elif plugin_folder not in self.plugin_data:
                 self.add_installed_plugin(installed_plugins, plugin_folder)
                 installed_plugin_folders[plugin_folder] = plugin_folder
-                installed_plugin_match_details[plugin_folder] = {
-                    "folder": plugin_folder,
-                    "source": "local folder",
-                    "detail": "No registry match was found; folder is listed as a local plugin.",
-                    "is_git": is_git_repo,
-                }
+                if match:
+                    detail = self.match_detail_for_response(
+                        plugin_folder,
+                        match,
+                    )
+                    detail["is_git"] = is_git_repo
+                    installed_plugin_match_details[plugin_folder] = detail
+                else:
+                    installed_plugin_match_details[plugin_folder] = {
+                        "folder": plugin_folder,
+                        "source": "local folder",
+                        "detail": "No registry match was found; folder is listed as a local plugin.",
+                        "is_git": is_git_repo,
+                    }
 
-        self.installed_plugin_folders = installed_plugin_folders
-        self.ambiguous_installed_plugin_folders = (
-            ambiguous_installed_plugin_folders
-        )
-        self.installed_plugin_match_details = installed_plugin_match_details
+        if publish:
+            self.installed_plugin_folders = installed_plugin_folders
+            self.ambiguous_installed_plugin_folders = (
+                ambiguous_installed_plugin_folders
+            )
+            self.installed_plugin_match_details = (
+                installed_plugin_match_details
+            )
+            self.installed_plugin_install_conflicts = (
+                installed_plugin_install_conflicts
+            )
+            self.installed_plugins_snapshot = list(installed_plugins)
+            self.installed_plugins_snapshot_available = True
         return installed_plugins
 
     def get_installed_plugin_folder(
@@ -16282,6 +16944,18 @@ class BasePlugin:
                 + ", ".join(ambiguous_folders)
                 + ". Remove or rename duplicates before continuing."
             )
+        install_conflict = self.installed_plugin_install_conflicts.get(
+            plugin_key,
+            {},
+        ).get("management_error", "")
+        if install_conflict:
+            raise ValueError(install_conflict)
+        management_error = self.installed_plugin_match_details.get(
+            plugin_key,
+            {},
+        ).get("management_error", "")
+        if management_error:
+            raise ValueError(management_error)
         plugin_folder = self.installed_plugin_folders.get(plugin_key, "")
         if plugin_folder and os.path.isdir(os.path.join(plugins_dir, plugin_folder)):
             return plugin_folder
@@ -16302,6 +16976,18 @@ class BasePlugin:
                 + ", ".join(ambiguous_folders)
                 + ". Remove or rename duplicates before continuing."
             )
+        install_conflict = self.installed_plugin_install_conflicts.get(
+            plugin_key,
+            {},
+        ).get("management_error", "")
+        if install_conflict:
+            raise ValueError(install_conflict)
+        management_error = self.installed_plugin_match_details.get(
+            plugin_key,
+            {},
+        ).get("management_error", "")
+        if management_error:
+            raise ValueError(management_error)
         return self.installed_plugin_folders.get(plugin_key, plugin_key)
 
     def resolve_installed_plugin_dir(
@@ -16329,6 +17015,33 @@ class BasePlugin:
             raise ValueError("Invalid plugin path")
         return plugin_dir
 
+    def installed_plugin_diagnostic_dir(self, plugin_key, plugins_dir=None):
+        """Return a verified physical folder for read-only diagnostics."""
+        host = self.get_host()
+        try:
+            plugin_key = host.validate_plugin_key(plugin_key)
+            plugin_folder = host.validate_plugin_key(
+                self.installed_plugin_match_details.get(
+                    plugin_key,
+                    {},
+                ).get("folder", "")
+            )
+        except ValueError:
+            return ""
+        if plugins_dir is None:
+            plugins_dir = host.plugins_dir()
+        plugins_root = os.path.abspath(plugins_dir)
+        candidate_dir = os.path.abspath(
+            os.path.join(plugins_root, plugin_folder)
+        )
+        if (
+            not host.is_path_inside(candidate_dir, plugins_root)
+            or not os.path.isdir(candidate_dir)
+            or os.path.islink(candidate_dir)
+        ):
+            return ""
+        return candidate_dir
+
     def getCachedUpdateStatuses(self, installed_plugins):
         update_status = {}
         for plugin_key in installed_plugins:
@@ -16342,6 +17055,8 @@ class BasePlugin:
         return update_status
 
     def get_plugin_versions(self, installed_plugins, update_status, plugins_dir):
+        if self.installed_plugin_scan_error:
+            return {}
         versions = {}
         for plugin_key in installed_plugins:
             entry = self.get_registry_entry(plugin_key)
@@ -16393,6 +17108,44 @@ class BasePlugin:
                     versions[plugin_key]["available"] = available_version
         return versions
 
+    def blocked_plugin_management_state(
+        self,
+        entry,
+        reason,
+        release,
+        version_info,
+        channel,
+    ):
+        """Return one compatible management record with all changes blocked."""
+        return {
+            "channel": channel,
+            "status": "verification_failed",
+            "updateable": False,
+            "installed_version": str(
+                version_info.get("installed") or ""
+            ),
+            "installed_revision": None,
+            "available_version": (
+                release.version
+                if release is not None
+                else str(version_info.get("available") or "")
+            ),
+            "available_revision": (
+                release.revision if release is not None else None
+            ),
+            "verification_status": "failed",
+            "verification_message": str(reason),
+            "migration_status": "not_available",
+            "migration_message": "",
+            "rollback_available": False,
+            "rollback_version": "",
+            "rollback_revision": None,
+            "restart_pending": False,
+            "git_supported": entry.delivery.git_supported,
+            "release_available": release is not None,
+            "migration_action_state": "blocked",
+        }
+
     def getPluginManagementMap(
         self,
         installed_plugins,
@@ -16418,12 +17171,6 @@ class BasePlugin:
                 if metadata_authorized
                 else None
             )
-            try:
-                plugin_dir = self.resolve_installed_plugin_dir(
-                    plugin_key, plugins_dir
-                )
-            except ValueError:
-                continue
             release = (
                 release_index.plugins.get(plugin_key)
                 if release_index is not None and not entry.local
@@ -16434,6 +17181,52 @@ class BasePlugin:
                 if release_index is not None and not entry.local
                 else None
             )
+            match_detail = self.installed_plugin_match_details.get(
+                plugin_key,
+                {},
+            )
+            channel = (
+                "release"
+                if match_detail.get("management_mode") == "release"
+                else "git"
+            )
+            version_info = versions.get(plugin_key, {})
+            if self.installed_plugin_scan_error:
+                management[plugin_key] = (
+                    self.blocked_plugin_management_state(
+                        entry,
+                        self.installed_plugin_scan_error,
+                        release,
+                        version_info,
+                        channel,
+                    )
+                )
+                continue
+            try:
+                plugin_dir = self.resolve_installed_plugin_dir(
+                    plugin_key, plugins_dir
+                )
+            except ValueError as error:
+                plugin_dir = ""
+                if (
+                    match_detail.get("release_metadata_state")
+                    == "local_registry_conflict"
+                ):
+                    plugin_dir = self.installed_plugin_diagnostic_dir(
+                        plugin_key,
+                        plugins_dir,
+                    )
+                if not plugin_dir:
+                    management[plugin_key] = (
+                        self.blocked_plugin_management_state(
+                            entry,
+                            error,
+                            release,
+                            version_info,
+                            channel,
+                        )
+                    )
+                    continue
             metadata = None
             metadata_invalid = ""
             metadata_path = os.path.join(
@@ -16442,10 +17235,14 @@ class BasePlugin:
             if os.path.lexists(metadata_path):
                 try:
                     metadata = self.install_metadata_service.read(plugin_dir)
+                except OSError:
+                    metadata_invalid = (
+                        "metadata could not be upgraded or cleaned up safely"
+                    )
                 except ValueError as error:
                     metadata_invalid = str(error)
             is_release = metadata is not None or bool(metadata_invalid)
-            is_git = os.path.isdir(os.path.join(plugin_dir, ".git"))
+            is_git = is_git_checkout(plugin_dir)
             channel = "release" if is_release else "git"
             local_override_git_error = (
                 self.getLocalOverrideGitCheckoutError(entry, plugin_dir)
@@ -16548,7 +17345,6 @@ class BasePlugin:
                     ):
                         reason = switch_plan.message
 
-            version_info = versions.get(plugin_key, {})
             installed_version = (
                 metadata.version
                 if metadata is not None
@@ -17108,7 +17904,10 @@ class BasePlugin:
         host = self.get_host()
         try:
             plugin_key = host.validate_plugin_key(plugin_key)
-            plugin_target_dir = self.resolve_installed_plugin_dir(plugin_key)
+            plugin_target_dir = self.resolve_installed_plugin_dir(
+                plugin_key,
+                refresh=True,
+            )
         except ValueError as e:
             return False, str(e)
 
@@ -17429,6 +18228,9 @@ class BasePlugin:
             entry = self.get_registry_entry(plugin_key)
             if entry is None:
                 raise ValueError("Plugin was not found in the registry.")
+            self.getInstalledPlugins(self.get_host().plugins_dir())
+            if self.installed_plugin_scan_error:
+                raise RuntimeError(self.installed_plugin_scan_error)
             if plugin_key == self.get_current_plugin_folder():
                 raise ValueError(
                     "Release-based manager self-update is not supported."
@@ -17727,8 +18529,7 @@ class BasePlugin:
         """Return whether the current manual Update route changes channel."""
         try:
             plugin_dir = self.resolve_installed_plugin_dir(entry.key)
-            git_dir = os.path.join(plugin_dir, ".git")
-            if not os.path.isdir(git_dir) or os.path.islink(git_dir):
+            if not is_git_checkout(plugin_dir):
                 return False
             context = dict(self._release_action_context(entry, "manual"))
             context.pop("index_sequence", None)
@@ -17883,6 +18684,8 @@ class BasePlugin:
                 "manager_key": self.get_current_plugin_folder(),
                 "local_plugins": self.local_plugin_keys,
                 "installed_match_details": self.installed_plugin_match_details,
+                "installation_conflicts": self.installed_plugin_install_conflicts,
+                "installed_scan_error": self.installed_plugin_scan_error,
                 "update_status": cached_update_status,
                 "versions": versions,
                 "management": management,
@@ -17892,7 +18695,15 @@ class BasePlugin:
         elif action == "refresh_update_status":
             self.fetch_registry()
             installed_plugins = self.getInstalledPlugins(plugins_dir)
-            update_status = self.refreshInstalledUpdateStatuses(installed_plugins, plugins_dir)
+            if self.installed_plugin_scan_error:
+                update_status = self.getCachedUpdateStatuses(
+                    installed_plugins
+                )
+            else:
+                update_status = self.refreshInstalledUpdateStatuses(
+                    installed_plugins,
+                    plugins_dir,
+                )
             versions = self.get_plugin_versions(installed_plugins, update_status, plugins_dir)
             management = self.getPluginManagementMap(
                 installed_plugins,
@@ -17908,6 +18719,8 @@ class BasePlugin:
                 "manager_key": self.get_current_plugin_folder(),
                 "local_plugins": self.local_plugin_keys,
                 "installed_match_details": self.installed_plugin_match_details,
+                "installation_conflicts": self.installed_plugin_install_conflicts,
+                "installed_scan_error": self.installed_plugin_scan_error,
                 "update_status": update_status,
                 "versions": versions,
                 "management": management,
@@ -17969,8 +18782,26 @@ class BasePlugin:
                             entry, plugin_dir
                         )
                     )
-                except ValueError:
-                    local_override_git_error = ""
+                except ValueError as error:
+                    diagnostic_dir = self.installed_plugin_diagnostic_dir(
+                        plugin_key,
+                        plugins_dir,
+                    )
+                    local_override_git_error = (
+                        self.getLocalOverrideGitCheckoutError(
+                            entry,
+                            diagnostic_dir,
+                        )
+                        if diagnostic_dir
+                        else ""
+                    )
+                    self.sendApiResponse({
+                        "status": "error",
+                        "action": action,
+                        "plugin_key": plugin_key,
+                        "message": local_override_git_error or str(error),
+                    })
+                    return
                 if local_override_git_error:
                     self.sendApiResponse({
                         "status": "error",

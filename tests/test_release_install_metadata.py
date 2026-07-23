@@ -288,6 +288,33 @@ def test_install_metadata_service_atomically_upgrades_v1_on_read(
     assert not (plugin_dir / ".pypluginstore.json.tmp").exists()
 
 
+def test_install_metadata_inspection_does_not_upgrade_or_clean_up(
+    plugin_core_module,
+    tmp_path,
+):
+    plugin_dir = tmp_path / "ExamplePlugin"
+    plugin_dir.mkdir()
+    metadata_file = plugin_dir / ".pypluginstore.json"
+    temporary_file = plugin_dir / ".pypluginstore.json.tmp"
+    metadata_file.write_text(
+        json.dumps(legacy_install_metadata_document()),
+        encoding="utf-8",
+    )
+    temporary_file.write_text(
+        json.dumps(install_metadata_document(version="next")),
+        encoding="utf-8",
+    )
+    original_metadata = metadata_file.read_bytes()
+    original_temporary = temporary_file.read_bytes()
+    service = metadata_service(plugin_core_module)
+
+    loaded = service.inspect(str(plugin_dir))
+
+    assert loaded.package_id == "ExamplePlugin"
+    assert metadata_file.read_bytes() == original_metadata
+    assert temporary_file.read_bytes() == original_temporary
+
+
 def test_install_metadata_service_keeps_malformed_v1_unchanged(
     plugin_core_module, tmp_path
 ):

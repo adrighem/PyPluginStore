@@ -8,6 +8,7 @@ restart_domoticz.ps1
 restart_domoticz.cmd
 restart_domoticz_probe.ps1
 .shared_deps/
+.pypluginstore/
 exceptions.txt
 secpoluser.txt
 *.orig
