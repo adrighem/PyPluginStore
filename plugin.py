@@ -9422,7 +9422,7 @@ class ReleaseTransactionManager:
             self._fsync_directory(os.path.dirname(destination))
         self._set_phase(transaction, completed_phase, inject=True)
 
-    def _git_migration_snapshot_matches(
+    def _git_migration_snapshot_check(
         self,
         path,
         plugin_key,
@@ -9441,22 +9441,66 @@ class ReleaseTransactionManager:
                 mutable_paths=snapshot["mutable_paths"],
             )
         except (OSError, RuntimeError, ValueError):
-            return False
-        return bool(
-            preflight.preservation_inventory is not None
-            and preflight.installed_commit == descriptor.get("commit")
-            and preflight.installed_repository_identity
-            == snapshot["repository_identity"]
-            and preflight.release_commit == snapshot["release_commit"]
-            and preflight.relationship == snapshot["relationship"]
-            and preflight.inventory_sha256
-            == snapshot["inventory_sha256"]
-            and preflight.tracked_changes
-            == snapshot["tracked_changes"]
-            and preflight.untracked_files
-            == snapshot["untracked_files"]
-            and preflight.shallow == snapshot["shallow"]
+            return False, "inspection failed"
+        comparisons = (
+            (
+                "preservation inventory is unavailable",
+                preflight.preservation_inventory is not None,
+            ),
+            (
+                "installed commit changed",
+                preflight.installed_commit == descriptor.get("commit"),
+            ),
+            (
+                "repository identity changed",
+                preflight.installed_repository_identity
+                == snapshot["repository_identity"],
+            ),
+            (
+                "release commit changed",
+                preflight.release_commit == snapshot["release_commit"],
+            ),
+            (
+                "Git history relationship changed",
+                preflight.relationship == snapshot["relationship"],
+            ),
+            (
+                "local file inventory changed",
+                preflight.inventory_sha256
+                == snapshot["inventory_sha256"],
+            ),
+            (
+                "tracked changes changed",
+                preflight.tracked_changes
+                == snapshot["tracked_changes"],
+            ),
+            (
+                "untracked files changed",
+                preflight.untracked_files
+                == snapshot["untracked_files"],
+            ),
+            (
+                "shallow checkout state changed",
+                preflight.shallow == snapshot["shallow"],
+            ),
         )
+        for reason, matches in comparisons:
+            if not matches:
+                return False, reason
+        return True, ""
+
+    def _git_migration_snapshot_matches(
+        self,
+        path,
+        plugin_key,
+        descriptor,
+    ):
+        matches, _reason = self._git_migration_snapshot_check(
+            path,
+            plugin_key,
+            descriptor,
+        )
+        return matches
 
     def _code_path_matches(self, path, plugin_key, descriptor):
         mode = descriptor.get("management_mode")
@@ -9834,15 +9878,18 @@ class ReleaseTransactionManager:
         """Freeze migration approval to the checkout actually moved aside."""
         if transaction.operation != "release_migration":
             return
-        if self._code_path_matches(
+        matches, mismatch_reason = self._git_migration_snapshot_check(
             transaction.paths.backup_code,
             transaction.plugin_key,
             transaction.expected_current,
-        ):
+        )
+        if matches:
             return
         error = (
             "Git checkout changed after migration approval; activation "
-            "was cancelled."
+            "was cancelled because "
+            + mismatch_reason
+            + "."
         )
         backup_exists = os.path.lexists(transaction.paths.backup_code)
         live_exists = os.path.lexists(transaction.paths.live_code)
