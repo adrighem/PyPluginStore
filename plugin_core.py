@@ -9403,7 +9403,11 @@ class ReleaseTransactionManager:
             return False, "inspection failed"
         comparisons = (
             (
-                "preservation inventory is unavailable",
+                (
+                    "preservation inventory is unavailable ("
+                    + str(preflight.reason or "unknown")
+                    + ")"
+                ),
                 preflight.preservation_inventory is not None,
             ),
             (
