@@ -2579,21 +2579,28 @@
             loadPlugins();
         } catch (e) {
             console.error("Init Error:", e);
-            renderManagerStatus("Failed to connect to Domoticz API: " + e.message);
+            renderManagerStatus("Failed to initialize PyPluginStore: " + e.message);
         }
     }
 
-    function scanApiBridgeDevices(devices) {
-        if (!devices) return;
+    function normalizeDomoticzId(value) {
+        if (value === undefined || value === null) return null;
 
-        for (const device of devices) {
-            if (device.ID === 'PPM_API_PAYLOAD') {
-                payloadIdx = device.idx;
-            }
-            if (device.ID === 'PPM_API_TRIGGER') {
-                triggerIdx = device.idx;
-            }
-        }
+        const normalized = String(value).trim();
+        return /^[1-9]\d*$/.test(normalized) ? normalized : null;
+    }
+
+    function matchingApiBridgeDevices(devices, deviceId, hardwareId = null) {
+        if (!Array.isArray(devices)) return [];
+
+        return devices.filter(device => (
+            device &&
+            device.ID === deviceId &&
+            (
+                hardwareId === null ||
+                String(device.HardwareID) === hardwareId
+            )
+        ));
     }
 
     async function fetchApiBridgeDevices(query) {
@@ -2602,20 +2609,86 @@
         const req = await fetch(url);
         if (!req.ok) throw new Error("HTTP error " + req.status);
         const devices = await req.json();
-        scanApiBridgeDevices(devices.result);
+        return Array.isArray(devices.result) ? devices.result : [];
     }
 
     async function findApiBridgeDevices() {
-        const lookups = [
-            'filter=all&used=all&displayhidden=1',
-            'used=true&displayhidden=1',
-            'filter=all&used=all',
-        ];
+        payloadIdx = null;
+        triggerIdx = null;
 
-        for (const query of lookups) {
-            await fetchApiBridgeDevices(query);
-            if (payloadIdx && triggerIdx) return;
+        // Avoid serializing unrelated meter devices while discovering our hardware.
+        const lightDevices = await fetchApiBridgeDevices(
+            'filter=light&used=all&displayhidden=1'
+        );
+        const triggerCandidates = matchingApiBridgeDevices(
+            lightDevices,
+            'PPM_API_TRIGGER'
+        ).filter(device => device.HardwareDisabled !== true);
+
+        if (triggerCandidates.length === 0) {
+            throw new Error("PyPluginStore API trigger not found.");
         }
+        if (triggerCandidates.length > 1) {
+            throw new Error(
+                "Multiple PyPluginStore API triggers found. " +
+                "Please keep only one PyPluginStore hardware instance enabled."
+            );
+        }
+
+        const triggerCandidate = triggerCandidates[0];
+        const hardwareId = normalizeDomoticzId(triggerCandidate.HardwareID);
+        const triggerCandidateIdx = normalizeDomoticzId(triggerCandidate.idx);
+        if (!hardwareId) {
+            throw new Error("PyPluginStore API trigger has no valid hardware ID.");
+        }
+        if (!triggerCandidateIdx) {
+            throw new Error("PyPluginStore API trigger has no valid device index.");
+        }
+
+        // Keep the category filter unset so hwidx returns devices, not scenes.
+        const scopedDevices = await fetchApiBridgeDevices(
+            'used=all&displayhidden=1&hwidx=' + encodeURIComponent(hardwareId)
+        );
+        const payloadCandidates = matchingApiBridgeDevices(
+            scopedDevices,
+            'PPM_API_PAYLOAD',
+            hardwareId
+        );
+        const scopedTriggerCandidates = matchingApiBridgeDevices(
+            scopedDevices,
+            'PPM_API_TRIGGER',
+            hardwareId
+        );
+
+        if (
+            payloadCandidates.length !== 1 ||
+            scopedTriggerCandidates.length !== 1
+        ) {
+            throw new Error(
+                "Expected one PyPluginStore API payload and trigger for hardware " +
+                hardwareId + ", found " + payloadCandidates.length + "/" +
+                scopedTriggerCandidates.length + "."
+            );
+        }
+
+        const payloadDeviceIdx = normalizeDomoticzId(payloadCandidates[0].idx);
+        const scopedTriggerIdx = normalizeDomoticzId(
+            scopedTriggerCandidates[0].idx
+        );
+        if (!payloadDeviceIdx || !scopedTriggerIdx) {
+            throw new Error(
+                "PyPluginStore API bridge has invalid device indexes."
+            );
+        }
+        if (scopedTriggerIdx !== triggerCandidateIdx) {
+            throw new Error(
+                "PyPluginStore API trigger changed during discovery. " +
+                "Please reload the page."
+            );
+        }
+
+        payloadIdx = payloadDeviceIdx;
+        triggerIdx = scopedTriggerIdx;
     }
 
     async function sendCommand(action, data, options = {}) {
