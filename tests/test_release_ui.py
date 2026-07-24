@@ -578,7 +578,143 @@ def test_ui_load_and_refresh_treat_management_map_as_optional_extension():
     assert "response.installation_conflicts || installationConflictCache" in refresh
     assert "installed plugin scan warning" in load_plugins.lower()
     assert "installedCache.forEach" in filter_plugins
+    assert "matchDetails.management_error" in filter_plugins
     assert "not present in the current registry" in filter_plugins
+
+
+def test_ui_hides_physical_aliases_and_bundled_plugin_folders():
+    script = load_inline_script()
+    filter_plugins = extract_js_function(script, "filterAndRender")
+
+    run_node(
+        filter_plugins
+        + """
+const pluginCache = {
+    Somfy: ['MadPatrick', 'domoticz_somfy', 'Somfy plugin', 'master', '']
+};
+const installedCache = [
+    'Somfy',
+    'domoticz_somfy',
+    'examples',
+    'AwoxSMP'
+];
+const installedMatchDetailsCache = {
+    Somfy: {
+        folder: 'domoticz_somfy',
+        source: 'release install metadata',
+        management_mode: 'release',
+        is_git: false
+    },
+    domoticz_somfy: {
+        folder: 'domoticz_somfy',
+        source: 'local folder alias',
+        management_mode: 'release',
+        management_error: 'Copied canonical release diagnostic.',
+        is_git: false
+    },
+    examples: {
+        folder: 'examples',
+        source: 'local folder',
+        is_git: false
+    },
+    AwoxSMP: {
+        folder: 'AwoxSMP',
+        source: 'local folder',
+        is_git: false
+    }
+};
+const document = {
+    getElementById(id) {
+        if (id === 'search-box') return {value: ''};
+        if (id === 'installed-toggle') return {checked: installedOnly};
+        throw new Error('unexpected element: ' + id);
+    }
+};
+function formatPluginDisplayName(key) {
+    return key;
+}
+let renderedKeys = [];
+function renderPlugins(data) {
+    renderedKeys = Object.keys(data);
+}
+
+let installedOnly = false;
+filterAndRender();
+
+if (JSON.stringify(renderedKeys) !== JSON.stringify(['Somfy'])) {
+    throw new Error('unexpected rendered plugins: ' + renderedKeys.join(','));
+}
+
+installedOnly = true;
+filterAndRender();
+
+if (JSON.stringify(renderedKeys) !== JSON.stringify(['Somfy'])) {
+    throw new Error(
+        'unexpected installed-only plugins: ' + renderedKeys.join(',')
+    );
+}
+"""
+    )
+
+
+def test_ui_keeps_actionable_orphan_release_diagnostics_visible():
+    script = load_inline_script()
+    filter_plugins = extract_js_function(script, "filterAndRender")
+
+    run_node(
+        filter_plugins
+        + """
+const pluginCache = {
+    Somfy: ['MadPatrick', 'domoticz_somfy', 'Somfy plugin', 'master', '']
+};
+const installedCache = ['Somfy', 'orphan-release-folder'];
+const installedMatchDetailsCache = {
+    Somfy: {
+        folder: 'domoticz_somfy',
+        source: 'release install metadata',
+        management_mode: 'release',
+        is_git: false
+    },
+    'orphan-release-folder': {
+        folder: 'orphan-release-folder',
+        source: 'orphan release install metadata',
+        management_mode: 'release',
+        management_error: 'Restore the registry entry before changing this plugin.',
+        is_git: false
+    }
+};
+const document = {
+    getElementById(id) {
+        if (id === 'search-box') return {value: ''};
+        if (id === 'installed-toggle') return {checked: false};
+        throw new Error('unexpected element: ' + id);
+    }
+};
+function formatPluginDisplayName(key) {
+    return key;
+}
+let renderedData = {};
+function renderPlugins(data) {
+    renderedData = data;
+}
+
+filterAndRender();
+
+const renderedKeys = Object.keys(renderedData);
+if (
+    JSON.stringify(renderedKeys)
+    !== JSON.stringify(['Somfy', 'orphan-release-folder'])
+) {
+    throw new Error('unexpected rendered plugins: ' + renderedKeys.join(','));
+}
+if (
+    renderedData['orphan-release-folder'][2]
+    !== 'Installed plugin is not present in the current registry.'
+) {
+    throw new Error('orphan diagnostic description is missing');
+}
+"""
+    )
 
 
 def test_ui_has_release_and_git_channel_badges_with_safe_text_rendering():

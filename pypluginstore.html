@@ -3143,7 +3143,15 @@
         const showInstalledOnly = document.getElementById('installed-toggle').checked;
         const renderData = Object.assign({}, pluginCache);
         installedCache.forEach(key => {
-            if (!Object.prototype.hasOwnProperty.call(renderData, key)) {
+            const matchDetails = installedMatchDetailsCache[key] || {};
+            const isActionableDiagnostic = Boolean(
+                matchDetails.management_error
+                && matchDetails.source !== 'local folder alias'
+            );
+            if (
+                !Object.prototype.hasOwnProperty.call(renderData, key)
+                && isActionableDiagnostic
+            ) {
                 renderData[key] = [
                     '',
                     '',
