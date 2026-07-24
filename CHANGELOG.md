@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.22.4](https://github.com/adrighem/PyPluginStore/compare/v2.22.3...v2.22.4) (2026-07-24)
+
+
+### Bug Fixes
+
+* **ui:** scope API bridge device discovery ([d3c6fcc](https://github.com/adrighem/PyPluginStore/commit/d3c6fcc6947f3d8e3fd074811b0035a348a61362)), closes [#127](https://github.com/adrighem/PyPluginStore/issues/127)
+* **ui:** scope API bridge discovery ([19a41cd](https://github.com/adrighem/PyPluginStore/commit/19a41cd74ac6c4e0b21c48ff0a7809764197513a))
+
 ## [2.22.3](https://github.com/adrighem/PyPluginStore/compare/v2.22.2...v2.22.3) (2026-07-24)
 
 
