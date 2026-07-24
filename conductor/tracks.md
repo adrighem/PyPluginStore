@@ -34,5 +34,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Recognize v-dot stable tags during release discovery
+## [x] Track: Recognize v-dot stable tags during release discovery
 *Link: [./conductor/tracks/release_tag_discovery_20260724/](./conductor/tracks/release_tag_discovery_20260724/)*

@@ -1,8 +1,8 @@
 {
   "track_id": "release_tag_discovery_20260724",
   "type": "bugfix",
-  "status": "in_progress",
+  "status": "completed",
   "created_at": "2026-07-24T10:07:06Z",
-  "updated_at": "2026-07-24T10:21:00Z",
+  "updated_at": "2026-07-24T10:24:00Z",
   "description": "Recognize v-dot stable tags during package release discovery and normalize their display versions."
 }
