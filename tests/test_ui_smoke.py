@@ -284,13 +284,278 @@ def test_refresh_status_button_is_wired_to_backend_command():
     assert "sendCommand('refresh_update_status', {})" in script
 
 
-def test_api_bridge_lookup_includes_hidden_and_unused_devices():
+def test_api_bridge_lookup_is_scoped_to_own_hardware():
     script = load_inline_script()
+    find_devices = extract_js_function(script, "findApiBridgeDevices")
 
-    assert "filter=all&used=all&displayhidden=1" in script
-    assert "used=true&displayhidden=1" in script
-    assert "filter=all&used=all" in script
+    assert "filter=light&used=all&displayhidden=1" in find_devices
+    assert "used=all&displayhidden=1&hwidx=" in find_devices
+    assert "filter=all" not in find_devices
     assert "getdevices&' + query" in script
+
+
+def test_api_bridge_lookup_resolves_one_hardware_pair():
+    script = load_inline_script()
+    function_source = "\n".join([
+        extract_js_function(script, "normalizeDomoticzId"),
+        extract_js_function(script, "matchingApiBridgeDevices"),
+        extract_js_function(script, "fetchApiBridgeDevices"),
+        extract_js_function(script, "findApiBridgeDevices"),
+    ])
+    node_script = """
+let payloadIdx = null;
+let triggerIdx = null;
+const requests = [];
+const responses = [
+    {
+        result: [
+            {ID: 'OTHER_SWITCH', idx: '10', HardwareID: 2},
+            {
+                ID: 'PPM_API_TRIGGER',
+                idx: '302',
+                HardwareID: 8,
+                HardwareDisabled: true,
+            },
+            {ID: 'PPM_API_TRIGGER', idx: '202', HardwareID: 7},
+        ],
+    },
+    {
+        result: [
+            {ID: 'PPM_API_PAYLOAD', idx: '201', HardwareID: '7'},
+            {ID: 'PPM_API_TRIGGER', idx: '202', HardwareID: '7'},
+            {ID: 'PPM_API_PAYLOAD', idx: '301', HardwareID: '8'},
+            {ID: 'PPM_API_TRIGGER', idx: '302', HardwareID: '8'},
+        ],
+    },
+];
+
+async function fetch(url) {
+    requests.push(url);
+    const response = responses.shift();
+    if (!response) throw new Error('Unexpected bridge discovery request: ' + url);
+    return {
+        ok: true,
+        status: 200,
+        json: async () => response,
+    };
+}
+""" + function_source + """
+
+(async () => {
+    await findApiBridgeDevices();
+
+    if (payloadIdx !== '201' || triggerIdx !== '202') {
+        throw new Error(
+            'Unexpected bridge pair: ' + payloadIdx + '/' + triggerIdx
+        );
+    }
+    if (requests.length !== 2) {
+        throw new Error('Expected two scoped requests, got ' + requests.length);
+    }
+    const triggerLookup = new URL(requests[0], 'http://domoticz/');
+    const pairLookup = new URL(requests[1], 'http://domoticz/');
+    if (
+        triggerLookup.searchParams.get('filter') !== 'light' ||
+        triggerLookup.searchParams.get('used') !== 'all' ||
+        triggerLookup.searchParams.get('displayhidden') !== '1' ||
+        triggerLookup.searchParams.has('hwidx')
+    ) {
+        throw new Error('Trigger lookup was not light-scoped: ' + requests[0]);
+    }
+    if (
+        pairLookup.searchParams.has('filter') ||
+        pairLookup.searchParams.get('used') !== 'all' ||
+        pairLookup.searchParams.get('displayhidden') !== '1' ||
+        pairLookup.searchParams.get('hwidx') !== '7'
+    ) {
+        throw new Error('Pair lookup was not hardware-scoped: ' + requests[1]);
+    }
+    if (requests.some(url => url.includes('filter=all'))) {
+        throw new Error('Discovery fell back to a broad device scan');
+    }
+})().catch(error => {
+    console.error(error);
+    process.exit(1);
+});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_api_bridge_lookup_rejects_ambiguous_or_mismatched_pairs():
+    script = load_inline_script()
+    function_source = "\n".join([
+        extract_js_function(script, "normalizeDomoticzId"),
+        extract_js_function(script, "matchingApiBridgeDevices"),
+        extract_js_function(script, "fetchApiBridgeDevices"),
+        extract_js_function(script, "findApiBridgeDevices"),
+    ])
+    cases = [
+        {
+            "name": "missing manager trigger",
+            "responses": [{"result": []}],
+            "message": "API trigger not found",
+            "request_count": 1,
+        },
+        {
+            "name": "multiple manager triggers",
+            "responses": [{
+                "result": [
+                    {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                    {"ID": "PPM_API_TRIGGER", "idx": "302", "HardwareID": 8},
+                ],
+            }],
+            "message": "Multiple PyPluginStore API triggers found",
+            "request_count": 1,
+        },
+        {
+            "name": "invalid hardware id",
+            "responses": [{
+                "result": [{
+                    "ID": "PPM_API_TRIGGER",
+                    "idx": "202",
+                    "HardwareID": "7&filter=all",
+                }],
+            }],
+            "message": "no valid hardware ID",
+            "request_count": 1,
+        },
+        {
+            "name": "payload from another hardware",
+            "responses": [
+                {
+                    "result": [
+                        {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                    ],
+                },
+                {
+                    "result": [
+                        {"ID": "PPM_API_PAYLOAD", "idx": "301", "HardwareID": 8},
+                        {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                    ],
+                },
+            ],
+            "message": "found 0/1",
+            "request_count": 2,
+        },
+        {
+            "name": "duplicate payloads",
+            "responses": [
+                {
+                    "result": [
+                        {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                    ],
+                },
+                {
+                    "result": [
+                        {"ID": "PPM_API_PAYLOAD", "idx": "201", "HardwareID": 7},
+                        {"ID": "PPM_API_PAYLOAD", "idx": "203", "HardwareID": 7},
+                        {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                    ],
+                },
+            ],
+            "message": "found 2/1",
+            "request_count": 2,
+        },
+        {
+            "name": "duplicate scoped triggers",
+            "responses": [
+                {
+                    "result": [
+                        {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                    ],
+                },
+                {
+                    "result": [
+                        {"ID": "PPM_API_PAYLOAD", "idx": "201", "HardwareID": 7},
+                        {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                        {"ID": "PPM_API_TRIGGER", "idx": "204", "HardwareID": 7},
+                    ],
+                },
+            ],
+            "message": "found 1/2",
+            "request_count": 2,
+        },
+        {
+            "name": "trigger changes during discovery",
+            "responses": [
+                {
+                    "result": [
+                        {"ID": "PPM_API_TRIGGER", "idx": "202", "HardwareID": 7},
+                    ],
+                },
+                {
+                    "result": [
+                        {"ID": "PPM_API_PAYLOAD", "idx": "201", "HardwareID": 7},
+                        {"ID": "PPM_API_TRIGGER", "idx": "204", "HardwareID": 7},
+                    ],
+                },
+            ],
+            "message": "trigger changed during discovery",
+            "request_count": 2,
+        },
+    ]
+    node_script = """
+let payloadIdx = null;
+let triggerIdx = null;
+let requests = [];
+let responses = [];
+
+async function fetch(url) {
+    requests.push(url);
+    const response = responses.shift();
+    if (!response) throw new Error('Unexpected bridge discovery request: ' + url);
+    return {
+        ok: true,
+        status: 200,
+        json: async () => response,
+    };
+}
+""" + function_source + "\nconst cases = " + json.dumps(cases) + ";\n" + """
+
+(async () => {
+    for (const testCase of cases) {
+        payloadIdx = 'stale-payload';
+        triggerIdx = 'stale-trigger';
+        requests = [];
+        responses = testCase.responses.slice();
+
+        let failure = null;
+        try {
+            await findApiBridgeDevices();
+        } catch (error) {
+            failure = error;
+        }
+
+        if (!failure || !failure.message.includes(testCase.message)) {
+            throw new Error(
+                testCase.name + ': expected error containing "' +
+                testCase.message + '", got "' +
+                (failure ? failure.message : 'no error') + '"'
+            );
+        }
+        if (requests.length !== testCase.request_count) {
+            throw new Error(
+                testCase.name + ': expected ' + testCase.request_count +
+                ' request(s), got ' + requests.length
+            );
+        }
+        if (requests.some(url => url.includes('filter=all'))) {
+            throw new Error(testCase.name + ': used a broad device scan');
+        }
+        if (payloadIdx !== null || triggerIdx !== null) {
+            throw new Error(testCase.name + ': retained a partial bridge pair');
+        }
+    }
+})().catch(error => {
+    console.error(error);
+    process.exit(1);
+});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
 
 
 def test_api_bridge_payload_is_cleared_around_commands():
