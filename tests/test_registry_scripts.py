@@ -11,6 +11,7 @@ from conftest import REPO_ROOT, load_module_from_path
 
 VALID_ENTRY = ["owner", "repo", "description", "main"]
 STABLE_TAG_PATTERN = r"^v?[0-9]+(?:\.[0-9]+){1,3}$"
+DOTTED_V_TAG_PATTERN = r"^v\.[0-9]+(?:\.[0-9]+){1,3}$"
 
 
 def registry_package(package_id, entry):
@@ -616,6 +617,67 @@ def test_scanner_normalizes_supported_host_registry_entries(scan_plugins_module)
     )
 
 
+def test_scanner_infers_dotted_v_pattern_from_latest_stable_release(
+    scan_plugins_module,
+):
+    releases = [
+        {
+            "tag_name": "v.3.2.0-beta",
+            "published_at": "2023-12-23T13:29:38Z",
+            "draft": False,
+            "prerelease": True,
+        },
+        {
+            "tag_name": "v.3.1.0",
+            "published_at": "2022-08-27T10:43:53Z",
+            "draft": False,
+            "prerelease": False,
+        },
+        {
+            "tag_name": "v0.0.15",
+            "published_at": "2018-11-27T21:02:11Z",
+            "draft": False,
+            "prerelease": False,
+        },
+    ]
+
+    assert scan_plugins_module.infer_stable_tag_pattern(releases) == (
+        DOTTED_V_TAG_PATTERN
+    )
+
+
+def test_scanner_preserves_custom_release_tag_policy(scan_plugins_module):
+    custom_pattern = r"^release-[0-9]+\.[0-9]+\.[0-9]+$"
+    entry = registry_package("Plugin", {
+        "owner": "owner",
+        "repository": "repo",
+        "description": "description",
+        "branch": "main",
+        "platforms": ["linux"],
+        "delivery": {
+            "schema_version": 1,
+            "preferred": "release_if_indexed",
+            "git_supported": True,
+            "release": {
+                "provider": "github",
+                "channel": "stable",
+                "tag_pattern": custom_pattern,
+                "artifact": "source_zip",
+                "source_path": ".",
+                "mutable_paths": [],
+            },
+        },
+    })
+    record = scan_plugins_module.RegistryRecord.from_entry("Plugin", entry)
+    repo = {
+        scan_plugins_module.RELEASE_TAG_PATTERN_CHECKED_FIELD: True,
+        scan_plugins_module.RELEASE_TAG_PATTERN_FIELD: DOTTED_V_TAG_PATTERN,
+    }
+
+    assert scan_plugins_module.release_tag_pattern_update(record, repo) == ""
+    assert record.delivery.release["tag_pattern"] == custom_pattern
+
+
 def test_scanner_checks_root_plugin_py_on_supported_hosts(scan_plugins_module, monkeypatch):
     fetched_urls = []
 
@@ -690,8 +752,17 @@ def test_scanner_filters_github_search_results_without_root_plugin_py(scan_plugi
     def fake_urlopen(request, timeout=0):
         url = request.full_url
         if url.startswith("https://api.github.com/search/repositories"):
-            return FakeResponse(json.dumps({"items": [good_repo, bad_repo]}).encode())
+            return FakeResponse(
+                json.dumps({"items": [good_repo, bad_repo]}).encode()
+            )
         fetched_plugin_urls.append(url)
+        if url.endswith("/good-plugin/releases?per_page=100"):
+            return FakeResponse(json.dumps([{
+                "tag_name": "v.1.2.3",
+                "published_at": "2026-07-01T12:00:00Z",
+                "draft": False,
+                "prerelease": False,
+            }]).encode())
         if url.endswith("/good-plugin/main/plugin.py"):
             return FakeResponse(
                 b'"""<plugin key="GOOD" name="Good"></plugin>"""\n'
@@ -707,8 +778,12 @@ def test_scanner_filters_github_search_results_without_root_plugin_py(scan_plugi
     assert results[0]["full_name"] == good_repo["full_name"]
     assert fetched_plugin_urls == [
         "https://raw.githubusercontent.com/owner/good-plugin/main/plugin.py",
+        "https://api.github.com/repos/owner/good-plugin/releases?per_page=100",
         "https://raw.githubusercontent.com/owner/wiki/main/plugin.py",
     ]
+    assert results[0][scan_plugins_module.RELEASE_TAG_PATTERN_FIELD] == (
+        DOTTED_V_TAG_PATTERN
+    )
     assert results[0][scan_plugins_module.ROOT_PLUGIN_CHECKED_FIELD] is True
 
 
@@ -1296,6 +1371,65 @@ def test_scanner_updates_existing_registry_platforms(scan_plugins_module, tmp_pa
     assert metadata["Plugin"]["source"] == "detected"
 
 
+def test_scanner_updates_default_policy_when_existing_plugin_starts_releasing(
+    scan_plugins_module,
+    tmp_path,
+    monkeypatch,
+):
+    registry_file = tmp_path / "registry.json"
+    update_times_file = tmp_path / "update_times.json"
+    metadata_file = tmp_path / "platform_detection.json"
+    registry_file.write_text(json.dumps({
+        "Idle": ["Idle", "Idle", "Idle", "master"],
+        "Plugin": ["owner", "repo", "description", "main"],
+    }))
+    update_times_file.write_text(json.dumps({
+        "Plugin": "2026-06-14T15:10:03Z",
+    }))
+    repo_info = {
+        "archived": False,
+        "disabled": False,
+        "size": 100,
+        "full_name": "owner/repo",
+        "owner": {"login": "owner"},
+        "name": "repo",
+        "description": "description",
+        "default_branch": "main",
+        "pushed_at": "2026-06-14T15:10:03Z",
+        scan_plugins_module.RELEASE_TAG_PATTERN_CHECKED_FIELD: True,
+        scan_plugins_module.RELEASE_TAG_PATTERN_FIELD: DOTTED_V_TAG_PATTERN,
+    }
+
+    patch_scanner_paths(
+        scan_plugins_module,
+        monkeypatch,
+        registry_file,
+        update_times_file,
+        metadata_file,
+    )
+    monkeypatch.setattr(
+        scan_plugins_module,
+        "get_repo_info",
+        lambda owner, repo: repo_info,
+    )
+    monkeypatch.setattr(scan_plugins_module, "search_github", lambda: [])
+    monkeypatch.setattr(scan_plugins_module, "search_gitlab", lambda: [])
+    monkeypatch.setattr(scan_plugins_module, "search_codeberg", lambda: [])
+    monkeypatch.setattr(
+        scan_plugins_module,
+        "detect_platforms_for_repo",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+
+    scan_plugins_module.main()
+
+    registry = saved_packages(registry_file)
+    assert registry["Plugin"]["delivery"]["release"]["tag_pattern"] == (
+        DOTTED_V_TAG_PATTERN
+    )
+
+
 def test_scanner_never_updates_existing_registry_branch(scan_plugins_module, tmp_path, monkeypatch):
     registry_file = tmp_path / "registry.json"
     update_times_file = tmp_path / "update_times.json"
@@ -1377,6 +1511,10 @@ def test_scanner_adds_platforms_for_new_plugins(scan_plugins_module, tmp_path, m
         "pushed_at": "2026-06-14T15:10:03Z",
     }
     mark_repo_certified(scan_plugins_module, repo_info, "REPO")
+    repo_info[scan_plugins_module.RELEASE_TAG_PATTERN_CHECKED_FIELD] = True
+    repo_info[scan_plugins_module.RELEASE_TAG_PATTERN_FIELD] = (
+        DOTTED_V_TAG_PATTERN
+    )
 
     patch_scanner_paths(scan_plugins_module, monkeypatch, registry_file, update_times_file, metadata_file)
     monkeypatch.setattr(scan_plugins_module, "search_github", lambda: [repo_info])
@@ -1401,6 +1539,9 @@ def test_scanner_adds_platforms_for_new_plugins(scan_plugins_module, tmp_path, m
     }
     assert registry["repo"]["platforms"] == ["windows"]
     assert registry["repo"]["delivery"]["release"]["provider"] == "github"
+    assert registry["repo"]["delivery"]["release"]["tag_pattern"] == (
+        DOTTED_V_TAG_PATTERN
+    )
 
 
 def test_scanner_keeps_low_confidence_new_plugin_platforms_unknown(scan_plugins_module, tmp_path, monkeypatch):

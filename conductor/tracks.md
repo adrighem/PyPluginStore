@@ -31,3 +31,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Verify frontend, backend, and installed PyPluginStore identities
 *Link: [./conductor/tracks/manager_runtime_identity_20260723/](./conductor/tracks/manager_runtime_identity_20260723/)*
+
+---
+
+## [~] Track: Recognize v-dot stable tags during release discovery
+*Link: [./conductor/tracks/release_tag_discovery_20260724/](./conductor/tracks/release_tag_discovery_20260724/)*
