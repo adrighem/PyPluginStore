@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.22.3](https://github.com/adrighem/PyPluginStore/compare/v2.22.2...v2.22.3) (2026-07-24)
+
+
+### Bug Fixes
+
+* compare migrated Git roots by identity ([19752f2](https://github.com/adrighem/PyPluginStore/commit/19752f256356cb44c242ca369a88e1f704959b06)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+* enforce Windows Git long-path mode ([d5c1956](https://github.com/adrighem/PyPluginStore/commit/d5c1956369f548958c4e15737b3ba3a743b8f209)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+* harden Git-to-Release transitions ([f3d2a0d](https://github.com/adrighem/PyPluginStore/commit/f3d2a0d3d1381483293801fa015ef2753554660f)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+* identify Git migration revalidation failures ([ada51b0](https://github.com/adrighem/PyPluginStore/commit/ada51b0bf2334315c43cb3e537cc0b141e0b5fce)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+* include Git preflight reason in recovery diagnostics ([460b8d7](https://github.com/adrighem/PyPluginStore/commit/460b8d7a164eecddb0d7479676b4d02b37f813c9)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+* make release channel transitions folder-safe ([f880eb0](https://github.com/adrighem/PyPluginStore/commit/f880eb0b54bd965fa69f204981cd081c50579dbe))
+* make release channel transitions folder-safe ([c41d129](https://github.com/adrighem/PyPluginStore/commit/c41d129e5aa15614a6e91a2fff2844a9d4501582)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+* support long Git paths on Windows ([7d67965](https://github.com/adrighem/PyPluginStore/commit/7d679659db986f4648216029167c6de1a511e377)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+* **ui:** hide installed folder aliases ([7bfe3ff](https://github.com/adrighem/PyPluginStore/commit/7bfe3ffc8dde1d2cf9f6cc8e068b555694bcd49c)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+
 ## [2.22.2](https://github.com/adrighem/PyPluginStore/compare/v2.22.1...v2.22.2) (2026-07-23)
 
 
