@@ -1579,6 +1579,31 @@ def test_dependency_cache_churn_does_not_invalidate_release_activation(
     assert_new_live(completed)
 
 
+def test_release_code_cache_churn_does_not_invalidate_restart_completion(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    transaction = prepare_transaction(manager, plugins_dir, manager_dir)
+
+    activated = manager.activate(transaction.operation_id)
+    cache = Path(activated.paths.live_code) / "__pycache__"
+    cache.mkdir()
+    (cache / "plugin.cpython-runtime.pyc").write_bytes(
+        b"runtime cache"
+    )
+
+    completed = new_manager(plugin_core_module).mark_release_managed(
+        transaction.operation_id
+    )
+
+    assert completed.phase == "release_managed"
+    assert_new_live(completed)
+
+
 def test_activation_never_trusts_a_preseeded_backup_leaf(
     plugin_core_module, tmp_path
 ):

@@ -9032,6 +9032,35 @@ class ReleaseTransactionManager:
         with self._manager_lock("release-workflow.lock", blocking):
             yield
 
+    def assert_dependency_rebuild_allowed(self):
+        """Refuse Git generations while Release activation is unsettled."""
+        with self.operation_lock():
+            blocking_phases = {
+                "code_backup_pending",
+                "code_backed_up",
+                "migration_restore_pending",
+                "migration_restore_completed",
+                "dependencies_backup_pending",
+                "dependencies_backed_up",
+                "dependencies_activation_pending",
+                "dependencies_activated",
+                "code_activation_pending",
+                "release_activated",
+                "rollback_pending",
+                "queued_locked",
+                "restart_pending",
+            }
+            active = [
+                transaction
+                for transaction in self._transactions_locked()
+                if transaction.phase in blocking_phases
+            ]
+        if active:
+            raise RuntimeError(
+                "Shared dependencies are owned by an unfinished Release "
+                "operation. Complete startup recovery before Git changes."
+            )
+
     def _write_transaction(self, transaction, update_timestamp=True):
         if update_timestamp:
             transaction.updated_at = self.plugin.get_host().utc_timestamp()
@@ -10026,6 +10055,9 @@ class ReleaseTransactionManager:
                 "Release tree",
                 expected_files=expected_files,
                 allow_install_metadata=True,
+                ignored_directories=(
+                    RELEASE_VOLATILE_CACHE_DIRECTORIES
+                ),
             )
             return True
         except (OSError, ValueError):
@@ -11667,6 +11699,205 @@ class ReleaseDependencySnapshotService:
         self.command_runner = command_runner or _ReleaseDependencyCommandRunner()
         self.filesystem = filesystem or _ReleaseDependencyFilesystem()
         self.validator = validator or _ReleaseDependencyValidator()
+        self.fault_injector = None
+
+    def _generation_paths(self, plugin_key):
+        plugin_key = _require_plugin_key(plugin_key)
+        manager_dir = os.path.abspath(
+            self.plugin.get_plugin_home_folder()
+        )
+        state_root = os.path.join(
+            manager_dir,
+            ".pypluginstore",
+            "dependency-generations",
+        )
+        generation_name = hashlib.sha256(
+            plugin_key.encode("utf-8")
+        ).hexdigest()[:16]
+        return {
+            "state_root": state_root,
+            "journal": os.path.join(
+                state_root,
+                generation_name + ".json",
+            ),
+            "staged": os.path.join(
+                state_root,
+                generation_name + ".staged",
+            ),
+            "backup": os.path.join(
+                state_root,
+                generation_name + ".backup",
+            ),
+            "live": os.path.join(manager_dir, ".shared_deps"),
+        }
+
+    def _write_generation_journal(
+        self,
+        plugin_key,
+        phase,
+        had_live,
+    ):
+        if phase not in {"prepared", "live_backed_up", "activated"}:
+            raise ValueError("Dependency generation phase is invalid.")
+        paths = self._generation_paths(plugin_key)
+        os.makedirs(paths["state_root"], exist_ok=True)
+        temporary = paths["journal"] + ".tmp"
+        document = {
+            "schema_version": 1,
+            "plugin_key": plugin_key,
+            "phase": phase,
+            "had_live": bool(had_live),
+        }
+        with open(temporary, "w", encoding="utf-8") as journal_file:
+            json.dump(
+                document,
+                journal_file,
+                ensure_ascii=True,
+                indent=2,
+                sort_keys=True,
+            )
+            journal_file.write("\n")
+            journal_file.flush()
+            os.fsync(journal_file.fileno())
+        os.replace(temporary, paths["journal"])
+        self.transaction_manager._fsync_directory(paths["state_root"])
+        if callable(self.fault_injector):
+            self.fault_injector(phase)
+
+    def _remove_generation_journal(self, paths):
+        if os.path.lexists(paths["journal"]):
+            os.unlink(paths["journal"])
+            self.transaction_manager._fsync_directory(
+                paths["state_root"]
+            )
+
+    def _sync_generation_parents(self, paths):
+        self.transaction_manager._fsync_directory(
+            paths["state_root"]
+        )
+        self.transaction_manager._fsync_directory(
+            os.path.dirname(paths["live"])
+        )
+
+    def _load_generation_journal(self, journal_path):
+        with open(journal_path, "r", encoding="utf-8") as journal_file:
+            document = json.load(journal_file)
+        if not isinstance(document, dict):
+            raise ValueError("Dependency generation journal is invalid.")
+        if set(document) != {
+            "schema_version",
+            "plugin_key",
+            "phase",
+            "had_live",
+        }:
+            raise ValueError("Dependency generation journal is invalid.")
+        if document["schema_version"] != 1:
+            raise ValueError(
+                "Dependency generation journal schema is unsupported."
+            )
+        plugin_key = _require_plugin_key(document["plugin_key"])
+        if document["phase"] not in {
+            "prepared",
+            "live_backed_up",
+            "activated",
+        } or type(document["had_live"]) is not bool:
+            raise ValueError("Dependency generation journal is invalid.")
+        expected = self._generation_paths(plugin_key)["journal"]
+        if os.path.abspath(journal_path) != expected:
+            raise ValueError(
+                "Dependency generation journal identity is invalid."
+            )
+        return document
+
+    def _recover_generation_locked(self, document):
+        plugin_key = document["plugin_key"]
+        phase = document["phase"]
+        had_live = document["had_live"]
+        paths = self._generation_paths(plugin_key)
+        live_exists = os.path.lexists(paths["live"])
+        staged_exists = os.path.lexists(paths["staged"])
+        backup_exists = os.path.lexists(paths["backup"])
+
+        if phase == "prepared":
+            self.filesystem.discard_tree(paths["staged"])
+            self.filesystem.discard_tree(paths["backup"])
+            self._remove_generation_journal(paths)
+            return "cancelled"
+        if phase == "live_backed_up":
+            if not live_exists and staged_exists:
+                os.replace(paths["staged"], paths["live"])
+                self._sync_generation_parents(paths)
+                self._write_generation_journal(
+                    plugin_key,
+                    "activated",
+                    had_live,
+                )
+                live_exists = True
+                backup_exists = os.path.lexists(paths["backup"])
+            elif not live_exists and backup_exists:
+                os.replace(paths["backup"], paths["live"])
+                self._sync_generation_parents(paths)
+                self.filesystem.discard_tree(paths["staged"])
+                self._remove_generation_journal(paths)
+                return "rolled_back"
+            elif not live_exists:
+                raise RuntimeError(
+                    "Dependency generation recovery has no safe live tree."
+                )
+            elif staged_exists:
+                raise RuntimeError(
+                    "Dependency generation recovery found an unexpected "
+                    "live tree."
+                )
+        if not live_exists:
+            if had_live and backup_exists:
+                os.replace(paths["backup"], paths["live"])
+                self._sync_generation_parents(paths)
+                self._remove_generation_journal(paths)
+                return "rolled_back"
+            raise RuntimeError(
+                "Activated dependency generation is missing."
+            )
+        self.filesystem.discard_tree(paths["staged"])
+        self.filesystem.discard_tree(paths["backup"])
+        self._remove_generation_journal(paths)
+        return "activated"
+
+    def recover_pending_generations(self):
+        """Recover interrupted Git dependency swaps before imports begin."""
+        manager_dir = os.path.abspath(
+            self.plugin.get_plugin_home_folder()
+        )
+        state_root = os.path.join(
+            manager_dir,
+            ".pypluginstore",
+            "dependency-generations",
+        )
+        if not os.path.isdir(state_root):
+            return []
+        recovered = []
+        with self.transaction_manager.workflow_lock():
+            for name in sorted(os.listdir(state_root)):
+                if not name.endswith(".json"):
+                    continue
+                journal = os.path.join(state_root, name)
+                document = self._load_generation_journal(journal)
+                outcome = self._recover_generation_locked(document)
+                recovered.append(
+                    {
+                        "plugin_key": document["plugin_key"],
+                        "outcome": outcome,
+                    }
+                )
+        return recovered
+
+    @contextmanager
+    def _dependency_workflow(self, workflow_locked):
+        if workflow_locked:
+            yield
+            return
+        with self.transaction_manager.workflow_lock():
+            yield
 
     def _requirements_path(self, transaction, requirements_file):
         staged_code = os.path.abspath(str(transaction.paths.staged_code))
@@ -12128,42 +12359,38 @@ class ReleaseDependencySnapshotService:
             )
         return result
 
-    def rebuild_live(self, plugin_key, installer="auto"):
+    def rebuild_live(
+        self,
+        plugin_key,
+        installer="auto",
+        workflow_locked=False,
+    ):
         """Atomically rebuild the shared generation after a Git change."""
         plugin_key = _require_plugin_key(plugin_key)
         if installer not in {"auto", "pip", "uv"}:
             raise ValueError("installer must be auto, pip, or uv.")
-        plugin_dir = self.plugin.resolve_installed_plugin_dir(
-            plugin_key,
-            refresh=True,
-        )
-        requirements_file = os.path.join(
-            plugin_dir,
-            "requirements.txt",
-        )
-        manager_dir = os.path.abspath(
-            self.plugin.get_plugin_home_folder()
-        )
-        state_root = os.path.join(
-            manager_dir,
-            ".pypluginstore",
-            "dependency-generations",
-        )
-        generation_name = hashlib.sha256(
-            plugin_key.encode("utf-8")
-        ).hexdigest()[:16]
-        staged_dependencies = os.path.join(
-            state_root,
-            generation_name + ".staged",
-        )
-        backup_dependencies = os.path.join(
-            state_root,
-            generation_name + ".backup",
-        )
-        live_dependencies = os.path.join(manager_dir, ".shared_deps")
+        paths = self._generation_paths(plugin_key)
+        state_root = paths["state_root"]
+        staged_dependencies = paths["staged"]
+        backup_dependencies = paths["backup"]
+        live_dependencies = paths["live"]
 
-        with self.transaction_manager.workflow_lock():
+        with self._dependency_workflow(workflow_locked):
+            self.transaction_manager.assert_dependency_rebuild_allowed()
+            plugin_dir = self.plugin.resolve_installed_plugin_dir(
+                plugin_key,
+                refresh=True,
+            )
+            requirements_file = os.path.join(
+                plugin_dir,
+                "requirements.txt",
+            )
             os.makedirs(state_root, exist_ok=True)
+            if os.path.lexists(paths["journal"]):
+                document = self._load_generation_journal(
+                    paths["journal"]
+                )
+                self._recover_generation_locked(document)
             self.filesystem.discard_tree(staged_dependencies)
             self.filesystem.discard_tree(backup_dependencies)
 
@@ -12195,16 +12422,28 @@ class ReleaseDependencySnapshotService:
                         "Dependency generation validation failed.",
                     )
                 had_live = os.path.lexists(live_dependencies)
+                self._write_generation_journal(
+                    plugin_key,
+                    "prepared",
+                    had_live,
+                )
                 if had_live:
                     os.replace(
                         live_dependencies,
                         backup_dependencies,
                     )
+                    self._sync_generation_parents(paths)
+                self._write_generation_journal(
+                    plugin_key,
+                    "live_backed_up",
+                    had_live,
+                )
                 try:
                     os.replace(
                         staged_dependencies,
                         live_dependencies,
                     )
+                    self._sync_generation_parents(paths)
                 except Exception:
                     if had_live and os.path.lexists(
                         backup_dependencies
@@ -12213,8 +12452,15 @@ class ReleaseDependencySnapshotService:
                             backup_dependencies,
                             live_dependencies,
                         )
+                        self._sync_generation_parents(paths)
                     raise
+                self._write_generation_journal(
+                    plugin_key,
+                    "activated",
+                    had_live,
+                )
                 self.filesystem.discard_tree(backup_dependencies)
+                self._remove_generation_journal(paths)
                 return True, (
                     "Shared dependency generation rebuilt with "
                     + selected
@@ -12222,9 +12468,18 @@ class ReleaseDependencySnapshotService:
                 )
             except ReleaseDependencyError as error:
                 self.filesystem.discard_tree(staged_dependencies)
+                self._remove_generation_journal(paths)
                 return False, error.message
             except Exception as error:
                 self.filesystem.discard_tree(staged_dependencies)
+                if os.path.lexists(paths["journal"]):
+                    try:
+                        document = self._load_generation_journal(
+                            paths["journal"]
+                        )
+                        self._recover_generation_locked(document)
+                    except Exception:
+                        pass
                 return (
                     False,
                     "Dependency generation rebuild failed: "
@@ -13157,6 +13412,21 @@ class GitInstallUpdateStrategy:
         self.plugin = plugin
 
     def install(self, entry):
+        try:
+            with self.plugin.release_transaction_manager.workflow_lock(
+                blocking=False
+            ):
+                return self._install_locked(entry)
+        except (OSError, RuntimeError, ValueError) as error:
+            return False, str(error)
+
+    def _dependencies_locked(self, plugin_key):
+        return self.plugin.release_dependency_service.rebuild_live(
+            plugin_key,
+            workflow_locked=True,
+        )
+
+    def _install_locked(self, entry):
         Domoticz.Debug("InstallPythonPlugin called")
 
         host = self.plugin.get_host()
@@ -13183,7 +13453,11 @@ class GitInstallUpdateStrategy:
             Domoticz.Log("Plugin " + plugin_key + " is already installed in folder " + existing_folder + ".")
             self.plugin.refresh_single_plugin_update_time(plugin_key, existing_plugin_dir, fetch_first=False)
             self.plugin.refresh_single_plugin_update_status(plugin_key, existing_plugin_dir, fetch_first=False)
-            self.plugin.installDependencies(plugin_key)
+            dependencies_ok, dependencies_message = (
+                self._dependencies_locked(plugin_key)
+            )
+            if not dependencies_ok:
+                return False, dependencies_message
             return True, "Plugin already installed."
 
         Domoticz.Log("Installing Plugin:" + entry.description)
@@ -13226,11 +13500,26 @@ class GitInstallUpdateStrategy:
 
         self.plugin.refresh_single_plugin_update_time(plugin_key, plugin_dir, fetch_first=False)
         self.plugin.refresh_single_plugin_update_status(plugin_key, plugin_dir, fetch_first=False)
-        self.plugin.installDependencies(plugin_key)
+        dependencies_ok, dependencies_message = (
+            self._dependencies_locked(plugin_key)
+        )
+        if not dependencies_ok:
+            if is_git_checkout(plugin_dir):
+                shutil.rmtree(plugin_dir)
+            return False, dependencies_message
         Domoticz.Log("---Restarting Domoticz MAY BE REQUIRED to activate new plugins---")
         return True, ""
 
     def update(self, entry, queue_on_lock=True):
+        try:
+            with self.plugin.release_transaction_manager.workflow_lock(
+                blocking=False
+            ):
+                return self._update_locked(entry, queue_on_lock)
+        except (OSError, RuntimeError, ValueError) as error:
+            return False, str(error)
+
+    def _update_locked(self, entry, queue_on_lock=True):
         Domoticz.Debug("UpdatePythonPlugin called")
 
         host = self.plugin.get_host()
@@ -13262,6 +13551,20 @@ class GitInstallUpdateStrategy:
             return update_success, update_message
 
         Domoticz.Log("Resetting and Updating Plugin:" + plugin_key)
+
+        prior_result, prior_message = host.require_git_success(
+            plugin_dir,
+            ["git", "rev-parse", "--verify", "HEAD"],
+            timeout=15,
+            fallback="Could not capture the installed Git revision.",
+            log_label="Revision",
+        )
+        if prior_message:
+            return False, prior_message
+        prior_lines = prior_result.stdout.strip().splitlines()
+        if not prior_lines:
+            return False, "Could not capture the installed Git revision."
+        prior_commit = prior_lines[0]
 
         branch = entry.branch or "master"
         fetch_command = ["git", "fetch", "origin"]
@@ -13330,7 +13633,33 @@ class GitInstallUpdateStrategy:
 
         self.plugin.refresh_single_plugin_update_time(plugin_key, plugin_dir, fetch_first=False)
         self.plugin.refresh_single_plugin_update_status(plugin_key, plugin_dir, fetch_first=False)
-        self.plugin.installDependencies(plugin_key)
+        dependencies_ok, dependencies_message = (
+            self._dependencies_locked(plugin_key)
+        )
+        if not dependencies_ok:
+            rollback_result, rollback_message = host.require_git_success(
+                plugin_dir,
+                ["git", "reset", "--hard", prior_commit],
+                timeout=30,
+                fallback=(
+                    "Dependency rebuild failed and the previous Git "
+                    "revision could not be restored."
+                ),
+                log_label="Rollback",
+            )
+            if not rollback_message:
+                restored, restore_message = self._dependencies_locked(
+                    plugin_key
+                )
+                if restored:
+                    return False, dependencies_message
+                rollback_message = restore_message
+            return (
+                False,
+                dependencies_message
+                + " Git rollback also requires attention: "
+                + rollback_message,
+            )
         return True, ""
 
     def check_for_update(self, entry):
@@ -18918,19 +19247,45 @@ class BasePlugin:
             Domoticz.Error(warn_msg)
             self.sendDomoticzNotification("PyPluginStore Setup Warning", warn_msg)
 
+        dependency_recovery_ready = True
         try:
-            finalized_transactions = (
-                self.release_transaction_manager.finalize_startup()
+            recovered_generations = (
+                self.release_dependency_service
+                .recover_pending_generations()
             )
-            if finalized_transactions:
+            if recovered_generations:
                 Domoticz.Log(
                     "Recovered "
-                    + str(len(finalized_transactions))
-                    + " release transaction(s) during startup."
+                    + str(len(recovered_generations))
+                    + " dependency generation(s) during startup."
                 )
         except Exception as error:
+            dependency_recovery_ready = False
             Domoticz.Error(
-                "Release transaction startup recovery failed: " + str(error)
+                "Dependency generation startup recovery failed: "
+                + str(error)
+            )
+
+        if dependency_recovery_ready:
+            try:
+                finalized_transactions = (
+                    self.release_transaction_manager.finalize_startup()
+                )
+                if finalized_transactions:
+                    Domoticz.Log(
+                        "Recovered "
+                        + str(len(finalized_transactions))
+                        + " release transaction(s) during startup."
+                    )
+            except Exception as error:
+                Domoticz.Error(
+                    "Release transaction startup recovery failed: "
+                    + str(error)
+                )
+        else:
+            Domoticz.Error(
+                "Release startup recovery was paused until dependency "
+                "generation recovery succeeds."
             )
 
         # Inject shared dependencies into sys.path

@@ -599,9 +599,24 @@ def test_update_command_refreshes_cached_status_for_next_list(plugin_core_module
         status_calls.append((Path(actual_plugin_dir), plugin_key, fetch_first))
         return "current"
 
-    monkeypatch.setattr(plugin_core_module.subprocess, "run", lambda *args, **kwargs: FakeGitResult())
+    monkeypatch.setattr(
+        plugin_core_module.subprocess,
+        "run",
+        lambda command, *args, **kwargs: FakeGitResult(
+            stdout=(
+                "a" * 40 + "\n"
+                if command[-3:]
+                == ["rev-parse", "--verify", "HEAD"]
+                else ""
+            )
+        ),
+    )
     monkeypatch.setattr(plugin, "refresh_single_plugin_update_time", lambda *args, **kwargs: False)
-    monkeypatch.setattr(plugin, "installDependencies", lambda plugin_key: None)
+    monkeypatch.setattr(
+        plugin.release_dependency_service,
+        "rebuild_live",
+        lambda plugin_key, workflow_locked=False: (True, ""),
+    )
     monkeypatch.setattr(plugin, "getGitUpdateStatus", fake_git_status)
     monkeypatch.setattr(plugin, "sendApiResponse", responses.append)
 
@@ -640,6 +655,8 @@ def test_update_command_uses_detected_repository_folder(plugin_core_module, tmp_
                 returncode = 0
 
             return FakeRemoteResult()
+        if command[-3:] == ["rev-parse", "--verify", "HEAD"]:
+            return FakeGitResult(stdout="a" * 40 + "\n")
         return FakeGitResult()
 
     def fake_refresh_status(plugin_key, actual_plugin_dir, fetch_first=True):
@@ -650,7 +667,11 @@ def test_update_command_uses_detected_repository_folder(plugin_core_module, tmp_
     monkeypatch.setattr(plugin_core_module.subprocess, "run", fake_run)
     monkeypatch.setattr(plugin, "refresh_single_plugin_update_time", lambda *args, **kwargs: False)
     monkeypatch.setattr(plugin, "refresh_single_plugin_update_status", fake_refresh_status)
-    monkeypatch.setattr(plugin, "installDependencies", lambda plugin_key: None)
+    monkeypatch.setattr(
+        plugin.release_dependency_service,
+        "rebuild_live",
+        lambda plugin_key, workflow_locked=False: (True, ""),
+    )
     monkeypatch.setattr(plugin, "sendApiResponse", responses.append)
 
     plugin.handleApiCommand({"action": "update", "plugin_key": "deCONZ"})
@@ -662,7 +683,11 @@ def test_update_command_uses_detected_repository_folder(plugin_core_module, tmp_
     }
     assert all(cwd == plugin_dir for _, cwd in git_calls)
     safe_command = plugin.get_host().safe_git_command
-    assert [command for command, _ in git_calls[-4:]] == [
+    assert [command for command, _ in git_calls[-5:]] == [
+        safe_command(
+            ["git", "rev-parse", "--verify", "HEAD"],
+            plugin_dir,
+        ),
         safe_command(["git", "fetch", "origin"], plugin_dir),
         safe_command(
             ["git", "diff", "--quiet", "HEAD...origin/master"],

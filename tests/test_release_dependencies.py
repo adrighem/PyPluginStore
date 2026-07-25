@@ -564,6 +564,90 @@ def test_git_dependency_refresh_uses_same_atomic_generation_builder(
     assert "HOME" not in environment
 
 
+@pytest.mark.parametrize(
+    "crash_phase,expected_outcome",
+    [
+        ("prepared", "cancelled"),
+        ("live_backed_up", "activated"),
+        ("activated", "activated"),
+    ],
+)
+def test_git_dependency_generation_recovers_each_durable_swap_boundary(
+    plugin_core_module,
+    tmp_path,
+    crash_phase,
+    expected_outcome,
+):
+    class SimulatedCrash(BaseException):
+        pass
+
+    plugins_dir, manager_dir = configure_home(
+        plugin_core_module,
+        tmp_path,
+    )
+    plugin_dir = write_files(
+        plugins_dir / "ExamplePlugin",
+        {
+            "plugin.py": "print('git plugin')\n",
+            "requirements.txt": "new-dependency==2.0\n",
+        },
+    )
+    write_files(
+        manager_dir / ".shared_deps",
+        {"old_dependency/__init__.py": "OLD = True\n"},
+    )
+    plugin = plugin_core_module.BasePlugin()
+    plugin.installed_plugin_folders = {
+        "ExamplePlugin": str(plugin_dir)
+    }
+    service = plugin_core_module.ReleaseDependencySnapshotService(
+        plugin,
+        transaction_manager=plugin.release_transaction_manager,
+        command_runner=RecordingCommandRunner(
+            on_run=simulate_install()
+        ),
+        filesystem=RecordingFilesystem(),
+        validator=RecordingValidator(),
+    )
+
+    def crash(phase):
+        if phase == crash_phase:
+            raise SimulatedCrash(phase)
+
+    service.fault_injector = crash
+    with pytest.raises(SimulatedCrash):
+        service.rebuild_live("ExamplePlugin")
+
+    recovery = plugin_core_module.ReleaseDependencySnapshotService(
+        plugin,
+        transaction_manager=plugin.release_transaction_manager,
+        command_runner=RecordingCommandRunner(),
+        filesystem=RecordingFilesystem(),
+        validator=RecordingValidator(),
+    )
+    outcomes = recovery.recover_pending_generations()
+
+    assert outcomes == [
+        {
+            "plugin_key": "ExamplePlugin",
+            "outcome": expected_outcome,
+        }
+    ]
+    live = manager_dir / ".shared_deps"
+    if crash_phase == "prepared":
+        assert (live / "old_dependency/__init__.py").is_file()
+        assert not (live / "new_dependency").exists()
+    else:
+        assert (live / "new_dependency/__init__.py").is_file()
+        assert not (live / "old_dependency").exists()
+    generation_state = (
+        manager_dir / ".pypluginstore" / "dependency-generations"
+    )
+    assert list(generation_state.glob("*.json")) == []
+    assert list(generation_state.glob("*.staged")) == []
+    assert list(generation_state.glob("*.backup")) == []
+
+
 def test_no_requirements_builds_empty_manifested_generation_without_installer(
     plugin_core_module, tmp_path
 ):
@@ -1001,6 +1085,34 @@ def test_validated_dependency_snapshot_integrates_with_atomic_activation(
         activated.paths.live_dependencies,
         ".pypluginstore-environment.json",
     ).is_file()
+
+
+def test_git_generation_is_blocked_while_release_restart_is_pending(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, transaction = create_real_transaction(
+        plugin_core_module,
+        tmp_path,
+    )
+    release_service = real_service(plugin_core_module, manager)
+    stage(release_service, transaction)
+    activated = manager.activate(transaction.operation_id)
+    live_before = tree_snapshot(activated.paths.live_dependencies)
+    git_service = plugin_core_module.ReleaseDependencySnapshotService(
+        manager.plugin,
+        transaction_manager=manager,
+        command_runner=RecordingCommandRunner(
+            on_run=simulate_install()
+        ),
+        filesystem=RecordingFilesystem(),
+        validator=RecordingValidator(),
+    )
+
+    with pytest.raises(RuntimeError, match="unfinished Release"):
+        git_service.rebuild_live("ExamplePlugin")
+
+    assert tree_snapshot(activated.paths.live_dependencies) == live_before
 
 
 def test_dependency_snapshot_failure_never_starts_code_activation(
