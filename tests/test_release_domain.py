@@ -1,19 +1,30 @@
+import importlib.util
 import json
+from pathlib import Path
+import sys
 from dataclasses import FrozenInstanceError, is_dataclass
 
 import pytest
 
-from release_domain import (
-    ActionDescriptor,
-    InstallationChannel,
-    LifecycleNotice,
-    LifecyclePhase,
-    NoticeSeverity,
-    ObservedInstallationState,
-    PluginManagementView,
-    ReleaseCandidateState,
-    TransitionState,
+
+MODULE_PATH = Path(__file__).resolve().parents[1] / "release_domain.py"
+SPECIFICATION = importlib.util.spec_from_file_location(
+    "release_domain_under_test",
+    MODULE_PATH,
 )
+release_domain = importlib.util.module_from_spec(SPECIFICATION)
+sys.modules[SPECIFICATION.name] = release_domain
+SPECIFICATION.loader.exec_module(release_domain)
+
+ActionDescriptor = release_domain.ActionDescriptor
+InstallationChannel = release_domain.InstallationChannel
+LifecycleNotice = release_domain.LifecycleNotice
+LifecyclePhase = release_domain.LifecyclePhase
+NoticeSeverity = release_domain.NoticeSeverity
+ObservedInstallationState = release_domain.ObservedInstallationState
+PluginManagementView = release_domain.PluginManagementView
+ReleaseCandidateState = release_domain.ReleaseCandidateState
+TransitionState = release_domain.TransitionState
 
 
 COMMIT = "1" * 40
