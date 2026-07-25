@@ -3,7 +3,7 @@ import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CORE_FILE = os.path.join(SCRIPT_DIR, '../../plugin_core.py')
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, '../../plugin.py')
-PLUGIN_VERSION = "2.22.4"  # x-release-please-version
+PLUGIN_VERSION = "2.22.5"  # x-release-please-version
 RELEASE_VERSION_MARKER = "x-release-please-" + "version"
 
 def generate_plugin():
