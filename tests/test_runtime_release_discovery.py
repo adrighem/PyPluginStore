@@ -339,6 +339,33 @@ def test_runtime_discovery_quarantines_a_mutated_installed_tag(
     assert certifier.calls == []
 
 
+def test_index_tombstone_overrides_cached_provider_live_candidate(
+    plugin_core_module,
+):
+    plugin = plugin_core_module.BasePlugin()
+    entry = release_entry(plugin_core_module)
+    descriptor = certified_descriptor(plugin_core_module)
+    descriptor.authority = "provider_live"
+    descriptor.candidate_fingerprint = "f" * 64
+    plugin.runtime_release_observations[entry.key] = (
+        plugin_core_module.RuntimeReleaseObservation(
+            state="available",
+            release=descriptor,
+            message="Verified directly from the release provider.",
+            checked_at="2026-07-25T08:00:00Z",
+        )
+    )
+
+    assert (
+        plugin.getRuntimeReleaseCandidate(
+            entry,
+            installed_release(),
+            tombstone=object(),
+        )
+        is None
+    )
+
+
 def test_runtime_certifier_derives_checksums_tree_and_plugin_identity(
     plugin_core_module,
     tmp_path,
@@ -381,6 +408,8 @@ def test_runtime_certifier_derives_checksums_tree_and_plugin_identity(
     assert descriptor.artifact.size == len(contents)
     assert descriptor.artifact.root_prefix == root_prefix
     assert descriptor.artifact.tree_sha256
+    assert descriptor.authority == "provider_live"
+    assert len(descriptor.candidate_fingerprint) == 64
     assert descriptor.certified_identity.domoticz_key == "EXAMPLE"
     assert descriptor.certified_identity.plugin_py_sha256 == hashlib.sha256(
         plugin_source

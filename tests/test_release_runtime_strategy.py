@@ -208,6 +208,34 @@ def test_release_install_uses_pinned_pipeline_and_writes_audit_metadata(
     assert metadata.artifact_tree_sha256 == TREE
 
 
+def test_provider_live_target_preserves_local_authority_in_transaction_and_metadata(
+    plugin_core_module,
+    tmp_path,
+):
+    plugin, strategy, manager, _http, _dependencies = make_strategy(
+        plugin_core_module,
+        tmp_path,
+    )
+    entry = plugin.get_registry_entry("ExamplePlugin")
+    release = replace(
+        descriptor(plugin_core_module),
+        authority="provider_live",
+        candidate_fingerprint="c" * 64,
+    )
+
+    success, _message = strategy.install(entry, release, "manual")
+
+    assert success is True
+    target = manager.calls[0][1]["target"]
+    assert target["authority"] == "provider_live"
+    assert target["candidate_fingerprint"] == "c" * 64
+    metadata = plugin.install_metadata_service.read(
+        manager.transaction.paths.staged_code
+    )
+    assert metadata.authority == "provider_live"
+    assert metadata.candidate_fingerprint == "c" * 64
+
+
 @pytest.mark.parametrize(
     "artifact_url",
     [

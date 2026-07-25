@@ -2474,6 +2474,8 @@ class ReleaseDescriptor:
     source_revision: str = ""
     package_id: str = ""
     certified_identity: object = None
+    authority: str = "release_index"
+    candidate_fingerprint: str = ""
 
     @classmethod
     def from_document(cls, document):
@@ -3597,7 +3599,8 @@ class ReleaseMetadataStore:
         return self._selection(generation)
 
 
-INSTALL_METADATA_SCHEMA_VERSION = 2
+INSTALL_METADATA_SCHEMA_VERSION = 3
+PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION = 2
 LEGACY_INSTALL_METADATA_SCHEMA_VERSION = 1
 WINDOWS_RESERVED_PATH_NAMES = {
     "aux",
@@ -5950,6 +5953,32 @@ class RuntimeReleaseCertificationService:
             }
         )
 
+    def _candidate_fingerprint(self, candidate, artifact):
+        document = {
+            "provider": candidate.provider,
+            "repository_identity": candidate.repository_identity,
+            "release_id": candidate.release_id,
+            "version": candidate.version,
+            "tag": candidate.tag,
+            "released_at": candidate.released_at,
+            "commit": candidate.commit,
+            "source_revision": candidate.source_revision,
+            "artifact_url": artifact.url,
+            "artifact_sha256": artifact.sha256,
+            "artifact_size": artifact.size,
+            "artifact_tree_sha256": artifact.tree_sha256,
+            "artifact_root_prefix": artifact.root_prefix,
+            "artifact_source_path": artifact.source_path,
+        }
+        return hashlib.sha256(
+            json.dumps(
+                document,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()
+
     def certify(self, entry, installed, candidate):
         """Download and validate a candidate without changing plugin files."""
         expected_identity = normalize_repository_identity(
@@ -6025,6 +6054,11 @@ class RuntimeReleaseCertificationService:
                 certified_identity=CertifiedReleaseIdentity(
                     domoticz_key=entry.domoticz_key,
                     plugin_py_sha256=plugin_record["sha256"],
+                ),
+                authority="provider_live",
+                candidate_fingerprint=self._candidate_fingerprint(
+                    candidate,
+                    artifact,
                 ),
             )
         finally:
@@ -6317,14 +6351,27 @@ class InstallMetadata:
     source_revision: str = ""
     migration_source_commit: str = ""
     migration_inventory_sha256: str = ""
+    authority: str = "release_index"
+    candidate_fingerprint: str = ""
 
     @classmethod
     def from_document(cls, document):
-        """Parse strict schema-v2 release-managed install metadata."""
+        """Parse strict schema-v3 release-managed install metadata."""
         return cls._from_document(
             document,
             schema_version=INSTALL_METADATA_SCHEMA_VERSION,
             identity_field="package_id",
+            authority_fields=True,
+        )
+
+    @classmethod
+    def from_previous_document(cls, document):
+        """Normalize one explicit schema-v2 install metadata document."""
+        return cls._from_document(
+            document,
+            schema_version=PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION,
+            identity_field="package_id",
+            authority_fields=False,
         )
 
     @classmethod
@@ -6334,10 +6381,23 @@ class InstallMetadata:
             document,
             schema_version=LEGACY_INSTALL_METADATA_SCHEMA_VERSION,
             identity_field="plugin_key",
+            authority_fields=False,
         )
 
     @classmethod
-    def _from_document(cls, document, *, schema_version, identity_field):
+    def _from_document(
+        cls,
+        document,
+        *,
+        schema_version,
+        identity_field,
+        authority_fields,
+    ):
+        authority_keys = (
+            ("authority", "candidate_fingerprint")
+            if authority_fields
+            else ()
+        )
         document = _require_document(
             document,
             "install metadata",
@@ -6359,6 +6419,7 @@ class InstallMetadata:
                 "preserved_files",
                 "index_sequence",
                 "installed_at",
+                *authority_keys,
             ),
             (
                 "source_revision",
@@ -6377,6 +6438,26 @@ class InstallMetadata:
         )
         if management_mode != "release":
             raise ValueError("Install metadata must be release-managed.")
+
+        authority = "release_index"
+        candidate_fingerprint = ""
+        if authority_fields:
+            authority = _require_nonempty_string(
+                document["authority"],
+                "authority",
+            )
+            if authority not in {"release_index", "provider_live"}:
+                raise ValueError("Install metadata authority is unsupported.")
+            candidate_fingerprint = document["candidate_fingerprint"]
+            if authority == "provider_live":
+                candidate_fingerprint = _require_sha256(
+                    candidate_fingerprint,
+                    "candidate_fingerprint",
+                )
+            elif candidate_fingerprint != "":
+                raise ValueError(
+                    "Indexed install metadata cannot claim a candidate fingerprint."
+                )
 
         raw_repository_identity = _require_nonempty_string(
             document["repository_identity"], "repository_identity"
@@ -6520,6 +6601,8 @@ class InstallMetadata:
             source_revision=source_revision,
             migration_source_commit=migration_source_commit,
             migration_inventory_sha256=migration_inventory_sha256,
+            authority=authority,
+            candidate_fingerprint=candidate_fingerprint,
         )
 
     def to_document(self):
@@ -6528,6 +6611,8 @@ class InstallMetadata:
             "schema": INSTALL_METADATA_SCHEMA_VERSION,
             "package_id": self.plugin_key,
             "management_mode": self.management_mode,
+            "authority": self.authority,
+            "candidate_fingerprint": self.candidate_fingerprint,
             "repository_identity": self.repository_identity,
             "version": self.version,
             "tag": self.tag,
@@ -6619,17 +6704,23 @@ class InstallMetadataService:
             raise ValueError(
                 "Could not read install metadata: " + str(error)
             ) from error
-        is_legacy = (
-            type(document.get("schema")) is int
-            and document.get("schema")
-            == LEGACY_INSTALL_METADATA_SCHEMA_VERSION
+        schema = document.get("schema")
+        parsers = {
+            LEGACY_INSTALL_METADATA_SCHEMA_VERSION: (
+                InstallMetadata.from_legacy_document
+            ),
+            PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION: (
+                InstallMetadata.from_previous_document
+            ),
+            INSTALL_METADATA_SCHEMA_VERSION: InstallMetadata.from_document,
+        }
+        parser = parsers.get(schema)
+        if type(schema) is not int or parser is None:
+            raise ValueError("Install metadata schema is unsupported.")
+        return (
+            parser(document),
+            schema != INSTALL_METADATA_SCHEMA_VERSION,
         )
-        parser = (
-            InstallMetadata.from_legacy_document
-            if is_legacy
-            else InstallMetadata.from_document
-        )
-        return parser(document), is_legacy
 
     def inspect(self, plugin_dir):
         """Read committed metadata without cleanup or schema upgrades."""
@@ -13553,6 +13644,8 @@ class ReleaseInstallUpdateStrategy:
     def _target(self, release):
         target = {
             "management_mode": "release",
+            "authority": release.authority,
+            "candidate_fingerprint": release.candidate_fingerprint,
             "release_id": release.release_id,
             "release_revision": release.revision,
             "commit": release.commit,
@@ -13726,6 +13819,8 @@ class ReleaseInstallUpdateStrategy:
             "schema": INSTALL_METADATA_SCHEMA_VERSION,
             "package_id": entry.key,
             "management_mode": "release",
+            "authority": release.authority,
+            "candidate_fingerprint": release.candidate_fingerprint,
             "repository_identity": release.repository_identity,
             "version": release.version,
             "tag": release.tag,
@@ -13883,6 +13978,19 @@ class ReleaseInstallUpdateStrategy:
             return False, "A validated release target is required."
         if type(index_sequence) is not int or index_sequence <= 0:
             return False, "A trusted release index generation is required."
+        if release.authority == "provider_live":
+            try:
+                _require_sha256(
+                    release.candidate_fingerprint,
+                    "candidate_fingerprint",
+                )
+            except ValueError as error:
+                return False, str(error)
+        elif (
+            release.authority != "release_index"
+            or release.candidate_fingerprint
+        ):
+            return False, "Release target authority is invalid."
         expected_identity = normalize_repository_identity(
             entry.author, entry.repository
         )
@@ -15480,6 +15588,51 @@ class BasePlugin:
         self.release_metadata_selection = selection
         return selection
 
+    def getRuntimeReleaseCandidate(
+        self,
+        entry,
+        installed_release,
+        tombstone=None,
+    ):
+        """Return one still-applicable host-certified release candidate."""
+        if (
+            entry.local
+            or tombstone is not None
+            or installed_release is None
+        ):
+            return None
+        observation = self.runtime_release_observations.get(entry.key)
+        if (
+            not isinstance(observation, RuntimeReleaseObservation)
+            or observation.state != "available"
+            or not isinstance(observation.release, ReleaseDescriptor)
+        ):
+            return None
+        release = observation.release
+        expected_identity = normalize_repository_identity(
+            entry.author,
+            entry.repository,
+        )
+        try:
+            fingerprint = _require_sha256(
+                release.candidate_fingerprint,
+                "candidate_fingerprint",
+            )
+        except ValueError:
+            return None
+        if (
+            release.authority != "provider_live"
+            or fingerprint != release.candidate_fingerprint
+            or release.repository_identity != expected_identity
+            or release.package_id not in {"", entry.key}
+            or getattr(installed_release, "release_id", "")
+            not in release.supersedes
+            or release.revision
+            <= getattr(installed_release, "release_revision", 0)
+        ):
+            return None
+        return release
+
     def getReleaseManagementContext(
         self,
         entry,
@@ -15621,6 +15774,14 @@ class BasePlugin:
                     "installed_mode": "absent",
                     "index_sequence": selection.sequence,
                 }
+
+        runtime_release = self.getRuntimeReleaseCandidate(
+            entry,
+            installed_release,
+            tombstone,
+        )
+        if runtime_release is not None:
+            release = runtime_release
 
         preference = None
         repository_identity = normalize_repository_identity(
@@ -17804,6 +17965,13 @@ class BasePlugin:
             is_release = metadata is not None or bool(metadata_invalid)
             is_git = is_git_checkout(plugin_dir)
             channel = "release" if is_release else "git"
+            runtime_release = self.getRuntimeReleaseCandidate(
+                entry,
+                metadata,
+                tombstone,
+            )
+            if runtime_release is not None:
+                release = runtime_release
             local_override_git_error = (
                 self.getLocalOverrideGitCheckoutError(entry, plugin_dir)
             )
