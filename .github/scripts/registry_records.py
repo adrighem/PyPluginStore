@@ -551,8 +551,27 @@ def build_package_document(
     description,
     branch,
     platforms=None,
+    release_tag_pattern="",
 ):
     repository_url = build_repository_url(owner, repository)
+    delivery = default_delivery_for_repository(repository_url)
+    if release_tag_pattern:
+        release_tag_pattern = _require_string(
+            release_tag_pattern,
+            "delivery.release.tag_pattern",
+        )
+        try:
+            re.compile(release_tag_pattern)
+        except re.error as error:
+            raise ValueError(
+                "delivery.release.tag_pattern is invalid."
+            ) from error
+        release = delivery.get("release")
+        if not isinstance(release, dict):
+            raise ValueError(
+                "A release tag pattern requires release-capable delivery."
+            )
+        release["tag_pattern"] = release_tag_pattern
     document = {
         "package_id": package_id,
         "domoticz_key": domoticz_key,
@@ -562,7 +581,7 @@ def build_package_document(
             "branch": branch,
         },
         "platforms": _normalize_platforms(platforms),
-        "delivery": default_delivery_for_repository(repository_url),
+        "delivery": delivery,
     }
     package = PackageRecord.from_document(document)
     validate_explicit_delivery(package)
@@ -1073,4 +1092,22 @@ class RegistryRecord:
                 document[5] = platforms
         else:
             document["platforms"] = platforms
+        return type(self).from_entry(self.key, document)
+
+    def with_release_tag_pattern(self, tag_pattern):
+        """Return this explicit package with one validated release tag policy."""
+        tag_pattern = _require_string(
+            tag_pattern,
+            "delivery.release.tag_pattern",
+        )
+        document = self.to_document()
+        if not isinstance(document, dict) or "package_id" not in document:
+            raise ValueError(
+                "Release tag policies require an explicit package record."
+            )
+        delivery = document.get("delivery")
+        release = delivery.get("release") if isinstance(delivery, dict) else None
+        if not isinstance(release, dict):
+            raise ValueError("Package does not have a release policy.")
+        release["tag_pattern"] = tag_pattern
         return type(self).from_entry(self.key, document)

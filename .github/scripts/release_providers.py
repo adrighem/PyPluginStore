@@ -560,7 +560,12 @@ def _release_document_get_json(transport, url, headers):
 def _version_from_tag(tag):
     """Derive display version text without using it for release ordering."""
     tag = _require_string(tag, "tag")
-    version = tag[1:] if tag.startswith(("v", "V")) else tag
+    if tag[:2].lower() == "v.":
+        version = tag[2:]
+    elif tag[:1].lower() == "v":
+        version = tag[1:]
+    else:
+        version = tag
     return _require_string(version, "version")
 
 

@@ -249,6 +249,29 @@ def test_stable_release_selection_full_matches_and_sorts_timestamps(
     )
 
 
+def test_default_stable_pattern_accepts_v_dot_tags_and_normalizes_version(
+    providers_module,
+):
+    pattern = r"^v\.[0-9]+(?:\.[0-9]+){1,3}$"
+    releases = [
+        {
+            "tag_name": "v.3.1.0",
+            "published_at": "2022-08-27T10:43:53Z",
+            "draft": False,
+            "prerelease": False,
+        },
+    ]
+
+    selected = providers_module.select_latest_stable_release(
+        releases,
+        pattern,
+    )
+
+    assert selected["tag_name"] == "v.3.1.0"
+    assert providers_module._version_from_tag(selected["tag_name"]) == "3.1.0"
+    assert not providers_module.tag_matches_pattern("v.3.2.0-beta", pattern)
+
+
 def test_exact_asset_selection_rejects_missing_or_duplicate_names(
     providers_module,
 ):

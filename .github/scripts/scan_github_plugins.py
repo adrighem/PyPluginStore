@@ -5,6 +5,8 @@ import urllib.request
 import urllib.parse
 from urllib.error import HTTPError
 import time
+from datetime import datetime, timezone
+import re
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
@@ -25,6 +27,7 @@ from detect_plugin_platforms import (
 )
 from package_identity import MAX_PLUGIN_SOURCE_BYTES, certify_plugin_py
 from registry_records import (
+    DEFAULT_STABLE_TAG_PATTERN,
     RegistryRecord,
     build_package_document,
     load_registry_file,
@@ -43,7 +46,14 @@ DEFAULT_GIT_HOST = "github.com"
 SUPPORTED_GIT_HOSTS = ("github.com", "gitlab.com", "codeberg.org")
 ROOT_PLUGIN_CHECKED_FIELD = "_pypluginstore_root_plugin_py_checked"
 ROOT_PLUGIN_IDENTITY_FIELD = "_pypluginstore_root_plugin_identity"
+RELEASE_TAG_PATTERN_CHECKED_FIELD = "_pypluginstore_release_tag_pattern_checked"
+RELEASE_TAG_PATTERN_FIELD = "_pypluginstore_release_tag_pattern"
 REQUEST_TIMEOUT_SECONDS = 20
+DOTTED_V_STABLE_TAG_PATTERN = r"^v\.[0-9]+(?:\.[0-9]+){1,3}$"
+RECOGNIZED_STABLE_TAG_PATTERNS = (
+    DEFAULT_STABLE_TAG_PATTERN,
+    DOTTED_V_STABLE_TAG_PATTERN,
+)
 
 # Repositories that should never be added to or kept in the registry.
 REPO_BLOCKLIST = {
@@ -124,6 +134,7 @@ def build_registry_entry(
     description,
     branch,
     platforms=None,
+    release_tag_pattern="",
 ):
     return build_package_document(
         package_id,
@@ -133,6 +144,7 @@ def build_registry_entry(
         description,
         branch,
         platforms,
+        release_tag_pattern,
     )
 
 
@@ -168,6 +180,143 @@ def fetch_json(url, headers=None):
     except Exception as e:
         print(f"Error fetching {url}: {e}")
     return None
+
+
+def _release_timestamp(release):
+    for field in ("published_at", "released_at", "created_at"):
+        value = release.get(field)
+        if not isinstance(value, str) or not value:
+            continue
+        try:
+            normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+            parsed = datetime.fromisoformat(normalized)
+        except ValueError:
+            continue
+        if parsed.tzinfo is not None:
+            return parsed.astimezone(timezone.utc)
+    return None
+
+
+def infer_stable_tag_pattern(releases, now=None):
+    """Return one allowlisted tag convention from the newest stable release."""
+    if not isinstance(releases, list):
+        return ""
+    if now is None:
+        now = datetime.now(timezone.utc)
+    if not isinstance(now, datetime) or now.tzinfo is None:
+        raise ValueError("now must be a timezone-aware datetime.")
+    now = now.astimezone(timezone.utc)
+    compiled_patterns = tuple(
+        (pattern, re.compile(pattern))
+        for pattern in RECOGNIZED_STABLE_TAG_PATTERNS
+    )
+    candidates = []
+    for position, release in enumerate(releases):
+        if not isinstance(release, dict):
+            continue
+        classification_fields = (
+            "draft",
+            "prerelease",
+            "upcoming_release",
+        )
+        if any(
+            flag in release and type(release[flag]) is not bool
+            for flag in classification_fields
+        ):
+            continue
+        if any(
+            release.get(flag) is True
+            for flag in classification_fields
+        ):
+            continue
+        tag = release.get("tag_name")
+        if not isinstance(tag, str):
+            continue
+        matched_pattern = next(
+            (
+                pattern
+                for pattern, compiled in compiled_patterns
+                if compiled.fullmatch(tag)
+            ),
+            "",
+        )
+        if not matched_pattern:
+            continue
+        released_at = _release_timestamp(release)
+        if released_at is None or released_at > now:
+            continue
+        candidates.append((released_at, -position, matched_pattern))
+    if not candidates:
+        return ""
+    return max(candidates, key=lambda candidate: candidate[:2])[2]
+
+
+def _release_collection_url(repo):
+    host = repo.get("host", DEFAULT_GIT_HOST)
+    owner = repo.get("owner", {}).get("login", "")
+    repo_name = repo.get("name", "")
+    if not owner or not repo_name:
+        return "", {}
+    if host == "gitlab.com":
+        project = urllib.parse.quote(owner + "/" + repo_name, safe="")
+        return (
+            "https://gitlab.com/api/v4/projects/"
+            + project
+            + "/releases?order_by=released_at&sort=desc&per_page=100",
+            gitlab_headers(),
+        )
+    path = "/".join(
+        urllib.parse.quote(part, safe="")
+        for part in (owner + "/" + repo_name).split("/")
+    )
+    if host == "codeberg.org":
+        return (
+            "https://codeberg.org/api/v1/repos/"
+            + path
+            + "/releases?page=1&limit=50",
+            generic_headers(),
+        )
+    if host == DEFAULT_GIT_HOST:
+        return (
+            "https://api.github.com/repos/"
+            + path
+            + "/releases?per_page=100",
+            github_headers(),
+        )
+    return "", {}
+
+
+def annotate_release_tag_pattern(repo):
+    """Attach a finite inferred stable-tag policy to repository metadata."""
+    repo[RELEASE_TAG_PATTERN_CHECKED_FIELD] = True
+    url, headers = _release_collection_url(repo)
+    if not url:
+        return repo
+    releases = fetch_json(url, headers)
+    pattern = infer_stable_tag_pattern(releases)
+    if pattern:
+        repo[RELEASE_TAG_PATTERN_FIELD] = pattern
+    return repo
+
+
+def release_tag_pattern_update(registry_record, repo):
+    """Return an inferred replacement only for the scanner's default policy."""
+    if not repo.get(RELEASE_TAG_PATTERN_CHECKED_FIELD):
+        return ""
+    inferred = repo.get(RELEASE_TAG_PATTERN_FIELD, "")
+    release_policy = registry_record.delivery.release
+    current = (
+        release_policy.get("tag_pattern", "")
+        if isinstance(release_policy, dict)
+        else getattr(release_policy, "tag_pattern", "")
+    )
+    if (
+        current == DEFAULT_STABLE_TAG_PATTERN
+        and inferred
+        and inferred != current
+    ):
+        return inferred
+    return ""
 
 
 def normalize_gitlab_project(project):
@@ -268,6 +417,7 @@ def add_discovered_plugin_repo(all_items, seen_full_names, repo):
         return False
 
     repo[ROOT_PLUGIN_CHECKED_FIELD] = True
+    annotate_release_tag_pattern(repo)
     all_items.append(repo)
     return True
 
@@ -291,7 +441,10 @@ def discovered_repo_identity(repo):
 
 def get_github_repo_info(owner, repo):
     url = f'https://api.github.com/repos/{owner}/{repo}'
-    return fetch_json(url, github_headers())
+    data = fetch_json(url, github_headers())
+    if isinstance(data, dict):
+        annotate_release_tag_pattern(data)
+    return data
 
 
 def get_gitlab_repo_info(owner_path, repo):
@@ -299,7 +452,9 @@ def get_gitlab_repo_info(owner_path, repo):
     data = fetch_json(f'https://gitlab.com/api/v4/projects/{project_path}', gitlab_headers())
     if data == "DELETED" or data is None:
         return data
-    return normalize_gitlab_project(data)
+    normalized = normalize_gitlab_project(data)
+    annotate_release_tag_pattern(normalized)
+    return normalized
 
 
 def get_codeberg_repo_info(owner_path, repo):
@@ -307,7 +462,9 @@ def get_codeberg_repo_info(owner_path, repo):
     data = fetch_json(f'https://codeberg.org/api/v1/repos/{path}', generic_headers())
     if data == "DELETED" or data is None:
         return data
-    return normalize_codeberg_repo(data)
+    normalized = normalize_codeberg_repo(data)
+    annotate_release_tag_pattern(normalized)
+    return normalized
 
 
 def get_repo_info(owner, repo):
@@ -472,13 +629,32 @@ def main():
                     metadata_entry=metadata_entry,
                     is_new=False,
                 )
+                release_policy = registry_record.delivery.release
+                current_tag_pattern = (
+                    release_policy.get("tag_pattern", "")
+                    if isinstance(release_policy, dict)
+                    else getattr(release_policy, "tag_pattern", "")
+                )
+                inferred_tag_pattern = release_tag_pattern_update(
+                    registry_record,
+                    info,
+                )
+                release_pattern_changed = bool(inferred_tag_pattern)
 
                 # Check if changed
                 if (updated_desc != registry_record.description or
                     update_times.get(key) != updated_at or
-                    next_platforms != current_platforms):
+                    next_platforms != current_platforms or
+                    release_pattern_changed):
 
                     print(f"[*] Updating {key}")
+                    if release_pattern_changed:
+                        print(
+                            "    stable release tag policy "
+                            + current_tag_pattern
+                            + " -> "
+                            + inferred_tag_pattern
+                        )
                     if detected_platforms and next_platforms == current_platforms:
                         print(
                             f"    keeping platforms {current_platforms or ['unknown']}; "
@@ -494,6 +670,12 @@ def main():
                     if next_platforms:
                         updated_record = updated_record.with_platforms(
                             next_platforms
+                        )
+                    if release_pattern_changed:
+                        updated_record = (
+                            updated_record.with_release_tag_pattern(
+                                inferred_tag_pattern
+                            )
                         )
                     registry[key] = updated_record.to_document()
                     if updated_at:
@@ -601,7 +783,12 @@ def main():
                 repo_name,
                 description,
                 default_branch,
-                platforms
+                platforms,
+                (
+                    repo.get(RELEASE_TAG_PATTERN_FIELD, "")
+                    if repo.get(RELEASE_TAG_PATTERN_CHECKED_FIELD)
+                    else ""
+                ),
             )
             if pushed_at:
                 update_times[key] = normalize_update_timestamp(pushed_at)

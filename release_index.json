@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-07-28T14:30:14Z",
-  "generated_at": "2026-07-21T14:30:14Z",
-  "registry_sha256": "6b80a2815540cc238c6090cde1b3d52603fccd0af53814609593e64e75538b60",
+  "expires_at": "2026-07-31T10:14:53Z",
+  "generated_at": "2026-07-24T10:14:53Z",
+  "registry_sha256": "aa268442331b80cc415d7e7da8dea35b50330930a685706f69b54d644d9149ba",
   "releases": [
     {
       "artifact": {
@@ -881,27 +881,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "stas-demydiuk-domoticz-zigbee2mqtt-plugin-a5c378c",
-        "sha256": "6deac861ceee2903d8164c25952d552e3b686e982b77787ddcd75eba5bb11985",
-        "size": 40623,
+        "root_prefix": "stas-demydiuk-domoticz-zigbee2mqtt-plugin-2585929",
+        "sha256": "a0bfc7f7f06067a92f7b6966876613b5db851a47baa878a09e8728b59f969e03",
+        "size": 745571,
         "source_path": ".",
-        "tree_sha256": "c1fb79ad6640afa84a4ca4ee92a76503d87de3d84c4c71cfb091318bced7591f",
-        "url": "https://api.github.com/repos/stas-demydiuk/domoticz-zigbee2mqtt-plugin/zipball/a5c378cb136d235a829a9ddac150453f5b2c0f85"
+        "tree_sha256": "f7e67833dbc826de7bcfa33249cebbb69cb83a8679502f76698d5235d56f589e",
+        "url": "https://api.github.com/repos/stas-demydiuk/domoticz-zigbee2mqtt-plugin/zipball/25859290e62dc817f3d00901e01ddd49aa2a86f5"
       },
       "certified_identity": {
         "domoticz_key": "Zigbee2MQTT",
-        "plugin_py_sha256": "674cbf3244148a9d20896b26250e9400109af44f36dc14f871ec39e914326c5d"
+        "plugin_py_sha256": "85f4ab407da64c8094422c595f3a627ed4e1fb656c5e60aba2eaf5580189c0a5"
       },
-      "commit": "a5c378cb136d235a829a9ddac150453f5b2c0f85",
+      "commit": "25859290e62dc817f3d00901e01ddd49aa2a86f5",
       "package_id": "Zigbee2Mqtt",
       "provider": "github",
-      "release_id": "github:stas-demydiuk/domoticz-zigbee2mqtt-plugin:v0.0.15",
-      "released_at": "2018-11-27T21:02:11Z",
+      "release_id": "github:stas-demydiuk/domoticz-zigbee2mqtt-plugin:v.3.1.0",
+      "released_at": "2022-08-27T10:43:53Z",
       "repository_identity": "github.com/stas-demydiuk/domoticz-zigbee2mqtt-plugin",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v0.0.15",
-      "version": "0.0.15"
+      "revision": 2,
+      "supersedes": [
+        "github:stas-demydiuk/domoticz-zigbee2mqtt-plugin:v0.0.15"
+      ],
+      "tag": "v.3.1.0",
+      "version": "3.1.0"
     },
     {
       "artifact": {
@@ -1325,7 +1327,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 5,
+  "sequence": 7,
   "tombstones": [
     {
       "last_revision": 1,
