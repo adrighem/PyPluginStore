@@ -20,9 +20,15 @@ NEW_TREE = "4" * 64
 class RecordingFilesystem:
     """Narrow filesystem seam used by dependency snapshot construction."""
 
-    def __init__(self, events=None, snapshot_error=None):
+    def __init__(
+        self,
+        events=None,
+        snapshot_error=None,
+        discard_error=None,
+    ):
         self.events = events if events is not None else []
         self.snapshot_error = snapshot_error
+        self.discard_error = discard_error
         self.snapshot_calls = []
         self.discard_calls = []
 
@@ -48,6 +54,8 @@ class RecordingFilesystem:
         path = Path(path)
         self.events.append("discard")
         self.discard_calls.append(path)
+        if self.discard_error is not None:
+            raise self.discard_error
         if path.is_symlink() or path.is_file():
             path.unlink()
         elif path.exists():
@@ -298,7 +306,7 @@ def assert_dependency_error(
     return caught.value
 
 
-def test_dependency_stage_starts_with_complete_copy_of_live_shared_tree(
+def test_dependency_stage_builds_fresh_generation_without_stale_live_files(
     plugin_core_module, tmp_path
 ):
     transaction = stub_transaction(tmp_path)
@@ -321,18 +329,16 @@ def test_dependency_stage_starts_with_complete_copy_of_live_shared_tree(
     result = stage(service, transaction)
 
     staged = Path(transaction.paths.staged_dependencies)
-    for relative_path, contents in live_before.items():
-        assert (staged / relative_path).read_bytes() == contents
     assert (staged / "new_dependency/__init__.py").is_file()
+    assert not (staged / "existing").exists()
+    assert not (staged / "nested").exists()
+    assert (
+        staged / ".pypluginstore-environment.json"
+    ).is_file()
     assert tree_snapshot(transaction.paths.live_dependencies) == live_before
-    assert filesystem.snapshot_calls == [
-        (
-            Path(transaction.paths.live_dependencies),
-            Path(transaction.paths.staged_dependencies),
-        )
-    ]
+    assert filesystem.snapshot_calls == []
     assert events == [
-        "snapshot",
+        "discard",
         "install",
         "validate",
         "mark_dependencies_staged",
@@ -404,11 +410,20 @@ def test_pip_and_uv_always_target_staging_never_live(
     if installer == "uv":
         assert command[:3] == ["uv", "pip", "install"]
         assert command[command.index("--python") + 1] == sys.executable
+        assert command[command.index("--link-mode") + 1] == "copy"
     else:
         assert command[:4] == [sys.executable, "-m", "pip", "install"]
     assert "-r" in command
     assert result.installer == installer
     assert result.command == command
+    assert set(environment) == {
+        "PATH",
+        "LANG",
+        "LC_ALL",
+        "PYTHONUTF8",
+        "PIP_CACHE_DIR",
+        "UV_CACHE_DIR",
+    }
     assert tree_snapshot(transaction.paths.live_dependencies) == live_before
 
 
@@ -439,7 +454,117 @@ def test_auto_installer_prefers_uv_then_falls_back_to_pip(
     assert pip_result.installer == "pip"
 
 
-def test_no_requirements_still_validates_complete_copied_snapshot_without_installer(
+def test_generation_resolves_all_installed_requirements_in_one_command(
+    plugin_core_module,
+    tmp_path,
+):
+    transaction = stub_transaction(tmp_path)
+    other_requirements = (
+        Path(transaction.paths.live_code).parent
+        / "OtherPlugin"
+        / "requirements.txt"
+    )
+    write_files(
+        other_requirements.parent,
+        {"requirements.txt": "shared-package==1.5\n"},
+    )
+    runner = RecordingCommandRunner(on_run=simulate_install())
+    manager = RecordingTransactionManager(transaction)
+    service = make_service(plugin_core_module, manager, runner=runner)
+
+    stage(service, transaction, installer="uv")
+
+    command, _environment = runner.calls[0]
+    requirement_paths = [
+        command[index + 1]
+        for index, value in enumerate(command)
+        if value == "-r"
+    ]
+    assert requirement_paths == [
+        str(Path(transaction.paths.staged_code) / "requirements.txt"),
+        str(other_requirements),
+    ]
+    manifest = json.loads(
+        Path(
+            transaction.paths.staged_dependencies,
+            ".pypluginstore-environment.json",
+        ).read_text(encoding="utf-8")
+    )
+    assert [item["owner"] for item in manifest["requirements"]] == [
+        "ExamplePlugin",
+        "OtherPlugin",
+    ]
+
+
+def test_fresh_generation_ignores_legacy_hardlinks_in_live_tree(
+    plugin_core_module,
+    tmp_path,
+):
+    transaction = stub_transaction(tmp_path)
+    live_file = Path(
+        transaction.paths.live_dependencies,
+        "existing",
+        "__init__.py",
+    )
+    os.link(live_file, live_file.with_name("legacy-hardlink.py"))
+    manager = RecordingTransactionManager(transaction)
+    service = make_service(plugin_core_module, manager)
+
+    result = stage(service, transaction, installer="uv")
+
+    assert result.status == "dependencies_staged"
+    assert not Path(
+        transaction.paths.staged_dependencies,
+        "existing",
+    ).exists()
+
+
+def test_git_dependency_refresh_uses_same_atomic_generation_builder(
+    plugin_core_module,
+    tmp_path,
+):
+    plugins_dir, manager_dir = configure_home(
+        plugin_core_module,
+        tmp_path,
+    )
+    plugin_dir = write_files(
+        plugins_dir / "ExamplePlugin",
+        {
+            "plugin.py": "print('git plugin')\n",
+            "requirements.txt": "new-dependency==2.0\n",
+        },
+    )
+    write_files(
+        manager_dir / ".shared_deps",
+        {"stale-package/__init__.py": "STALE = True\n"},
+    )
+    plugin = plugin_core_module.BasePlugin()
+    plugin.installed_plugin_folders = {
+        "ExamplePlugin": str(plugin_dir)
+    }
+    runner = RecordingCommandRunner(on_run=simulate_install())
+    service = plugin_core_module.ReleaseDependencySnapshotService(
+        plugin,
+        transaction_manager=plugin.release_transaction_manager,
+        command_runner=runner,
+        filesystem=RecordingFilesystem(),
+        validator=RecordingValidator(),
+    )
+
+    success, message = service.rebuild_live("ExamplePlugin")
+
+    assert success is True
+    assert "rebuilt with uv" in message
+    live = manager_dir / ".shared_deps"
+    assert (live / "new_dependency/__init__.py").is_file()
+    assert not (live / "stale-package").exists()
+    assert (live / ".pypluginstore-environment.json").is_file()
+    command, environment = runner.calls[0]
+    assert command[command.index("--link-mode") + 1] == "copy"
+    assert "HOME" not in environment
+
+
+def test_no_requirements_builds_empty_manifested_generation_without_installer(
     plugin_core_module, tmp_path
 ):
     transaction = stub_transaction(tmp_path)
@@ -463,7 +588,15 @@ def test_no_requirements_still_validates_complete_copied_snapshot_without_instal
     ]
     assert result.installer == "none"
     assert result.command == []
-    assert (Path(transaction.paths.staged_dependencies) / "existing").is_dir()
+    staged = Path(transaction.paths.staged_dependencies)
+    assert not (staged / "existing").exists()
+    manifest = json.loads(
+        (staged / ".pypluginstore-environment.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert manifest["installer"] == "none"
+    assert manifest["requirements"] == []
 
 
 def test_validation_runs_after_install_and_before_journal_stage(
@@ -498,12 +631,14 @@ def test_validation_runs_after_install_and_before_journal_stage(
     assert events.index("validate") < events.index("mark_dependencies_staged")
 
 
-def test_snapshot_copy_failure_discards_partial_stage_and_leaves_live_untouched(
+def test_generation_initialization_failure_leaves_live_untouched(
     plugin_core_module, tmp_path
 ):
     transaction = stub_transaction(tmp_path)
     live_before = tree_snapshot(transaction.paths.live_dependencies)
-    filesystem = RecordingFilesystem(snapshot_error=OSError("copy failed"))
+    filesystem = RecordingFilesystem(
+        discard_error=OSError("discard failed")
+    )
     runner = RecordingCommandRunner(on_run=simulate_install())
     manager = RecordingTransactionManager(transaction)
     service = make_service(
@@ -523,9 +658,7 @@ def test_snapshot_copy_failure_discards_partial_stage_and_leaves_live_untouched(
     assert not Path(transaction.paths.staged_dependencies).exists()
     assert runner.calls == []
     assert transaction.phase == "dependency_blocked"
-    assert filesystem.discard_calls == [
-        Path(transaction.paths.staged_dependencies)
-    ]
+    assert filesystem.discard_calls
 
 
 def test_unavailable_installer_reports_manual_dependency_state_without_live_mutation(
@@ -576,7 +709,8 @@ def test_installer_failure_discards_stage_and_never_mutates_live(
         lambda: stage(service, transaction, installer=installer),
     )
 
-    assert "resolver failed" in error.message
+    assert "exit code 1" in error.message
+    assert "resolver failed" not in error.message
     assert tree_snapshot(transaction.paths.live_dependencies) == live_before
     assert not Path(transaction.paths.staged_dependencies).exists()
     assert transaction.phase == "dependency_blocked"
@@ -860,8 +994,12 @@ def test_validated_dependency_snapshot_integrates_with_atomic_activation(
     assert Path(
         activated.paths.live_dependencies, "new_dependency", "__init__.py"
     ).is_file()
+    assert not Path(
+        activated.paths.live_dependencies, "old_dependency"
+    ).exists()
     assert Path(
-        activated.paths.live_dependencies, "old_dependency", "__init__.py"
+        activated.paths.live_dependencies,
+        ".pypluginstore-environment.json",
     ).is_file()
 
 

@@ -11633,8 +11633,21 @@ class _ReleaseDependencyValidator:
         }
 
 
+@dataclass(frozen=True)
+class _DependencyGenerationPaths:
+    live_code: str
+
+
+@dataclass(frozen=True)
+class _DependencyGenerationContext:
+    plugin_key: str
+    paths: _DependencyGenerationPaths
+
+
 class ReleaseDependencySnapshotService:
-    """Build and validate shared dependencies before atomic activation."""
+    """Build one complete immutable shared dependency generation."""
+
+    MANIFEST_FILE = ".pypluginstore-environment.json"
 
     def __init__(
         self,
@@ -11680,6 +11693,268 @@ class ReleaseDependencySnapshotService:
         ):
             raise ValueError(name + " must contain non-empty messages.")
         return list(messages)
+
+    def _prepare_empty_generation(self, staged_dependencies):
+        self.filesystem.discard_tree(staged_dependencies)
+        os.makedirs(staged_dependencies)
+
+    def _requirements_files(
+        self,
+        plugin_key,
+        live_code,
+        target_requirements,
+    ):
+        """Collect all installed requirements, substituting staged target code."""
+        plugins_dir = os.path.dirname(
+            os.path.abspath(str(live_code))
+        )
+        target_live = os.path.abspath(str(live_code))
+        requirements = []
+        if os.path.isdir(plugins_dir):
+            with os.scandir(plugins_dir) as entries:
+                entries = sorted(entries, key=lambda item: item.name)
+            for entry in entries:
+                entry_stat = os.stat(entry.path, follow_symlinks=False)
+                if (
+                    not stat.S_ISDIR(entry_stat.st_mode)
+                    or stat.S_ISLNK(entry_stat.st_mode)
+                ):
+                    continue
+                source = (
+                    target_requirements
+                    if os.path.abspath(entry.path) == target_live
+                    else os.path.join(entry.path, "requirements.txt")
+                )
+                if os.path.isfile(source) and not os.path.islink(source):
+                    requirements.append((entry.name, source))
+        if (
+            os.path.isfile(target_requirements)
+            and not os.path.islink(target_requirements)
+            and all(path != target_requirements for _owner, path in requirements)
+        ):
+            requirements.append((plugin_key, target_requirements))
+        return sorted(requirements, key=lambda item: (item[0], item[1]))
+
+    def _installer_environment(self, staged_dependencies):
+        cache_root = os.path.join(
+            os.path.dirname(staged_dependencies),
+            "installer-cache",
+        )
+        os.makedirs(cache_root, exist_ok=True)
+        path = os.pathsep.join(
+            part
+            for part in ("/usr/local/bin", os.defpath)
+            if part
+        )
+        return {
+            "PATH": path,
+            "LANG": "C.UTF-8",
+            "LC_ALL": "C.UTF-8",
+            "PYTHONUTF8": "1",
+            "PIP_CACHE_DIR": os.path.join(cache_root, "pip"),
+            "UV_CACHE_DIR": os.path.join(cache_root, "uv"),
+        }
+
+    def _write_manifest(
+        self,
+        staged_dependencies,
+        requirements,
+        installer,
+    ):
+        resolved = []
+        for name in sorted(os.listdir(staged_dependencies)):
+            if not name.endswith(".dist-info"):
+                continue
+            metadata_path = os.path.join(
+                staged_dependencies, name, "METADATA"
+            )
+            if not os.path.isfile(metadata_path):
+                continue
+            package_name = ""
+            version = ""
+            with open(
+                metadata_path,
+                "r",
+                encoding="utf-8",
+                errors="replace",
+            ) as metadata_file:
+                for line in metadata_file:
+                    if line.startswith("Name: ") and not package_name:
+                        package_name = line[6:].strip()
+                    elif line.startswith("Version: ") and not version:
+                        version = line[9:].strip()
+                    if package_name and version:
+                        break
+            if package_name:
+                resolved.append(
+                    {"name": package_name, "version": version}
+                )
+        def file_sha256(path):
+            digest = hashlib.sha256()
+            with open(path, "rb") as source:
+                while True:
+                    chunk = source.read(RELEASE_HTTP_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    digest.update(chunk)
+            return digest.hexdigest()
+
+        document = {
+            "schema_version": 1,
+            "installer": installer,
+            "requirements": [
+                {
+                    "owner": owner,
+                    "sha256": file_sha256(path),
+                }
+                for owner, path in requirements
+            ],
+            "resolved": sorted(
+                resolved,
+                key=lambda item: (
+                    item["name"].casefold(),
+                    item["version"],
+                ),
+            ),
+        }
+        manifest_path = os.path.join(
+            staged_dependencies,
+            self.MANIFEST_FILE,
+        )
+        with open(manifest_path, "w", encoding="utf-8") as manifest_file:
+            json.dump(
+                document,
+                manifest_file,
+                ensure_ascii=True,
+                indent=2,
+                sort_keys=True,
+            )
+            manifest_file.write("\n")
+
+    def _generation_error(
+        self,
+        reason,
+        message,
+        *,
+        manual_required=False,
+    ):
+        raise ReleaseDependencyError(
+            reason,
+            message,
+            manual_required=manual_required,
+        )
+
+    def _build_generation(
+        self,
+        transaction,
+        requirements_file,
+        staged_dependencies,
+        installer,
+    ):
+        self._prepare_empty_generation(staged_dependencies)
+        requirements = self._requirements_files(
+            transaction.plugin_key,
+            transaction.paths.live_code,
+            requirements_file,
+        )
+        for _owner, path in requirements:
+            try:
+                requirements_stat = os.lstat(path)
+            except OSError as error:
+                self._generation_error(
+                    "validation_failed",
+                    "Dependency requirements could not be read: "
+                    + str(error),
+                )
+            if (
+                not stat.S_ISREG(requirements_stat.st_mode)
+                or stat.S_ISLNK(requirements_stat.st_mode)
+            ):
+                self._generation_error(
+                    "validation_failed",
+                    "Dependency requirements must be a regular file.",
+                )
+
+        selected_installer = "none"
+        command = []
+        if requirements:
+            candidates = (
+                ("uv", "pip")
+                if installer == "auto"
+                else (installer,)
+            )
+            selected_installer = next(
+                (
+                    candidate
+                    for candidate in candidates
+                    if self.command_runner.available(candidate)
+                ),
+                "",
+            )
+            if not selected_installer:
+                self._generation_error(
+                    "installer_unavailable",
+                    "No supported dependency installer is available; manual "
+                    "dependency handling is required.",
+                    manual_required=True,
+                )
+            if selected_installer == "uv":
+                command = [
+                    "uv",
+                    "pip",
+                    "install",
+                    "--python",
+                    sys.executable,
+                    "--link-mode",
+                    "copy",
+                    "--target",
+                    staged_dependencies,
+                ]
+            else:
+                command = [
+                    sys.executable,
+                    "-m",
+                    "pip",
+                    "install",
+                    "--target",
+                    staged_dependencies,
+                ]
+            for _owner, path in requirements:
+                command.extend(["-r", path])
+            try:
+                completed = self.command_runner.run(
+                    command,
+                    env=self._installer_environment(
+                        staged_dependencies
+                    ),
+                )
+            except Exception as error:
+                self._generation_error(
+                    "install_failed",
+                    "Dependency installer could not be started: "
+                    + type(error).__name__,
+                )
+            if completed.returncode != 0:
+                self._generation_error(
+                    "install_failed",
+                    "Dependency installation failed with exit code "
+                    + str(completed.returncode)
+                    + ". Installer output was withheld to avoid exposing "
+                    "credentials.",
+                )
+        try:
+            self._write_manifest(
+                staged_dependencies,
+                requirements,
+                selected_installer,
+            )
+        except Exception as error:
+            self._generation_error(
+                "manifest_failed",
+                "Dependency manifest could not be written: "
+                + type(error).__name__,
+            )
+        return selected_installer, command, requirements
 
     def _block(
         self,
@@ -11767,109 +12042,34 @@ class ReleaseDependencySnapshotService:
         if installer not in {"auto", "pip", "uv"}:
             raise ValueError("installer must be auto, pip, or uv.")
 
-        live_dependencies = os.path.abspath(
-            str(transaction.paths.live_dependencies)
-        )
         staged_dependencies = os.path.abspath(
             str(transaction.paths.staged_dependencies)
         )
         try:
-            self.filesystem.snapshot_tree(
-                live_dependencies,
+            selected_installer, command, _requirements = (
+                self._build_generation(
+                    transaction,
+                    requirements_file,
+                    staged_dependencies,
+                    installer,
+                )
+            )
+        except ReleaseDependencyError as error:
+            self._block(
+                transaction.operation_id,
                 staged_dependencies,
+                error.reason,
+                error.message,
+                manual_required=error.manual_required,
             )
         except Exception as error:
             self._block(
                 transaction.operation_id,
                 staged_dependencies,
                 "snapshot_failed",
-                "Dependency snapshot failed: " + str(error),
+                "Dependency generation could not be initialized: "
+                + type(error).__name__,
             )
-
-        selected_installer = "none"
-        command = []
-        requirements_present = os.path.lexists(requirements_file)
-        if requirements_present:
-            try:
-                requirements_stat = os.lstat(requirements_file)
-            except OSError as error:
-                self._block(
-                    transaction.operation_id,
-                    staged_dependencies,
-                    "validation_failed",
-                    "Dependency requirements could not be read: " + str(error),
-                )
-            if (
-                not stat.S_ISREG(requirements_stat.st_mode)
-                or stat.S_ISLNK(requirements_stat.st_mode)
-            ):
-                self._block(
-                    transaction.operation_id,
-                    staged_dependencies,
-                    "validation_failed",
-                    "Dependency requirements must be a regular file.",
-                )
-            candidates = ("uv", "pip") if installer == "auto" else (installer,)
-            selected_installer = next(
-                (
-                    candidate
-                    for candidate in candidates
-                    if self.command_runner.available(candidate)
-                ),
-                "",
-            )
-            if not selected_installer:
-                self._block(
-                    transaction.operation_id,
-                    staged_dependencies,
-                    "installer_unavailable",
-                    "No supported dependency installer is available; manual "
-                    "dependency handling is required.",
-                    manual_required=True,
-                )
-            if selected_installer == "uv":
-                command = [
-                    "uv",
-                    "pip",
-                    "install",
-                    "--python",
-                    sys.executable,
-                    "--target",
-                    staged_dependencies,
-                    "-r",
-                    requirements_file,
-                ]
-            else:
-                command = [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "--target",
-                    staged_dependencies,
-                    "-r",
-                    requirements_file,
-                ]
-            try:
-                completed = self.command_runner.run(command, env=None)
-            except Exception as error:
-                self._block(
-                    transaction.operation_id,
-                    staged_dependencies,
-                    "install_failed",
-                    "Dependency installation failed: " + str(error),
-                )
-            if completed.returncode != 0:
-                detail = str(completed.stderr or completed.stdout or "").strip()
-                message = "Dependency installation failed."
-                if detail:
-                    message += " " + detail
-                self._block(
-                    transaction.operation_id,
-                    staged_dependencies,
-                    "install_failed",
-                    message,
-                )
 
         try:
             validation = self.validator.validate(
@@ -11927,6 +12127,109 @@ class ReleaseDependencySnapshotService:
                 result.to_document(),
             )
         return result
+
+    def rebuild_live(self, plugin_key, installer="auto"):
+        """Atomically rebuild the shared generation after a Git change."""
+        plugin_key = _require_plugin_key(plugin_key)
+        if installer not in {"auto", "pip", "uv"}:
+            raise ValueError("installer must be auto, pip, or uv.")
+        plugin_dir = self.plugin.resolve_installed_plugin_dir(
+            plugin_key,
+            refresh=True,
+        )
+        requirements_file = os.path.join(
+            plugin_dir,
+            "requirements.txt",
+        )
+        manager_dir = os.path.abspath(
+            self.plugin.get_plugin_home_folder()
+        )
+        state_root = os.path.join(
+            manager_dir,
+            ".pypluginstore",
+            "dependency-generations",
+        )
+        generation_name = hashlib.sha256(
+            plugin_key.encode("utf-8")
+        ).hexdigest()[:16]
+        staged_dependencies = os.path.join(
+            state_root,
+            generation_name + ".staged",
+        )
+        backup_dependencies = os.path.join(
+            state_root,
+            generation_name + ".backup",
+        )
+        live_dependencies = os.path.join(manager_dir, ".shared_deps")
+
+        with self.transaction_manager.workflow_lock():
+            os.makedirs(state_root, exist_ok=True)
+            self.filesystem.discard_tree(staged_dependencies)
+            self.filesystem.discard_tree(backup_dependencies)
+
+            context = _DependencyGenerationContext(
+                plugin_key=plugin_key,
+                paths=_DependencyGenerationPaths(
+                    live_code=plugin_dir,
+                ),
+            )
+            try:
+                selected, _command, _requirements = (
+                    self._build_generation(
+                        context,
+                        requirements_file,
+                        staged_dependencies,
+                        installer,
+                    )
+                )
+                validation = self.validator.validate(
+                    staged_dependencies,
+                    requirements_file,
+                )
+                if (
+                    not isinstance(validation, Mapping)
+                    or validation.get("valid") is not True
+                ):
+                    raise ReleaseDependencyError(
+                        "validation_failed",
+                        "Dependency generation validation failed.",
+                    )
+                had_live = os.path.lexists(live_dependencies)
+                if had_live:
+                    os.replace(
+                        live_dependencies,
+                        backup_dependencies,
+                    )
+                try:
+                    os.replace(
+                        staged_dependencies,
+                        live_dependencies,
+                    )
+                except Exception:
+                    if had_live and os.path.lexists(
+                        backup_dependencies
+                    ):
+                        os.replace(
+                            backup_dependencies,
+                            live_dependencies,
+                        )
+                    raise
+                self.filesystem.discard_tree(backup_dependencies)
+                return True, (
+                    "Shared dependency generation rebuilt with "
+                    + selected
+                    + "."
+                )
+            except ReleaseDependencyError as error:
+                self.filesystem.discard_tree(staged_dependencies)
+                return False, error.message
+            except Exception as error:
+                self.filesystem.discard_tree(staged_dependencies)
+                return (
+                    False,
+                    "Dependency generation rebuild failed: "
+                    + type(error).__name__,
+                )
 
 
 class RegistryEntry:
@@ -20311,13 +20614,17 @@ class BasePlugin:
 
     def installDependencies(self, plugin_key):
         Domoticz.Debug("installDependencies called")
-        host = self.get_host()
         try:
-            requirements_file = os.path.join(self.resolve_installed_plugin_dir(plugin_key), "requirements.txt")
-        except ValueError as e:
-            Domoticz.Error(str(e))
-            return False, str(e)
-        return host.install_requirements(requirements_file, host.shared_deps_dir(), plugin_key)
+            success, message = self.release_dependency_service.rebuild_live(
+                plugin_key
+            )
+        except (OSError, RuntimeError, ValueError) as error:
+            success, message = False, str(error)
+        if success:
+            Domoticz.Log(message)
+        else:
+            Domoticz.Error(message)
+        return success, message
 
 global _plugin
 _plugin = BasePlugin()
