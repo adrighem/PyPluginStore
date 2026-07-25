@@ -1033,6 +1033,13 @@ def test_refresh_update_status_command_runs_serial_refresh(plugin_core_module, t
         return {"00-PyPluginStore": "unknown", "OtherPlugin": "available"}
 
     monkeypatch.setattr(plugin, "fetch_registry", fake_fetch_registry)
+    monkeypatch.setattr(
+        plugin,
+        "refreshRuntimeReleaseCandidates",
+        lambda installed, actual_plugins_dir: calls.append(
+            "refresh_releases"
+        ),
+    )
     monkeypatch.setattr(plugin, "refreshInstalledUpdateStatuses", fake_refresh)
     monkeypatch.setattr(plugin, "sendApiResponse", responses.append)
 
@@ -1049,7 +1056,11 @@ def test_refresh_update_status_command_runs_serial_refresh(plugin_core_module, t
     assert response["local_plugins"] == ["LocalPlugin"]
     assert response["installed_match_details"]["OtherPlugin"]["source"] == "exact folder key"
     assert response["self_update"]["phase"] == "idle"
-    assert calls == ["fetch_registry", "refresh_status"]
+    assert calls == [
+        "fetch_registry",
+        "refresh_releases",
+        "refresh_status",
+    ]
 
 
 def test_self_update_status_command_returns_persisted_state(plugin_core_module, tmp_path, monkeypatch):
