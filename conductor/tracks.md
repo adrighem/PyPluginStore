@@ -39,5 +39,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Refresh release-managed plugins directly from their provider
+## [x] Track: Refresh release-managed plugins directly from their provider
 *Link: [./conductor/tracks/runtime_release_refresh_20260725/](./conductor/tracks/runtime_release_refresh_20260725/)*
