@@ -769,14 +769,6 @@ def test_release_status_text_surfaces_versions_verification_migration_and_restar
     )
     cases = [
         {
-            "state": release_management_state(
-                status="current",
-                available_version="1.4.0",
-                available_revision=4,
-            ),
-            "fragments": ["Release", "v1.4.0", "current"],
-        },
-        {
             "state": release_management_state(),
             "fragments": ["v2.0.0", "available"],
         },
@@ -792,16 +784,6 @@ def test_release_status_text_surfaces_versions_verification_migration_and_restar
                 "available",
                 "Verified directly by this host",
             ],
-        },
-        {
-            "state": release_management_state(
-                status="current",
-                installed_version="",
-                available_version="",
-                installed_revision=98,
-                available_revision=99,
-            ),
-            "fragments": ["Release", "current"],
         },
         {
             "state": release_management_state(
@@ -934,6 +916,28 @@ const available = formatReleaseManagementStatus({
 });
 if (available !== 'Git · Update available') {
     throw new Error(`available Git update rendered as "${available}"`);
+}
+"""
+    )
+
+
+def test_current_release_status_text_is_hidden():
+    script = load_inline_script()
+    function_source = extract_js_function(
+        script, "formatReleaseManagementStatus"
+    )
+    run_node(
+        function_source
+        + """
+const text = formatReleaseManagementStatus({
+    channel: 'release',
+    status: 'current',
+    installed_version: '1.0.0',
+    available_version: '1.0.0',
+    verification_status: 'verified'
+});
+if (text !== '') {
+    throw new Error(`current Release unexpectedly rendered as "${text}"`);
 }
 """
     )

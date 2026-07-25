@@ -3483,6 +3483,9 @@
             (state.status === 'git_current' || state.status === 'git_unknown')) {
             return '';
         }
+        if (state.channel === 'release' && state.status === 'current') {
+            return '';
+        }
         const channel = state.channel === 'release' ? 'Release' :
             (state.channel === 'git' ? 'Git' : '');
         const version = state.available_version || state.installed_version || '';
