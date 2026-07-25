@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.23.0](https://github.com/adrighem/PyPluginStore/compare/v2.22.5...v2.23.0) (2026-07-25)
+
+
+### Features
+
+* **releases:** discover releases on host refresh ([cf77449](https://github.com/adrighem/PyPluginStore/commit/cf77449f7f59e6c94ef76ac75adcd093159c02bf))
+* **releases:** install host-certified release targets ([2558f1a](https://github.com/adrighem/PyPluginStore/commit/2558f1a3c506c3baadde3735885a2753f0487f87))
+* **releases:** share provider runtime contracts ([5fd0535](https://github.com/adrighem/PyPluginStore/commit/5fd05354ff7748c645383219af7f983f8412dc2c))
+* **ui:** show host-verified release refreshes ([43342df](https://github.com/adrighem/PyPluginStore/commit/43342df49bdd3c6bf2d13f4523f40076b175a362))
+
+
+### Bug Fixes
+
+* **releases:** preserve metadata recovery compatibility ([5250a8a](https://github.com/adrighem/PyPluginStore/commit/5250a8a350b36a1a88aec185ac20b28b64bdc7e7))
+* **releases:** refresh managed releases on demand ([139f1a1](https://github.com/adrighem/PyPluginStore/commit/139f1a1e9965d0c45617d9fd10889011a510182c))
+* **ui:** hide current release status details ([79881f7](https://github.com/adrighem/PyPluginStore/commit/79881f7b40d517912f4607a24b0992fd7341cfd9))
+
 ## [2.22.5](https://github.com/adrighem/PyPluginStore/compare/v2.22.4...v2.22.5) (2026-07-25)
 
 
