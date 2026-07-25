@@ -33,9 +33,11 @@ def install_metadata_document(
             "plugin.py": {"sha256": "4" * 64, "size": 4096},
         }
     return {
-        "schema": 2,
+        "schema": 3,
         "package_id": "ExamplePlugin",
         "management_mode": "release",
+        "authority": "release_index",
+        "candidate_fingerprint": "",
         "repository_identity": "github.com/owner/example-plugin",
         "version": "1.0.0" if revision == 1 else "2.0.0",
         "tag": "v1.0.0" if revision == 1 else "v2.0.0",
@@ -72,6 +74,8 @@ def legacy_install_metadata_document(document):
     legacy = copy.deepcopy(document)
     legacy["schema"] = 1
     legacy["plugin_key"] = legacy.pop("package_id")
+    legacy.pop("authority", None)
+    legacy.pop("candidate_fingerprint", None)
     return legacy
 
 
@@ -2175,7 +2179,7 @@ def test_forward_recovery_accepts_and_upgrades_v1_metadata_digest(
 
     assert recovered.phase == "restart_pending"
     assert_new_live(recovered)
-    assert upgraded_metadata["schema"] == 2
+    assert upgraded_metadata["schema"] == 3
     assert upgraded_metadata["package_id"] == "ExamplePlugin"
     assert "plugin_key" not in upgraded_metadata
     assert upgraded_journal["schema_version"] == 3

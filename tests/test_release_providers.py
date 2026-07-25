@@ -47,7 +47,7 @@ class FixtureTransport:
 
 @pytest.fixture
 def release_providers_module():
-    module_path = REPO_ROOT / ".github" / "scripts" / "release_providers.py"
+    module_path = REPO_ROOT / "release_providers.py"
     if not module_path.is_file():
         class MissingReleaseProviders:
             def __getattr__(self, name):

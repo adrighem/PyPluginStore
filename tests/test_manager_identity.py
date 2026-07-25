@@ -14,6 +14,7 @@ RUNTIME_FILES = (
     "plugin.py",
     "package_registry.py",
     "package_identity.py",
+    "release_providers.py",
     "pypluginstore.html",
 )
 DEVELOPMENT_FRONTEND_IDENTITY = {
@@ -36,6 +37,7 @@ def bundle_documents(
     plugin_marker="backend-a",
     registry_marker="registry-a",
     identity_marker="identity-a",
+    providers_marker="providers-a",
     frontend_marker="frontend-a",
 ):
     development_identity = json.dumps(
@@ -56,6 +58,9 @@ def bundle_documents(
         ).encode(),
         "package_identity.py": (
             f'PACKAGE_IDENTITY_MARKER = "{identity_marker}"\n'
+        ).encode(),
+        "release_providers.py": (
+            f'RELEASE_PROVIDERS_MARKER = "{providers_marker}"\n'
         ).encode(),
         "pypluginstore.html": (
             "<div id=\"pypluginstore-container\"></div>\n"
@@ -283,6 +288,11 @@ def test_cached_support_module_cannot_masquerade_as_loaded_disk_source(
         plugin_core_module,
         "_MANAGER_LOADED_PACKAGE_IDENTITY_FINGERPRINT",
         fingerprint(documents["package_identity.py"]),
+    )
+    monkeypatch.setattr(
+        plugin_core_module,
+        "_MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT",
+        fingerprint(documents["release_providers.py"]),
     )
 
     plugin = plugin_core_module.BasePlugin()

@@ -176,6 +176,43 @@ _MANAGER_LOADED_PACKAGE_IDENTITY_FINGERPRINT = getattr(
 )
 
 
+def _load_release_providers_module():
+    """Import sibling provider adapters used by CI and explicit refresh."""
+    try:
+        import release_providers as providers_module
+
+        return providers_module
+    except ModuleNotFoundError as error:
+        if error.name != "release_providers":
+            raise
+
+    module_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "release_providers.py"
+    )
+    specification = importlib.util.spec_from_file_location(
+        "release_providers", module_path
+    )
+    if specification is None or specification.loader is None:
+        raise ImportError("Could not load the release provider contract.")
+    module = importlib.util.module_from_spec(specification)
+    sys.modules["release_providers"] = module
+    try:
+        specification.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get("release_providers") is module:
+            del sys.modules["release_providers"]
+        raise
+    return module
+
+
+_release_providers_module = _load_release_providers_module()
+_MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT = getattr(
+    _release_providers_module,
+    "PYPLUGINSTORE_LOADED_SOURCE_FINGERPRINT",
+    None,
+)
+
+
 API_PAYLOAD_MAX_LENGTH = 2000
 SELF_UPDATE_STARTUP_DELAY_SECONDS = 5
 SELF_UPDATE_ACTIVE_STALE_SECONDS = 15 * 60
@@ -911,6 +948,7 @@ else:
             "plugin_core.py",
             "package_registry.py",
             "package_identity.py",
+            "release_providers.py",
             "pypluginstore.html",
             "registry.json",
         )
@@ -928,6 +966,7 @@ else:
             "plugin_core.py",
             "package_registry.py",
             "package_identity.py",
+            "release_providers.py",
         ):
             result, message = self.require_git_success(
                 plugin_dir,
@@ -2476,6 +2515,8 @@ class ReleaseDescriptor:
     source_revision: str = ""
     package_id: str = ""
     certified_identity: object = None
+    authority: str = "release_index"
+    candidate_fingerprint: str = ""
 
     @classmethod
     def from_document(cls, document):
@@ -3599,7 +3640,8 @@ class ReleaseMetadataStore:
         return self._selection(generation)
 
 
-INSTALL_METADATA_SCHEMA_VERSION = 2
+INSTALL_METADATA_SCHEMA_VERSION = 3
+PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION = 2
 LEGACY_INSTALL_METADATA_SCHEMA_VERSION = 1
 WINDOWS_RESERVED_PATH_NAMES = {
     "aux",
@@ -4663,6 +4705,77 @@ class SafeReleaseHttpClient:
                 _safe_close_release_response(response)
 
 
+class SafeReleaseJsonTransport:
+    """Fetch small provider JSON through the hardened release HTTP client."""
+
+    def __init__(self, *, http_client=None, max_bytes=2 * 1024 * 1024):
+        if type(max_bytes) is not int or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer.")
+        self.max_bytes = max_bytes
+        self.http_client = http_client or SafeReleaseHttpClient(
+            max_bytes=max_bytes,
+            max_redirects=0,
+            read_timeout=15.0,
+        )
+        if not callable(
+            getattr(self.http_client, "download_to_path", None)
+        ):
+            raise ValueError("http_client must provide download_to_path().")
+
+    def _load(self, contents):
+        """Decode provider JSON while rejecting duplicate object keys."""
+        if not isinstance(contents, (bytes, bytearray)):
+            raise ValueError("Provider JSON must be bytes.")
+        contents = bytes(contents)
+        if not contents or len(contents) > self.max_bytes:
+            raise ValueError("Provider JSON exceeds its size limit.")
+
+        def reject_duplicates(pairs):
+            document = {}
+            for key, value in pairs:
+                if key in document:
+                    raise ValueError(
+                        "Provider JSON contains duplicate object keys."
+                    )
+                document[key] = value
+            return document
+
+        try:
+            document = json.loads(
+                contents.decode("utf-8"),
+                object_pairs_hook=reject_duplicates,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("Provider response is not valid UTF-8 JSON.") from error
+        if not isinstance(document, (dict, list)):
+            raise ValueError(
+                "Provider JSON must contain an object or array."
+            )
+        return document
+
+    def get_json(self, url, headers=None):
+        """Return one exact-origin JSON response and remove its temporary file."""
+        temporary_root = tempfile.mkdtemp(prefix="pypluginstore-provider-json-")
+        destination = os.path.join(temporary_root, "response.json")
+        try:
+            self.http_client.download_to_path(
+                url,
+                destination,
+                allowed_origins=(),
+                headers=dict(headers or {}),
+            )
+            try:
+                with open(destination, "rb") as response_file:
+                    contents = response_file.read(self.max_bytes + 1)
+            except OSError as error:
+                raise ValueError(
+                    "Provider JSON response could not be read."
+                ) from error
+            return self._load(contents)
+        finally:
+            shutil.rmtree(temporary_root, ignore_errors=True)
+
+
 @dataclass(frozen=True)
 class ReleaseArchiveExtraction:
     """Inventory returned after a complete safe extraction."""
@@ -4899,6 +5012,31 @@ class SafeZipExtractor:
                 os.remove(destination)
         except FileNotFoundError:
             pass
+
+    def infer_root_prefix(self, archive_path):
+        """Return one safe common ZIP wrapper or the root marker."""
+        archive_path = os.path.abspath(os.fspath(archive_path))
+        path_stat = os.lstat(archive_path)
+        if (
+            os.path.islink(archive_path)
+            or not stat.S_ISREG(path_stat.st_mode)
+            or path_stat.st_size > self.limits.max_archive_size
+        ):
+            raise ValueError("Release archive must be a bounded regular file.")
+        try:
+            with zipfile.ZipFile(archive_path, "r") as archive:
+                members = self._inspect(archive, ".")
+        except ValueError:
+            raise
+        except Exception as error:
+            raise ValueError("Release ZIP inspection failed.") from error
+        first_parts = {member.parts[0] for member in members}
+        if len(first_parts) != 1:
+            return "."
+        root_prefix = next(iter(first_parts))
+        if any(len(member.parts) > 1 for member in members):
+            return root_prefix
+        return "."
 
     def extract(
         self,
@@ -5782,6 +5920,454 @@ class ReleaseArtifactValidationService:
         )
 
 
+@dataclass(frozen=True)
+class RuntimeReleaseObservation:
+    """One cached outcome from an explicit provider refresh."""
+
+    state: str
+    release: object
+    message: str
+    checked_at: str
+
+
+class RuntimeReleaseCertificationService:
+    """Turn one provider candidate into a locally checksum-pinned target."""
+
+    RUNTIME_ARTIFACT_HEADERS = {
+        "User-Agent": "PyPluginStore-Release-Runtime",
+    }
+
+    def __init__(
+        self,
+        plugin,
+        *,
+        http_client=None,
+        extractor=None,
+        validator=None,
+        limits=None,
+    ):
+        if plugin is None:
+            raise ValueError("plugin is required.")
+        self.plugin = plugin
+        self.limits = limits or ReleaseArchiveLimits()
+        self.http_client = http_client or SafeReleaseHttpClient(
+            max_bytes=self.limits.max_archive_size
+        )
+        self.extractor = extractor or SafeZipExtractor(self.limits)
+        self.validator = validator or ReleaseArtifactValidationService(
+            plugin, self.limits
+        )
+
+    def _allowed_origins(self, entry, candidate):
+        policy = getattr(entry.delivery, "release", None)
+        origins = list(getattr(policy, "allowed_origins", []) or [])
+        if (
+            candidate.provider == "github"
+            and candidate.artifact_kind == "source_zip"
+            and candidate.artifact_provenance == "forge_source_archive"
+            and "https://codeload.github.com" not in origins
+        ):
+            origins.append("https://codeload.github.com")
+        return origins
+
+    def _artifact(
+        self,
+        candidate,
+        download,
+        validation,
+        root_prefix,
+    ):
+        return ReleaseArtifact.from_document(
+            {
+                "kind": candidate.artifact_kind,
+                "provenance": candidate.artifact_provenance,
+                "migration": {
+                    "mode": candidate.migration_mode,
+                    "evidence": candidate.migration_evidence,
+                },
+                "url": candidate.artifact_url,
+                "sha256": download.sha256,
+                "size": download.size,
+                "tree_sha256": validation.tree_sha256,
+                "root_prefix": root_prefix,
+                "source_path": candidate.source_path,
+            }
+        )
+
+    def _candidate_fingerprint(self, candidate, artifact):
+        document = {
+            "provider": candidate.provider,
+            "repository_identity": candidate.repository_identity,
+            "release_id": candidate.release_id,
+            "version": candidate.version,
+            "tag": candidate.tag,
+            "released_at": candidate.released_at,
+            "commit": candidate.commit,
+            "source_revision": candidate.source_revision,
+            "artifact_url": artifact.url,
+            "artifact_sha256": artifact.sha256,
+            "artifact_size": artifact.size,
+            "artifact_tree_sha256": artifact.tree_sha256,
+            "artifact_root_prefix": artifact.root_prefix,
+            "artifact_source_path": artifact.source_path,
+        }
+        return hashlib.sha256(
+            json.dumps(
+                document,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()
+
+    def certify(self, entry, installed, candidate):
+        """Download and validate a candidate without changing plugin files."""
+        expected_identity = normalize_repository_identity(
+            entry.author, entry.repository
+        )
+        if (
+            not expected_identity
+            or candidate.repository_identity != expected_identity
+        ):
+            raise ValueError(
+                "Provider candidate does not match the registry repository."
+            )
+        if (
+            getattr(installed, "management_mode", "") != "release"
+            or getattr(installed, "repository_identity", "")
+            != expected_identity
+        ):
+            raise ValueError(
+                "Installed Release metadata does not match the registry."
+            )
+
+        temporary_root = tempfile.mkdtemp(
+            prefix="pypluginstore-runtime-release-"
+        )
+        archive_path = os.path.join(temporary_root, "artifact.zip")
+        extraction_dir = os.path.join(temporary_root, "extracted")
+        try:
+            download = self.http_client.download_to_path(
+                candidate.artifact_url,
+                archive_path,
+                headers=dict(self.RUNTIME_ARTIFACT_HEADERS),
+                expected_sha256=(candidate.provider_sha256 or None),
+                expected_size=candidate.artifact_size,
+                allowed_origins=self._allowed_origins(entry, candidate),
+            )
+            root_prefix = self.extractor.infer_root_prefix(archive_path)
+            self.extractor.extract(
+                archive_path,
+                extraction_dir,
+                expected_root_prefix=root_prefix,
+            )
+            validation = self.validator.validate(
+                extraction_dir=extraction_dir,
+                root_prefix=root_prefix,
+                source_path=candidate.source_path,
+                plugin_key=entry.key,
+                repository_identity=expected_identity,
+            )
+            plugin_record = validation.artifact_files.get("plugin.py")
+            if not isinstance(plugin_record, dict):
+                raise ValueError(
+                    "Certified release does not contain root plugin.py."
+                )
+            artifact = self._artifact(
+                candidate,
+                download,
+                validation,
+                root_prefix,
+            )
+            return ReleaseDescriptor(
+                revision=getattr(installed, "release_revision") + 1,
+                release_id=candidate.release_id,
+                supersedes=[getattr(installed, "release_id")],
+                provider=candidate.provider,
+                repository_identity=expected_identity,
+                version=candidate.version,
+                tag=candidate.tag,
+                released_at=candidate.released_at,
+                commit=candidate.commit,
+                source_revision=candidate.source_revision,
+                artifact=artifact,
+                package_id=entry.key,
+                certified_identity=CertifiedReleaseIdentity(
+                    domoticz_key=entry.domoticz_key,
+                    plugin_py_sha256=plugin_record["sha256"],
+                ),
+                authority="provider_live",
+                candidate_fingerprint=self._candidate_fingerprint(
+                    candidate,
+                    artifact,
+                ),
+            )
+        finally:
+            shutil.rmtree(temporary_root, ignore_errors=True)
+
+
+class RuntimeReleaseDiscoveryService:
+    """Resolve and locally certify releases after an explicit user refresh."""
+
+    CACHE_SECONDS = 5 * 60
+
+    def __init__(
+        self,
+        plugin=None,
+        *,
+        adapters=None,
+        transport=None,
+        certifier=None,
+        clock=None,
+    ):
+        providers = _release_providers_module
+        forgejo = providers.ForgejoReleaseAdapter()
+        self.adapters = adapters or {
+            "github": providers.GitHubReleaseAdapter(),
+            "gitlab": providers.GitLabReleaseAdapter(),
+            "forgejo": forgejo,
+            "codeberg": forgejo,
+            "gitea": providers.GiteaReleaseAdapter(),
+            "generic": providers.GenericManifestAdapter(),
+        }
+        self.transport = transport or SafeReleaseJsonTransport()
+        self.certifier = certifier or RuntimeReleaseCertificationService(
+            plugin
+        )
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
+        self.cache = {}
+
+    def _now(self):
+        now = self.clock()
+        if not isinstance(now, datetime) or now.tzinfo is None:
+            raise ValueError("Runtime release clock must be timezone-aware.")
+        return now.astimezone(timezone.utc)
+
+    def _policy_document(self, policy):
+        document = {
+            "channel": policy.channel,
+            "tag_pattern": policy.tag_pattern,
+            "artifact": policy.artifact,
+            "source_path": policy.source_path,
+        }
+        for field_name in (
+            "api_base",
+            "web_base",
+            "manifest_url",
+            "asset_name",
+            "asset_pattern",
+        ):
+            value = getattr(policy, field_name, "")
+            if value:
+                document[field_name] = value
+        if getattr(policy, "release_page_size", 0):
+            document["release_page_size"] = policy.release_page_size
+        return document
+
+    def _repository_document(self, identity, provider, policy):
+        host, path = identity.split("/", 1)
+        parts = path.split("/")
+        origin = "https://" + host
+        document = {"repository_identity": identity}
+        if provider == "github":
+            if len(parts) != 2:
+                raise ValueError(
+                    "GitHub repository must have one owner segment."
+                )
+            document.update(
+                owner=parts[0],
+                repository=parts[1],
+                api_base="https://api.github.com",
+                web_base="https://github.com",
+            )
+        elif provider == "gitlab":
+            document.update(
+                project_path=path,
+                api_base="https://gitlab.com/api/v4",
+                web_base="https://gitlab.com",
+            )
+        elif provider in {"forgejo", "codeberg", "gitea"}:
+            if len(parts) != 2:
+                raise ValueError(
+                    "Forge repository must have one owner segment."
+                )
+            document.update(owner=parts[0], repository=parts[1])
+            if provider == "gitea" or host != "codeberg.org":
+                document.update(
+                    api_base=policy.api_base,
+                    web_base=policy.web_base or origin,
+                    release_page_size=policy.release_page_size,
+                )
+            elif policy.api_base:
+                document["api_base"] = policy.api_base
+        elif provider != "generic":
+            raise ValueError("Runtime release provider is unsupported.")
+        return document
+
+    def _cache_key(self, entry, installed, policy_document):
+        identity = normalize_repository_identity(
+            entry.author, entry.repository
+        )
+        document = {
+            "package_id": entry.key,
+            "repository_identity": identity,
+            "policy": policy_document,
+            "installed_release_id": getattr(installed, "release_id", ""),
+            "installed_commit": getattr(installed, "commit", ""),
+            "installed_source_revision": getattr(
+                installed, "source_revision", ""
+            ),
+        }
+        return hashlib.sha256(
+            json.dumps(
+                document,
+                ensure_ascii=False,
+                separators=(",", ":"),
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()
+
+    def _observation(self, state, release, message, now):
+        return RuntimeReleaseObservation(
+            state=state,
+            release=release,
+            message=message,
+            checked_at=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
+
+    def refresh_entry(self, entry, installed, tombstone=None):
+        """Return one cached direct-provider observation for an installed release."""
+        now = self._now()
+        if tombstone is not None:
+            return self._observation(
+                "blocked",
+                None,
+                "The indexed release is de-certified.",
+                now,
+            )
+        policy = getattr(entry.delivery, "release", None)
+        if entry.local or policy is None:
+            return self._observation(
+                "unavailable",
+                None,
+                "Direct release refresh is not configured.",
+                now,
+            )
+        identity = normalize_repository_identity(
+            entry.author, entry.repository
+        )
+        if (
+            getattr(installed, "management_mode", "") != "release"
+            or getattr(installed, "repository_identity", "") != identity
+        ):
+            return self._observation(
+                "unavailable",
+                None,
+                "Direct refresh requires valid Release install metadata.",
+                now,
+            )
+
+        policy_document = self._policy_document(policy)
+        cache_key = self._cache_key(entry, installed, policy_document)
+        cached = self.cache.get(cache_key)
+        if cached is not None:
+            cached_at, observation = cached
+            if (now - cached_at).total_seconds() < self.CACHE_SECONDS:
+                return observation
+
+        provider = policy.provider
+        adapter = self.adapters.get(provider)
+        if adapter is None:
+            observation = self._observation(
+                "unavailable",
+                None,
+                "Direct release provider is unsupported.",
+                now,
+            )
+        else:
+            try:
+                repository = self._repository_document(
+                    identity, provider, policy
+                )
+                candidate = adapter.resolve(
+                    repository,
+                    policy_document,
+                    self.transport,
+                    now=now,
+                )
+                installed_release_id = getattr(
+                    installed, "release_id", ""
+                )
+                if candidate.release_id == installed_release_id:
+                    if (
+                        candidate.commit != getattr(installed, "commit", "")
+                        or candidate.source_revision
+                        != getattr(installed, "source_revision", "")
+                    ):
+                        observation = self._observation(
+                            "tag_mutated",
+                            None,
+                            "The installed release tag resolved to a changed commit.",
+                            now,
+                        )
+                    else:
+                        observation = self._observation(
+                            "current",
+                            None,
+                            "The installed release is current.",
+                            now,
+                        )
+                elif _parse_utc_timestamp(
+                    candidate.released_at,
+                    "candidate.released_at",
+                ) <= _parse_utc_timestamp(
+                    getattr(installed, "released_at", ""),
+                    "installed.released_at",
+                ):
+                    observation = self._observation(
+                        "current",
+                        None,
+                        "No newer stable release was published.",
+                        now,
+                    )
+                else:
+                    release = self.certifier.certify(
+                        entry, installed, candidate
+                    )
+                    if (
+                        release.release_id != candidate.release_id
+                        or release.commit != candidate.commit
+                        or release.source_revision
+                        != candidate.source_revision
+                        or release.supersedes != [installed_release_id]
+                    ):
+                        raise ValueError(
+                            "Local release certification changed candidate identity."
+                        )
+                    observation = self._observation(
+                        "available",
+                        release,
+                        "Verified directly from the release provider.",
+                        now,
+                    )
+            except _release_providers_module.NoReleaseError:
+                observation = self._observation(
+                    "current",
+                    None,
+                    "No matching stable release was published.",
+                    now,
+                )
+            except Exception as error:
+                observation = self._observation(
+                    "unavailable",
+                    None,
+                    str(error),
+                    now,
+                )
+        self.cache[cache_key] = (now, observation)
+        return observation
+
+
 @dataclass
 class InstallMetadata:
     """Validated audit record stored in a release-managed plugin folder."""
@@ -5806,14 +6392,27 @@ class InstallMetadata:
     source_revision: str = ""
     migration_source_commit: str = ""
     migration_inventory_sha256: str = ""
+    authority: str = "release_index"
+    candidate_fingerprint: str = ""
 
     @classmethod
     def from_document(cls, document):
-        """Parse strict schema-v2 release-managed install metadata."""
+        """Parse strict schema-v3 release-managed install metadata."""
         return cls._from_document(
             document,
             schema_version=INSTALL_METADATA_SCHEMA_VERSION,
             identity_field="package_id",
+            authority_fields=True,
+        )
+
+    @classmethod
+    def from_previous_document(cls, document):
+        """Normalize one explicit schema-v2 install metadata document."""
+        return cls._from_document(
+            document,
+            schema_version=PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION,
+            identity_field="package_id",
+            authority_fields=False,
         )
 
     @classmethod
@@ -5823,10 +6422,23 @@ class InstallMetadata:
             document,
             schema_version=LEGACY_INSTALL_METADATA_SCHEMA_VERSION,
             identity_field="plugin_key",
+            authority_fields=False,
         )
 
     @classmethod
-    def _from_document(cls, document, *, schema_version, identity_field):
+    def _from_document(
+        cls,
+        document,
+        *,
+        schema_version,
+        identity_field,
+        authority_fields,
+    ):
+        authority_keys = (
+            ("authority", "candidate_fingerprint")
+            if authority_fields
+            else ()
+        )
         document = _require_document(
             document,
             "install metadata",
@@ -5848,6 +6460,7 @@ class InstallMetadata:
                 "preserved_files",
                 "index_sequence",
                 "installed_at",
+                *authority_keys,
             ),
             (
                 "source_revision",
@@ -5866,6 +6479,26 @@ class InstallMetadata:
         )
         if management_mode != "release":
             raise ValueError("Install metadata must be release-managed.")
+
+        authority = "release_index"
+        candidate_fingerprint = ""
+        if authority_fields:
+            authority = _require_nonempty_string(
+                document["authority"],
+                "authority",
+            )
+            if authority not in {"release_index", "provider_live"}:
+                raise ValueError("Install metadata authority is unsupported.")
+            candidate_fingerprint = document["candidate_fingerprint"]
+            if authority == "provider_live":
+                candidate_fingerprint = _require_sha256(
+                    candidate_fingerprint,
+                    "candidate_fingerprint",
+                )
+            elif candidate_fingerprint != "":
+                raise ValueError(
+                    "Indexed install metadata cannot claim a candidate fingerprint."
+                )
 
         raw_repository_identity = _require_nonempty_string(
             document["repository_identity"], "repository_identity"
@@ -6009,6 +6642,8 @@ class InstallMetadata:
             source_revision=source_revision,
             migration_source_commit=migration_source_commit,
             migration_inventory_sha256=migration_inventory_sha256,
+            authority=authority,
+            candidate_fingerprint=candidate_fingerprint,
         )
 
     def to_document(self):
@@ -6017,6 +6652,8 @@ class InstallMetadata:
             "schema": INSTALL_METADATA_SCHEMA_VERSION,
             "package_id": self.plugin_key,
             "management_mode": self.management_mode,
+            "authority": self.authority,
+            "candidate_fingerprint": self.candidate_fingerprint,
             "repository_identity": self.repository_identity,
             "version": self.version,
             "tag": self.tag,
@@ -6108,17 +6745,23 @@ class InstallMetadataService:
             raise ValueError(
                 "Could not read install metadata: " + str(error)
             ) from error
-        is_legacy = (
-            type(document.get("schema")) is int
-            and document.get("schema")
-            == LEGACY_INSTALL_METADATA_SCHEMA_VERSION
+        schema = document.get("schema")
+        parsers = {
+            LEGACY_INSTALL_METADATA_SCHEMA_VERSION: (
+                InstallMetadata.from_legacy_document
+            ),
+            PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION: (
+                InstallMetadata.from_previous_document
+            ),
+            INSTALL_METADATA_SCHEMA_VERSION: InstallMetadata.from_document,
+        }
+        parser = parsers.get(schema)
+        if type(schema) is not int or parser is None:
+            raise ValueError("Install metadata schema is unsupported.")
+        return (
+            parser(document),
+            schema != INSTALL_METADATA_SCHEMA_VERSION,
         )
-        parser = (
-            InstallMetadata.from_legacy_document
-            if is_legacy
-            else InstallMetadata.from_document
-        )
-        return parser(document), is_legacy
 
     def inspect(self, plugin_dir):
         """Read committed metadata without cleanup or schema upgrades."""
@@ -9201,6 +9844,12 @@ class ReleaseTransactionManager:
         if schema_version == LEGACY_INSTALL_METADATA_SCHEMA_VERSION:
             document["schema"] = LEGACY_INSTALL_METADATA_SCHEMA_VERSION
             document["plugin_key"] = document.pop("package_id")
+            document.pop("authority")
+            document.pop("candidate_fingerprint")
+        elif schema_version == PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION:
+            document["schema"] = PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION
+            document.pop("authority")
+            document.pop("candidate_fingerprint")
         elif schema_version != INSTALL_METADATA_SCHEMA_VERSION:
             raise ValueError("Install metadata digest schema is unsupported.")
         contents = json.dumps(
@@ -9245,6 +9894,12 @@ class ReleaseTransactionManager:
                 staged_snapshot = _validated_staged_snapshot(staged_snapshot)
                 accepted_metadata_digests = {
                     self._install_metadata_digest(metadata),
+                    self._install_metadata_digest(
+                        metadata,
+                        schema_version=(
+                            PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION
+                        ),
+                    ),
                     self._install_metadata_digest(
                         metadata,
                         schema_version=LEGACY_INSTALL_METADATA_SCHEMA_VERSION,
@@ -13042,6 +13697,8 @@ class ReleaseInstallUpdateStrategy:
     def _target(self, release):
         target = {
             "management_mode": "release",
+            "authority": release.authority,
+            "candidate_fingerprint": release.candidate_fingerprint,
             "release_id": release.release_id,
             "release_revision": release.revision,
             "commit": release.commit,
@@ -13215,6 +13872,8 @@ class ReleaseInstallUpdateStrategy:
             "schema": INSTALL_METADATA_SCHEMA_VERSION,
             "package_id": entry.key,
             "management_mode": "release",
+            "authority": release.authority,
+            "candidate_fingerprint": release.candidate_fingerprint,
             "repository_identity": release.repository_identity,
             "version": release.version,
             "tag": release.tag,
@@ -13372,6 +14031,19 @@ class ReleaseInstallUpdateStrategy:
             return False, "A validated release target is required."
         if type(index_sequence) is not int or index_sequence <= 0:
             return False, "A trusted release index generation is required."
+        if release.authority == "provider_live":
+            try:
+                _require_sha256(
+                    release.candidate_fingerprint,
+                    "candidate_fingerprint",
+                )
+            except ValueError as error:
+                return False, str(error)
+        elif (
+            release.authority != "release_index"
+            or release.candidate_fingerprint
+        ):
+            return False, "Release target authority is invalid."
         expected_identity = normalize_repository_identity(
             entry.author, entry.repository
         )
@@ -14262,6 +14934,7 @@ MANAGER_IDENTITY_RUNTIME_FILES = (
     "plugin.py",
     "package_registry.py",
     "package_identity.py",
+    "release_providers.py",
     "pypluginstore.html",
 )
 MANAGER_IDENTITY_MAX_FILE_BYTES = 4 * 1024 * 1024
@@ -14496,6 +15169,9 @@ class ManagerIdentityService:
             ),
             "package_identity.py": (
                 _MANAGER_LOADED_PACKAGE_IDENTITY_FINGERPRINT
+            ),
+            "release_providers.py": (
+                _MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT
             ),
         }
         for relative_path, expected in expected_fingerprints.items():
@@ -14821,6 +15497,10 @@ class BasePlugin:
             dependency_service=self.release_dependency_service,
             metadata_service=self.install_metadata_service,
         )
+        self.runtime_release_discovery_service = (
+            RuntimeReleaseDiscoveryService(self)
+        )
+        self.runtime_release_observations = {}
         self.install_update_strategy = ReleaseManagementCoordinator(
             self,
             release_strategy=self.release_install_update_strategy,
@@ -14960,6 +15640,51 @@ class BasePlugin:
                 )
         self.release_metadata_selection = selection
         return selection
+
+    def getRuntimeReleaseCandidate(
+        self,
+        entry,
+        installed_release,
+        tombstone=None,
+    ):
+        """Return one still-applicable host-certified release candidate."""
+        if (
+            entry.local
+            or tombstone is not None
+            or installed_release is None
+        ):
+            return None
+        observation = self.runtime_release_observations.get(entry.key)
+        if (
+            not isinstance(observation, RuntimeReleaseObservation)
+            or observation.state != "available"
+            or not isinstance(observation.release, ReleaseDescriptor)
+        ):
+            return None
+        release = observation.release
+        expected_identity = normalize_repository_identity(
+            entry.author,
+            entry.repository,
+        )
+        try:
+            fingerprint = _require_sha256(
+                release.candidate_fingerprint,
+                "candidate_fingerprint",
+            )
+        except ValueError:
+            return None
+        if (
+            release.authority != "provider_live"
+            or fingerprint != release.candidate_fingerprint
+            or release.repository_identity != expected_identity
+            or release.package_id not in {"", entry.key}
+            or getattr(installed_release, "release_id", "")
+            not in release.supersedes
+            or release.revision
+            <= getattr(installed_release, "release_revision", 0)
+        ):
+            return None
+        return release
 
     def getReleaseManagementContext(
         self,
@@ -15102,6 +15827,14 @@ class BasePlugin:
                     "installed_mode": "absent",
                     "index_sequence": selection.sequence,
                 }
+
+        runtime_release = self.getRuntimeReleaseCandidate(
+            entry,
+            installed_release,
+            tombstone,
+        )
+        if runtime_release is not None:
+            release = runtime_release
 
         preference = None
         repository_identity = normalize_repository_identity(
@@ -17121,8 +17854,37 @@ class BasePlugin:
                 if _manager_identity_is_valid(runtime_identity):
                     installed_version = runtime_identity["product_version"]
             available_version = None
+            release_managed = os.path.lexists(
+                os.path.join(
+                    plugin_dir,
+                    InstallMetadataService.FILE_NAME,
+                )
+            )
+            if release_managed:
+                try:
+                    context = self.getReleaseManagementContext(
+                        entry,
+                        operation="status",
+                        trigger="manual",
+                    )
+                    installed_release = context.get("installed_release")
+                    release = context.get("release")
+                    if installed_release is not None:
+                        installed_version = installed_release.version
+                    if release is not None:
+                        available_version = release.version
+                except (OSError, RuntimeError, ValueError) as error:
+                    Domoticz.Debug(
+                        "Could not resolve Release versions for "
+                        + entry.key
+                        + ": "
+                        + str(error)
+                    )
 
-            if update_status.get(plugin_key) == "available":
+            if (
+                not release_managed
+                and update_status.get(plugin_key) == "available"
+            ):
                 url = self.build_raw_plugin_url(entry.author, entry.repository, entry.branch)
                 if not url:
                     Domoticz.Debug("Could not build remote version URL for " + str(entry.repository))
@@ -17285,6 +18047,21 @@ class BasePlugin:
             is_release = metadata is not None or bool(metadata_invalid)
             is_git = is_git_checkout(plugin_dir)
             channel = "release" if is_release else "git"
+            runtime_release = self.getRuntimeReleaseCandidate(
+                entry,
+                metadata,
+                tombstone,
+            )
+            runtime_verified = runtime_release is not None
+            runtime_verification_message = ""
+            if runtime_release is not None:
+                release = runtime_release
+                observation = self.runtime_release_observations.get(
+                    plugin_key
+                )
+                runtime_verification_message = str(
+                    getattr(observation, "message", "") or ""
+                )
             local_override_git_error = (
                 self.getLocalOverrideGitCheckoutError(entry, plugin_dir)
             )
@@ -17436,13 +18213,21 @@ class BasePlugin:
                         "unavailable"
                         if status == "release_metadata_unavailable"
                         else (
-                            "verified"
+                            (
+                                "verified_on_host"
+                                if runtime_verified
+                                else "verified"
+                            )
                             if release is not None
                             else "not_applicable"
                         )
                     )
                 ),
-                "verification_message": reason,
+                "verification_message": (
+                    runtime_verification_message
+                    if runtime_verified
+                    else reason
+                ),
                 "migration_status": migration_status,
                 "migration_message": reason if migration_status.startswith("migration_") else "",
                 "rollback_available": lifecycle["rollback_available"],
@@ -17460,6 +18245,63 @@ class BasePlugin:
 
     def refreshInstalledUpdateStatuses(self, installed_plugins=None, plugins_dir=None):
         return self.update_status_service.refresh_installed_update_statuses(installed_plugins, plugins_dir)
+
+    def refreshRuntimeReleaseCandidates(
+        self,
+        installed_plugins,
+        plugins_dir,
+    ):
+        """Refresh provider-live candidates for existing Release installs."""
+        observations = {}
+        selection = self.getCurrentReleaseMetadataSelection()
+        metadata_authorized, _reason = (
+            self.getReleaseMetadataAuthorization(selection)
+        )
+        if not metadata_authorized:
+            self.runtime_release_observations = observations
+            return observations
+
+        release_index = selection.release_index
+        tombstones = (
+            release_index.tombstones
+            if release_index is not None
+            else {}
+        )
+        manager_key = self.get_current_plugin_folder()
+        for plugin_key in installed_plugins:
+            if plugin_key == manager_key:
+                continue
+            entry = self.get_registry_entry(plugin_key)
+            policy = (
+                getattr(entry.delivery, "release", None)
+                if entry is not None
+                else None
+            )
+            if entry is None or entry.local or policy is None:
+                continue
+            try:
+                plugin_dir = self.resolve_installed_plugin_dir(
+                    plugin_key,
+                    plugins_dir,
+                )
+                metadata = self.install_metadata_service.read(plugin_dir)
+            except (OSError, RuntimeError, ValueError):
+                continue
+            if (
+                metadata is None
+                or metadata.management_mode != "release"
+            ):
+                continue
+            observations[plugin_key] = (
+                self.runtime_release_discovery_service.refresh_entry(
+                    entry,
+                    metadata,
+                    tombstone=tombstones.get(plugin_key),
+                )
+            )
+
+        self.runtime_release_observations = observations
+        return observations
 
     def get_managed_installed_plugin_keys(self, plugins_dir=None):
         if plugins_dir is None:
@@ -18736,6 +19578,10 @@ class BasePlugin:
         elif action == "refresh_update_status":
             self.fetch_registry()
             installed_plugins = self.getInstalledPlugins(plugins_dir)
+            self.refreshRuntimeReleaseCandidates(
+                installed_plugins,
+                plugins_dir,
+            )
             if self.installed_plugin_scan_error:
                 update_status = self.getCachedUpdateStatuses(
                     installed_plugins

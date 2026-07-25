@@ -111,6 +111,13 @@ def release_descriptor(
 
 def installed_release_state(descriptor):
     return SimpleNamespace(
+        plugin_key="ExamplePlugin",
+        package_id="ExamplePlugin",
+        management_mode="release",
+        repository_identity="github.com/owner/example-plugin",
+        version=descriptor.version,
+        tag=descriptor.tag,
+        released_at=descriptor.released_at,
         release_revision=descriptor.revision,
         release_id=descriptor.release_id,
         commit=descriptor.commit,
@@ -1212,6 +1219,87 @@ def test_runtime_decision_does_not_fall_back_for_release_install_after_expiry(
     assert decision.route == "blocked"
     assert decision.status == "release_metadata_unavailable"
     assert "expired" in decision.reason.lower()
+
+
+def test_release_install_uses_provider_live_candidate_after_explicit_refresh(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugin, entry, indexed_release, _current_time = (
+        configure_expiring_runtime(
+            plugin_core_module,
+            tmp_path,
+            installed_mode="release",
+            monkeypatch=monkeypatch,
+        )
+    )
+    runtime_release = release_descriptor(
+        plugin_core_module,
+        revision=indexed_release.revision + 1,
+        release_id="github:owner/example-plugin:v2.0.0",
+        supersedes=[indexed_release.release_id],
+        version="2.0.0",
+        tag="v2.0.0",
+        commit=COMMIT_2,
+        tree_sha256=TREE_2,
+        artifact_sha256=ARTIFACT_2,
+        root_prefix="example-plugin-v2.0.0",
+    )
+    runtime_release.authority = "provider_live"
+    runtime_release.candidate_fingerprint = "e" * 64
+    plugin.runtime_release_observations[entry.key] = (
+        plugin_core_module.RuntimeReleaseObservation(
+            state="available",
+            release=runtime_release,
+            message="Verified directly from the release provider.",
+            checked_at="2026-07-24T12:00:00Z",
+        )
+    )
+
+    context = plugin.getReleaseManagementContext(
+        entry,
+        operation="update",
+        trigger="manual",
+    )
+    decision = plugin.install_update_strategy._runtime_decision(
+        entry,
+        "update",
+        "manual",
+    )
+
+    assert context["release"] is runtime_release
+    assert decision.route == "release_update"
+    assert decision.release is runtime_release
+    management = plugin.getPluginManagementMap(
+        [entry.key],
+        {entry.key: "current"},
+        {},
+        plugin.get_host().plugins_dir(),
+    )[entry.key]
+    assert management["status"] == "available"
+    assert management["available_version"] == "2.0.0"
+    assert management["available_revision"] == runtime_release.revision
+    assert management["verification_status"] == "verified_on_host"
+    assert management["verification_message"] == (
+        "Verified directly from the release provider."
+    )
+    monkeypatch.setattr(
+        plugin_core_module.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Release versions must not come from the Git branch")
+        ),
+    )
+    versions = plugin.get_plugin_versions(
+        [entry.key],
+        {entry.key: "available"},
+        plugin.get_host().plugins_dir(),
+    )
+    assert versions[entry.key] == {
+        "installed": indexed_release.version,
+        "available": runtime_release.version,
+    }
 
 
 def test_management_map_rechecks_expiry_before_status_decisions(

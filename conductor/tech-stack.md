@@ -13,6 +13,13 @@ extractor can behave consistently on the supported Python versions and on both
 Linux and Windows. Git remains part of the runtime for legacy and explicitly
 Git-managed installations.
 
+Release-managed plugins may also resolve stable releases on demand through
+shared provider adapters. Runtime provider JSON and archive downloads use the
+same pinned-DNS, bounded HTTPS and archive-validation primitives as indexed
+release delivery. Locally certified targets carry explicit provider-live
+authority in install metadata and never mutate the central release-index
+watermark.
+
 Development commands:
 
 ```bash

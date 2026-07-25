@@ -12,9 +12,11 @@ PLUGIN_SHA256 = "4" * 64
 
 def install_metadata_document(**overrides):
     document = {
-        "schema": 2,
+        "schema": 3,
         "package_id": "ExamplePlugin",
         "management_mode": "release",
+        "authority": "release_index",
+        "candidate_fingerprint": "",
         "repository_identity": "github.com/owner/example-plugin",
         "version": "1.4.0",
         "tag": "v1.4.0",
@@ -42,6 +44,17 @@ def legacy_install_metadata_document(**overrides):
     document = install_metadata_document()
     document["schema"] = 1
     document["plugin_key"] = document.pop("package_id")
+    document.pop("authority")
+    document.pop("candidate_fingerprint")
+    document.update(overrides)
+    return document
+
+
+def previous_install_metadata_document(**overrides):
+    document = install_metadata_document()
+    document["schema"] = 2
+    document.pop("authority")
+    document.pop("candidate_fingerprint")
     document.update(overrides)
     return document
 
@@ -58,7 +71,9 @@ def test_install_metadata_parses_release_identity_and_audit_hashes(
 
     metadata = plugin_core_module.InstallMetadata.from_document(document)
 
-    assert metadata.schema == 2
+    assert metadata.schema == 3
+    assert metadata.authority == "release_index"
+    assert metadata.candidate_fingerprint == ""
     assert metadata.package_id == "ExamplePlugin"
     assert metadata.plugin_key == "ExamplePlugin"
     assert metadata.management_mode == "release"
@@ -95,11 +110,42 @@ def test_install_metadata_v1_requires_explicit_normalization(
         legacy_document
     )
     normalized = metadata.to_document()
-    assert metadata.schema == 2
+    assert metadata.schema == 3
     assert metadata.package_id == "ExamplePlugin"
-    assert normalized["schema"] == 2
+    assert normalized["schema"] == 3
     assert normalized["package_id"] == "ExamplePlugin"
     assert "plugin_key" not in normalized
+
+
+def test_install_metadata_v2_normalizes_to_index_authority(
+    plugin_core_module,
+):
+    metadata = plugin_core_module.InstallMetadata.from_previous_document(
+        previous_install_metadata_document()
+    )
+
+    assert metadata.schema == 3
+    assert metadata.authority == "release_index"
+    assert metadata.candidate_fingerprint == ""
+    assert metadata.to_document() == install_metadata_document()
+
+
+def test_provider_live_metadata_requires_candidate_fingerprint(
+    plugin_core_module,
+):
+    document = install_metadata_document(
+        authority="provider_live",
+        candidate_fingerprint="a" * 64,
+    )
+
+    metadata = plugin_core_module.InstallMetadata.from_document(document)
+
+    assert metadata.authority == "provider_live"
+    assert metadata.candidate_fingerprint == "a" * 64
+
+    document["candidate_fingerprint"] = ""
+    with pytest.raises(ValueError, match="candidate_fingerprint"):
+        plugin_core_module.InstallMetadata.from_document(document)
 
 
 @pytest.mark.parametrize("legacy_key_mode", ["legacy-only", "both"])
@@ -280,7 +326,7 @@ def test_install_metadata_service_atomically_upgrades_v1_on_read(
     loaded = service.read(str(plugin_dir))
 
     upgraded = json.loads(metadata_file.read_text(encoding="utf-8"))
-    assert loaded.schema == 2
+    assert loaded.schema == 3
     assert loaded.package_id == "ExamplePlugin"
     assert upgraded == install_metadata_document()
     assert "plugin_key" not in upgraded

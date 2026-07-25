@@ -3483,6 +3483,9 @@
             (state.status === 'git_current' || state.status === 'git_unknown')) {
             return '';
         }
+        if (state.channel === 'release' && state.status === 'current') {
+            return '';
+        }
         const channel = state.channel === 'release' ? 'Release' :
             (state.channel === 'git' ? 'Git' : '');
         const version = state.available_version || state.installed_version || '';
@@ -3523,6 +3526,9 @@
             details.push(String(state.status).replace(/_/g, ' '));
         }
 
+        if (state.verification_status === 'verified_on_host') {
+            details.push('Verified directly by this host');
+        }
         if (state.restart_pending) details.push('Restart required');
         return [channel, ...details].filter(Boolean).join(' · ');
     }
