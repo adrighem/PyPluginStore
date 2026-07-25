@@ -1302,6 +1302,63 @@ def test_release_install_uses_provider_live_candidate_after_explicit_refresh(
     }
 
 
+def test_git_install_selects_host_verified_latest_release_for_direct_migration(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugin, entry, indexed_release, _current_time = (
+        configure_expiring_runtime(
+            plugin_core_module,
+            tmp_path,
+            installed_mode="git",
+            monkeypatch=monkeypatch,
+        )
+    )
+    runtime_release = release_descriptor(
+        plugin_core_module,
+        revision=indexed_release.revision + 1,
+        release_id="github:owner/example-plugin:v2.0.0",
+        supersedes=[
+            *indexed_release.supersedes,
+            indexed_release.release_id,
+        ],
+        version="2.0.0",
+        tag="v2.0.0",
+        commit=COMMIT_2,
+        tree_sha256=TREE_2,
+        artifact_sha256=ARTIFACT_2,
+        root_prefix="example-plugin-v2.0.0",
+    )
+    runtime_release.authority = "provider_live"
+    runtime_release.candidate_fingerprint = "e" * 64
+    plugin.runtime_release_observations[entry.key] = (
+        plugin_core_module.RuntimeReleaseObservation(
+            state="available",
+            release=runtime_release,
+            message="Verified directly from the release provider.",
+            checked_at="2026-07-24T12:00:00Z",
+        )
+    )
+
+    context = plugin.getReleaseManagementContext(
+        entry,
+        operation="update",
+        trigger="manual",
+    )
+    decision = plugin.install_update_strategy._runtime_decision(
+        entry,
+        "update",
+        "manual",
+    )
+
+    assert context["installed_mode"] == "git"
+    assert context["release"] is runtime_release
+    assert decision.route == "release_migration"
+    assert decision.release is runtime_release
+    assert decision.release.version == "2.0.0"
+
+
 def test_management_map_rechecks_expiry_before_status_decisions(
     plugin_core_module, tmp_path, monkeypatch
 ):

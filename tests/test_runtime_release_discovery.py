@@ -41,6 +41,18 @@ class RecordingProviderAdapter:
         return self.candidate
 
 
+class FailingAfterFirstProviderAdapter(RecordingProviderAdapter):
+    def __init__(self, candidate):
+        super().__init__(candidate)
+        self.failure = None
+
+    def resolve(self, repository, policy, transport, *, now=None):
+        if self.failure is not None:
+            self.calls.append((repository, policy, transport, now))
+            raise self.failure
+        return super().resolve(repository, policy, transport, now=now)
+
+
 class RecordingCertifier:
     def __init__(self, descriptor):
         self.descriptor = descriptor
@@ -181,6 +193,19 @@ def certified_descriptor(module):
     )
 
 
+def reviewed_descriptor(module):
+    descriptor = certified_descriptor(module)
+    descriptor.revision = 4
+    descriptor.release_id = "github:owner/example:v1.0.0"
+    descriptor.supersedes = ["github:owner/example:v0.9.0"]
+    descriptor.version = "1.0.0"
+    descriptor.tag = "v1.0.0"
+    descriptor.released_at = "2026-07-20T07:00:00Z"
+    descriptor.commit = "a" * 40
+    descriptor.source_revision = "a" * 40
+    return descriptor
+
+
 def test_provider_adapters_are_shipped_as_a_runtime_module():
     module_path = REPO_ROOT / "release_providers.py"
 
@@ -306,6 +331,143 @@ def test_runtime_discovery_certifies_and_caches_a_newer_release(
     assert adapter.calls[0][1]["tag_pattern"] == (
         r"^v\.[0-9]+(?:\.[0-9]+){1,3}$"
     )
+
+
+def test_git_install_discovers_latest_release_from_reviewed_anchor(
+    plugin_core_module,
+):
+    candidate = provider_candidate(
+        plugin_core_module._release_providers_module
+    )
+    adapter = RecordingProviderAdapter(candidate)
+    descriptor = certified_descriptor(plugin_core_module)
+    certifier = RecordingCertifier(descriptor)
+    service = plugin_core_module.RuntimeReleaseDiscoveryService(
+        adapters={"github": adapter},
+        transport=object(),
+        certifier=certifier,
+    )
+    entry = release_entry(plugin_core_module)
+    reviewed = reviewed_descriptor(plugin_core_module)
+
+    observation = service.refresh_entry(
+        entry,
+        reviewed,
+        installed_mode="git",
+    )
+
+    assert observation.state == "available"
+    assert observation.release is descriptor
+    assert certifier.calls == [(entry, reviewed, candidate)]
+    assert len(adapter.calls) == 1
+
+
+def test_runtime_certifier_accepts_reviewed_anchor_for_git_migration(
+    plugin_core_module,
+    tmp_path,
+):
+    configure_home(plugin_core_module, tmp_path)
+    plugin = plugin_core_module.BasePlugin()
+    entry = release_entry(plugin_core_module)
+    plugin.registry_entries[entry.key] = entry
+    archive_buffer = io.BytesIO()
+    root_prefix = "owner-example-" + "b" * 7
+    plugin_source = (
+        '"""\n'
+        '<plugin key="EXAMPLE" name="Example" author="Owner" '
+        'version="2.0.0"></plugin>\n'
+        '"""\n'
+    ).encode("utf-8")
+    with zipfile.ZipFile(
+        archive_buffer,
+        "w",
+        compression=zipfile.ZIP_DEFLATED,
+    ) as archive:
+        archive.writestr(root_prefix + "/plugin.py", plugin_source)
+    certifier = plugin_core_module.RuntimeReleaseCertificationService(
+        plugin,
+        http_client=ArchiveHttpClient(archive_buffer.getvalue()),
+    )
+    reviewed = reviewed_descriptor(plugin_core_module)
+
+    descriptor = certifier.certify(
+        entry,
+        reviewed,
+        provider_candidate(plugin_core_module._release_providers_module),
+    )
+
+    assert descriptor.revision == reviewed.revision + 1
+    assert descriptor.supersedes == [
+        "github:owner/example:v0.9.0",
+        reviewed.release_id,
+    ]
+    assert descriptor.authority == "provider_live"
+    assert len(descriptor.candidate_fingerprint) == 64
+
+
+def test_runtime_discovery_tombstone_blocks_git_provider_refresh(
+    plugin_core_module,
+):
+    adapter = RecordingProviderAdapter(
+        provider_candidate(plugin_core_module._release_providers_module)
+    )
+    certifier = RecordingCertifier(certified_descriptor(plugin_core_module))
+    service = plugin_core_module.RuntimeReleaseDiscoveryService(
+        adapters={"github": adapter},
+        transport=object(),
+        certifier=certifier,
+    )
+
+    observation = service.refresh_entry(
+        release_entry(plugin_core_module),
+        reviewed_descriptor(plugin_core_module),
+        installed_mode="git",
+        tombstone=object(),
+    )
+
+    assert observation.state == "blocked"
+    assert observation.release is None
+    assert adapter.calls == []
+    assert certifier.calls == []
+
+
+def test_runtime_discovery_preserves_verified_git_candidate_on_refresh_failure(
+    plugin_core_module,
+):
+    current_time = [
+        plugin_core_module.datetime(
+            2026, 7, 25, 8, 0, tzinfo=plugin_core_module.timezone.utc
+        )
+    ]
+    adapter = FailingAfterFirstProviderAdapter(
+        provider_candidate(plugin_core_module._release_providers_module)
+    )
+    descriptor = certified_descriptor(plugin_core_module)
+    service = plugin_core_module.RuntimeReleaseDiscoveryService(
+        adapters={"github": adapter},
+        transport=object(),
+        certifier=RecordingCertifier(descriptor),
+        clock=lambda: current_time[0],
+    )
+    entry = release_entry(plugin_core_module)
+    reviewed = reviewed_descriptor(plugin_core_module)
+    first = service.refresh_entry(entry, reviewed, installed_mode="git")
+
+    current_time[0] += plugin_core_module.timedelta(
+        seconds=service.CACHE_SECONDS + 1
+    )
+    adapter.failure = ValueError("provider temporarily unavailable")
+    refreshed = service.refresh_entry(
+        entry,
+        reviewed,
+        installed_mode="git",
+    )
+
+    assert first.state == "available"
+    assert refreshed.state == "available"
+    assert refreshed.release is descriptor
+    assert refreshed.stale is True
+    assert "provider temporarily unavailable" in refreshed.refresh_error
 
 
 def test_runtime_discovery_quarantines_a_mutated_installed_tag(

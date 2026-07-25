@@ -5937,6 +5937,52 @@ class RuntimeReleaseObservation:
     release: object
     message: str
     checked_at: str
+    stale: bool = False
+    refresh_error: str = ""
+
+
+def _runtime_release_anchor(installed, installed_mode=None):
+    """Normalize reviewed and installed release state for host evaluation."""
+    mode = str(installed_mode or "").strip().lower()
+    if not mode:
+        mode = (
+            "release"
+            if getattr(installed, "management_mode", "") == "release"
+            else "git"
+        )
+    if mode == "release":
+        revision = getattr(installed, "release_revision", 0)
+    elif (
+        mode == "git"
+        and isinstance(installed, ReleaseDescriptor)
+        and getattr(installed, "authority", "") == "release_index"
+    ):
+        revision = getattr(installed, "revision", 0)
+    else:
+        raise ValueError("Runtime release anchor is invalid.")
+    return {
+        "mode": mode,
+        "repository_identity": getattr(
+            installed, "repository_identity", ""
+        ),
+        "release_id": getattr(installed, "release_id", ""),
+        "revision": revision,
+        "released_at": getattr(installed, "released_at", ""),
+        "commit": getattr(installed, "commit", ""),
+        "source_revision": getattr(installed, "source_revision", ""),
+        "supersedes": list(getattr(installed, "supersedes", []) or []),
+    }
+
+
+def _runtime_release_lineage(anchor):
+    """Return the cumulative, ordered release lineage for a new candidate."""
+    lineage = []
+    for release_id in list(anchor["supersedes"]) + [
+        anchor["release_id"]
+    ]:
+        if release_id and release_id not in lineage:
+            lineage.append(release_id)
+    return lineage
 
 
 class RuntimeReleaseCertificationService:
@@ -6003,8 +6049,10 @@ class RuntimeReleaseCertificationService:
             }
         )
 
-    def _candidate_fingerprint(self, candidate, artifact):
+    def _candidate_fingerprint(self, candidate, artifact, anchor):
         document = {
+            "anchor_release_id": anchor["release_id"],
+            "anchor_revision": anchor["revision"],
             "provider": candidate.provider,
             "repository_identity": candidate.repository_identity,
             "release_id": candidate.release_id,
@@ -6031,6 +6079,7 @@ class RuntimeReleaseCertificationService:
 
     def certify(self, entry, installed, candidate):
         """Download and validate a candidate without changing plugin files."""
+        anchor = _runtime_release_anchor(installed)
         expected_identity = normalize_repository_identity(
             entry.author, entry.repository
         )
@@ -6041,13 +6090,9 @@ class RuntimeReleaseCertificationService:
             raise ValueError(
                 "Provider candidate does not match the registry repository."
             )
-        if (
-            getattr(installed, "management_mode", "") != "release"
-            or getattr(installed, "repository_identity", "")
-            != expected_identity
-        ):
+        if anchor["repository_identity"] != expected_identity:
             raise ValueError(
-                "Installed Release metadata does not match the registry."
+                "Runtime release anchor does not match the registry."
             )
 
         temporary_root = tempfile.mkdtemp(
@@ -6089,9 +6134,9 @@ class RuntimeReleaseCertificationService:
                 root_prefix,
             )
             return ReleaseDescriptor(
-                revision=getattr(installed, "release_revision") + 1,
+                revision=anchor["revision"] + 1,
                 release_id=candidate.release_id,
-                supersedes=[getattr(installed, "release_id")],
+                supersedes=_runtime_release_lineage(anchor),
                 provider=candidate.provider,
                 repository_identity=expected_identity,
                 version=candidate.version,
@@ -6109,6 +6154,7 @@ class RuntimeReleaseCertificationService:
                 candidate_fingerprint=self._candidate_fingerprint(
                     candidate,
                     artifact,
+                    anchor,
                 ),
             )
         finally:
@@ -6213,7 +6259,12 @@ class RuntimeReleaseDiscoveryService:
             raise ValueError("Runtime release provider is unsupported.")
         return document
 
-    def _cache_key(self, entry, installed, policy_document):
+    def _cache_key(
+        self,
+        entry,
+        anchor,
+        policy_document,
+    ):
         identity = normalize_repository_identity(
             entry.author, entry.repository
         )
@@ -6221,11 +6272,11 @@ class RuntimeReleaseDiscoveryService:
             "package_id": entry.key,
             "repository_identity": identity,
             "policy": policy_document,
-            "installed_release_id": getattr(installed, "release_id", ""),
-            "installed_commit": getattr(installed, "commit", ""),
-            "installed_source_revision": getattr(
-                installed, "source_revision", ""
-            ),
+            "installed_mode": anchor["mode"],
+            "installed_release_id": anchor["release_id"],
+            "installed_revision": anchor["revision"],
+            "installed_commit": anchor["commit"],
+            "installed_source_revision": anchor["source_revision"],
         }
         return hashlib.sha256(
             json.dumps(
@@ -6236,24 +6287,33 @@ class RuntimeReleaseDiscoveryService:
             ).encode("utf-8")
         ).hexdigest()
 
-    def _observation(self, state, release, message, now):
+    def _observation(
+        self,
+        state,
+        release,
+        message,
+        now,
+        stale=False,
+        refresh_error="",
+    ):
         return RuntimeReleaseObservation(
             state=state,
             release=release,
             message=message,
             checked_at=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            stale=stale,
+            refresh_error=refresh_error,
         )
 
-    def refresh_entry(self, entry, installed, tombstone=None):
-        """Return one cached direct-provider observation for an installed release."""
+    def refresh_entry(
+        self,
+        entry,
+        installed,
+        installed_mode=None,
+        tombstone=None,
+    ):
+        """Evaluate the latest provider release from one trusted anchor."""
         now = self._now()
-        if tombstone is not None:
-            return self._observation(
-                "blocked",
-                None,
-                "The indexed release is de-certified.",
-                now,
-            )
         policy = getattr(entry.delivery, "release", None)
         if entry.local or policy is None:
             return self._observation(
@@ -6265,19 +6325,33 @@ class RuntimeReleaseDiscoveryService:
         identity = normalize_repository_identity(
             entry.author, entry.repository
         )
-        if (
-            getattr(installed, "management_mode", "") != "release"
-            or getattr(installed, "repository_identity", "") != identity
-        ):
+        try:
+            anchor = _runtime_release_anchor(installed, installed_mode)
+        except ValueError as error:
             return self._observation(
                 "unavailable",
                 None,
-                "Direct refresh requires valid Release install metadata.",
+                str(error),
+                now,
+            )
+        if anchor["repository_identity"] != identity:
+            return self._observation(
+                "unavailable",
+                None,
+                "Runtime release anchor does not match the registry.",
                 now,
             )
 
         policy_document = self._policy_document(policy)
-        cache_key = self._cache_key(entry, installed, policy_document)
+        cache_key = self._cache_key(entry, anchor, policy_document)
+        if tombstone is not None:
+            self.cache.pop(cache_key, None)
+            return self._observation(
+                "blocked",
+                None,
+                "The indexed release is de-certified.",
+                now,
+            )
         cached = self.cache.get(cache_key)
         if cached is not None:
             cached_at, observation = cached
@@ -6304,14 +6378,12 @@ class RuntimeReleaseDiscoveryService:
                     self.transport,
                     now=now,
                 )
-                installed_release_id = getattr(
-                    installed, "release_id", ""
-                )
+                installed_release_id = anchor["release_id"]
                 if candidate.release_id == installed_release_id:
                     if (
-                        candidate.commit != getattr(installed, "commit", "")
+                        candidate.commit != anchor["commit"]
                         or candidate.source_revision
-                        != getattr(installed, "source_revision", "")
+                        != anchor["source_revision"]
                     ):
                         observation = self._observation(
                             "tag_mutated",
@@ -6330,7 +6402,7 @@ class RuntimeReleaseDiscoveryService:
                     candidate.released_at,
                     "candidate.released_at",
                 ) <= _parse_utc_timestamp(
-                    getattr(installed, "released_at", ""),
+                    anchor["released_at"],
                     "installed.released_at",
                 ):
                     observation = self._observation(
@@ -6348,7 +6420,8 @@ class RuntimeReleaseDiscoveryService:
                         or release.commit != candidate.commit
                         or release.source_revision
                         != candidate.source_revision
-                        or release.supersedes != [installed_release_id]
+                        or installed_release_id
+                        not in release.supersedes
                     ):
                         raise ValueError(
                             "Local release certification changed candidate identity."
@@ -6367,12 +6440,26 @@ class RuntimeReleaseDiscoveryService:
                     now,
                 )
             except Exception as error:
-                observation = self._observation(
-                    "unavailable",
-                    None,
-                    str(error),
-                    now,
-                )
+                if (
+                    cached is not None
+                    and cached[1].state == "available"
+                    and cached[1].release is not None
+                ):
+                    observation = self._observation(
+                        "available",
+                        cached[1].release,
+                        cached[1].message,
+                        now,
+                        stale=True,
+                        refresh_error=str(error),
+                    )
+                else:
+                    observation = self._observation(
+                        "unavailable",
+                        None,
+                        str(error),
+                        now,
+                    )
         self.cache[cache_key] = (now, observation)
         return observation
 
@@ -15657,15 +15744,19 @@ class BasePlugin:
     def getRuntimeReleaseCandidate(
         self,
         entry,
-        installed_release,
+        release_anchor,
         tombstone=None,
     ):
         """Return one still-applicable host-certified release candidate."""
         if (
             entry.local
             or tombstone is not None
-            or installed_release is None
+            or release_anchor is None
         ):
+            return None
+        try:
+            anchor = _runtime_release_anchor(release_anchor)
+        except ValueError:
             return None
         observation = self.runtime_release_observations.get(entry.key)
         if (
@@ -15691,10 +15782,8 @@ class BasePlugin:
             or fingerprint != release.candidate_fingerprint
             or release.repository_identity != expected_identity
             or release.package_id not in {"", entry.key}
-            or getattr(installed_release, "release_id", "")
-            not in release.supersedes
-            or release.revision
-            <= getattr(installed_release, "release_revision", 0)
+            or anchor["release_id"] not in release.supersedes
+            or release.revision <= anchor["revision"]
         ):
             return None
         return release
@@ -15841,9 +15930,14 @@ class BasePlugin:
                     "index_sequence": selection.sequence,
                 }
 
+        release_anchor = (
+            installed_release
+            if installed_mode == "release"
+            else release
+        )
         runtime_release = self.getRuntimeReleaseCandidate(
             entry,
-            installed_release,
+            release_anchor,
             tombstone,
         )
         if runtime_release is not None:
@@ -18062,7 +18156,7 @@ class BasePlugin:
             channel = "release" if is_release else "git"
             runtime_release = self.getRuntimeReleaseCandidate(
                 entry,
-                metadata,
+                metadata if is_release else release,
                 tombstone,
             )
             runtime_verified = runtime_release is not None
@@ -18264,7 +18358,7 @@ class BasePlugin:
         installed_plugins,
         plugins_dir,
     ):
-        """Refresh provider-live candidates for existing Release installs."""
+        """Refresh provider-live candidates for managed installed plugins."""
         observations = {}
         selection = self.getCurrentReleaseMetadataSelection()
         metadata_authorized, _reason = (
@@ -18292,6 +18386,8 @@ class BasePlugin:
             )
             if entry is None or entry.local or policy is None:
                 continue
+            metadata = None
+            installed_mode = "git"
             try:
                 plugin_dir = self.resolve_installed_plugin_dir(
                     plugin_key,
@@ -18300,15 +18396,20 @@ class BasePlugin:
                 metadata = self.install_metadata_service.read(plugin_dir)
             except (OSError, RuntimeError, ValueError):
                 continue
-            if (
-                metadata is None
-                or metadata.management_mode != "release"
-            ):
+            if metadata is not None:
+                if metadata.management_mode != "release":
+                    continue
+                installed_mode = "release"
+                release_anchor = metadata
+            else:
+                release_anchor = release_index.plugins.get(plugin_key)
+            if release_anchor is None:
                 continue
             observations[plugin_key] = (
                 self.runtime_release_discovery_service.refresh_entry(
                     entry,
-                    metadata,
+                    release_anchor,
+                    installed_mode=installed_mode,
                     tombstone=tombstones.get(plugin_key),
                 )
             )
