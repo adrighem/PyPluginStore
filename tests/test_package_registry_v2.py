@@ -66,6 +66,7 @@ def test_plugin_core_loads_sibling_registry_outside_sys_path(tmp_path):
     shutil.copy2(REPO_ROOT / "plugin_core.py", plugin_core_path)
     shutil.copy2(REPO_ROOT / "package_registry.py", tmp_path / "package_registry.py")
     shutil.copy2(REPO_ROOT / "package_identity.py", tmp_path / "package_identity.py")
+    shutil.copy2(REPO_ROOT / "release_providers.py", tmp_path / "release_providers.py")
     script = """
 import importlib.util
 import sys

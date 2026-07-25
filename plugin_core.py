@@ -9803,6 +9803,12 @@ class ReleaseTransactionManager:
         if schema_version == LEGACY_INSTALL_METADATA_SCHEMA_VERSION:
             document["schema"] = LEGACY_INSTALL_METADATA_SCHEMA_VERSION
             document["plugin_key"] = document.pop("package_id")
+            document.pop("authority")
+            document.pop("candidate_fingerprint")
+        elif schema_version == PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION:
+            document["schema"] = PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION
+            document.pop("authority")
+            document.pop("candidate_fingerprint")
         elif schema_version != INSTALL_METADATA_SCHEMA_VERSION:
             raise ValueError("Install metadata digest schema is unsupported.")
         contents = json.dumps(
@@ -9847,6 +9853,12 @@ class ReleaseTransactionManager:
                 staged_snapshot = _validated_staged_snapshot(staged_snapshot)
                 accepted_metadata_digests = {
                     self._install_metadata_digest(metadata),
+                    self._install_metadata_digest(
+                        metadata,
+                        schema_version=(
+                            PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION
+                        ),
+                    ),
                     self._install_metadata_digest(
                         metadata,
                         schema_version=LEGACY_INSTALL_METADATA_SCHEMA_VERSION,
