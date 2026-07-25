@@ -1,8 +1,8 @@
 {
   "track_id": "release_lifecycle_refactor_20260725",
   "type": "refactor",
-  "status": "in_progress",
+  "status": "completed",
   "created_at": "2026-07-25T17:14:39Z",
-  "updated_at": "2026-07-25T17:38:12Z",
+  "updated_at": "2026-07-25T18:22:19Z",
   "description": "Unify Git-to-Release discovery, dependency generations, durable transitions, and the management UI around one explicit release lifecycle."
 }

@@ -8,4 +8,4 @@
 - [x] Task: Simplify durable activation, cancellation, recovery, and rollback around explicit outcomes 1d99be3
 - [x] Task: Replace split API caches and frontend inference with one backend-owned management view 960eca9
 - [x] Task: Complete compatibility migration, module packaging, documentation, and generated runtime updates be3f9e8
-- [~] Task: Conductor - User Manual Verification 'Unified release lifecycle' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Unified release lifecycle' (Protocol in workflow.md) 0b72610

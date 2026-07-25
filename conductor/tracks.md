@@ -44,5 +44,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Unify Git-to-Release lifecycle and dependency generations
+## [x] Track: Unify Git-to-Release lifecycle and dependency generations
 *Link: [./conductor/tracks/release_lifecycle_refactor_20260725/](./conductor/tracks/release_lifecycle_refactor_20260725/)*
