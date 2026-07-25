@@ -41,3 +41,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Refresh release-managed plugins directly from their provider
 *Link: [./conductor/tracks/runtime_release_refresh_20260725/](./conductor/tracks/runtime_release_refresh_20260725/)*
+
+---
+
+## [~] Track: Unify Git-to-Release lifecycle and dependency generations
+*Link: [./conductor/tracks/release_lifecycle_refactor_20260725/](./conductor/tracks/release_lifecycle_refactor_20260725/)*
