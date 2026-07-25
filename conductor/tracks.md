@@ -36,3 +36,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Recognize v-dot stable tags during release discovery
 *Link: [./conductor/tracks/release_tag_discovery_20260724/](./conductor/tracks/release_tag_discovery_20260724/)*
+
+---
+
+## [~] Track: Refresh release-managed plugins directly from their provider
+*Link: [./conductor/tracks/runtime_release_refresh_20260725/](./conductor/tracks/runtime_release_refresh_20260725/)*

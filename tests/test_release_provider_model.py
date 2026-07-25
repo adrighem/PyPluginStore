@@ -32,7 +32,7 @@ EXPECTED_FIELDS = {
 def providers_module():
     return load_module_from_path(
         "release_provider_model_under_test",
-        REPO_ROOT / ".github" / "scripts" / "release_providers.py",
+        REPO_ROOT / "release_providers.py",
     )
 
 

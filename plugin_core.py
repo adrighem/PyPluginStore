@@ -135,6 +135,43 @@ _MANAGER_LOADED_PACKAGE_IDENTITY_FINGERPRINT = getattr(
 )
 
 
+def _load_release_providers_module():
+    """Import sibling provider adapters used by CI and explicit refresh."""
+    try:
+        import release_providers as providers_module
+
+        return providers_module
+    except ModuleNotFoundError as error:
+        if error.name != "release_providers":
+            raise
+
+    module_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "release_providers.py"
+    )
+    specification = importlib.util.spec_from_file_location(
+        "release_providers", module_path
+    )
+    if specification is None or specification.loader is None:
+        raise ImportError("Could not load the release provider contract.")
+    module = importlib.util.module_from_spec(specification)
+    sys.modules["release_providers"] = module
+    try:
+        specification.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get("release_providers") is module:
+            del sys.modules["release_providers"]
+        raise
+    return module
+
+
+_release_providers_module = _load_release_providers_module()
+_MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT = getattr(
+    _release_providers_module,
+    "PYPLUGINSTORE_LOADED_SOURCE_FINGERPRINT",
+    None,
+)
+
+
 API_PAYLOAD_MAX_LENGTH = 2000
 SELF_UPDATE_STARTUP_DELAY_SECONDS = 5
 SELF_UPDATE_ACTIVE_STALE_SECONDS = 15 * 60
@@ -870,6 +907,7 @@ else:
             "plugin_core.py",
             "package_registry.py",
             "package_identity.py",
+            "release_providers.py",
             "pypluginstore.html",
             "registry.json",
         )
@@ -887,6 +925,7 @@ else:
             "plugin_core.py",
             "package_registry.py",
             "package_identity.py",
+            "release_providers.py",
         ):
             result, message = self.require_git_success(
                 plugin_dir,
@@ -4620,6 +4659,77 @@ class SafeReleaseHttpClient:
                 )
             finally:
                 _safe_close_release_response(response)
+
+
+class SafeReleaseJsonTransport:
+    """Fetch small provider JSON through the hardened release HTTP client."""
+
+    def __init__(self, *, http_client=None, max_bytes=2 * 1024 * 1024):
+        if type(max_bytes) is not int or max_bytes <= 0:
+            raise ValueError("max_bytes must be a positive integer.")
+        self.max_bytes = max_bytes
+        self.http_client = http_client or SafeReleaseHttpClient(
+            max_bytes=max_bytes,
+            max_redirects=0,
+            read_timeout=15.0,
+        )
+        if not callable(
+            getattr(self.http_client, "download_to_path", None)
+        ):
+            raise ValueError("http_client must provide download_to_path().")
+
+    def _load(self, contents):
+        """Decode provider JSON while rejecting duplicate object keys."""
+        if not isinstance(contents, (bytes, bytearray)):
+            raise ValueError("Provider JSON must be bytes.")
+        contents = bytes(contents)
+        if not contents or len(contents) > self.max_bytes:
+            raise ValueError("Provider JSON exceeds its size limit.")
+
+        def reject_duplicates(pairs):
+            document = {}
+            for key, value in pairs:
+                if key in document:
+                    raise ValueError(
+                        "Provider JSON contains duplicate object keys."
+                    )
+                document[key] = value
+            return document
+
+        try:
+            document = json.loads(
+                contents.decode("utf-8"),
+                object_pairs_hook=reject_duplicates,
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("Provider response is not valid UTF-8 JSON.") from error
+        if not isinstance(document, (dict, list)):
+            raise ValueError(
+                "Provider JSON must contain an object or array."
+            )
+        return document
+
+    def get_json(self, url, headers=None):
+        """Return one exact-origin JSON response and remove its temporary file."""
+        temporary_root = tempfile.mkdtemp(prefix="pypluginstore-provider-json-")
+        destination = os.path.join(temporary_root, "response.json")
+        try:
+            self.http_client.download_to_path(
+                url,
+                destination,
+                allowed_origins=(),
+                headers=dict(headers or {}),
+            )
+            try:
+                with open(destination, "rb") as response_file:
+                    contents = response_file.read(self.max_bytes + 1)
+            except OSError as error:
+                raise ValueError(
+                    "Provider JSON response could not be read."
+                ) from error
+            return self._load(contents)
+        finally:
+            shutil.rmtree(temporary_root, ignore_errors=True)
 
 
 @dataclass(frozen=True)
@@ -14221,6 +14331,7 @@ MANAGER_IDENTITY_RUNTIME_FILES = (
     "plugin.py",
     "package_registry.py",
     "package_identity.py",
+    "release_providers.py",
     "pypluginstore.html",
 )
 MANAGER_IDENTITY_MAX_FILE_BYTES = 4 * 1024 * 1024
@@ -14455,6 +14566,9 @@ class ManagerIdentityService:
             ),
             "package_identity.py": (
                 _MANAGER_LOADED_PACKAGE_IDENTITY_FINGERPRINT
+            ),
+            "release_providers.py": (
+                _MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT
             ),
         }
         for relative_path, expected in expected_fingerprints.items():

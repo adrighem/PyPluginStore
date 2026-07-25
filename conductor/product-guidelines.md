@@ -7,6 +7,11 @@
 - Prefer conservative scanner behavior: discover root-level Domoticz `plugin.py` repositories first, and avoid adding repositories that need unsupported subdirectory installs.
 - Prefer curated, checksum-pinned stable release archives over mutable branch tips.
 - Keep Git available for plugins without validated releases, Local registry overrides, and verified rollback recovery. Do not expose a public Release-to-Git switch or silently fall back after release verification fails.
-- Resolve forge-specific releases in repository automation and publish normalized metadata so the Domoticz runtime remains forge-neutral and does not depend on hosted API availability or rate limits.
+- Use repository automation and the normalized release index to bootstrap and
+  govern Release mode. After a plugin is release-managed, an explicit user
+  refresh may query its reviewed provider API directly, locally certify the
+  immutable candidate, and expose it as an update without waiting for scheduled
+  automation. Provider failures must leave the installed and indexed state
+  unchanged.
 - Migrate existing Git checkouts only through the normal upgrade flow, with dirty-tree detection, local-file preservation, rollback, and clear blocked states.
 - Show whether the browser page, loaded manager backend, deployed custom page, and installed manager files are coherent; block mutations on an identity-aware mismatch and put recovery guidance in the main page status.

@@ -453,12 +453,15 @@ class ReleaseCandidateCache:
 
 
 def _module_from_sibling(name):
-    """Load a sibling script without relying on the process working directory."""
+    """Load a secure component without relying on the working directory."""
     module_name = "_pypluginstore_" + name
     existing = sys.modules.get(module_name)
     if existing is not None:
         return existing
-    path = Path(__file__).resolve().with_name(name + ".py")
+    if name == "release_providers":
+        path = Path(__file__).resolve().parents[2] / "release_providers.py"
+    else:
+        path = Path(__file__).resolve().with_name(name + ".py")
     if not path.is_file():
         raise RuntimeError("Required secure component is unavailable: " + path.name)
     specification = importlib.util.spec_from_file_location(module_name, path)

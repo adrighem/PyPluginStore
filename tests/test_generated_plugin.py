@@ -10,6 +10,7 @@ SELF_UPDATE_CANDIDATE_PYTHON_FILES = (
     "plugin_core.py",
     "package_registry.py",
     "package_identity.py",
+    "release_providers.py",
 )
 
 

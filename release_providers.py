@@ -1,12 +1,30 @@
-"""Provider-neutral contracts and selection helpers for release discovery."""
+"""Provider-neutral contracts shared by CI and runtime release discovery."""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import hashlib
 import inspect
 import re
 import unicodedata
 import urllib.parse
+
+
+def _capture_loaded_source_fingerprint():
+    """Fingerprint the provider source loaded into the manager runtime."""
+    try:
+        with open(__file__, "rb") as source_file:
+            contents = source_file.read(4 * 1024 * 1024 + 1)
+        if not contents or len(contents) > 4 * 1024 * 1024:
+            return None
+        return (len(contents), hashlib.sha256(contents).hexdigest())
+    except OSError:
+        return None
+
+
+PYPLUGINSTORE_LOADED_SOURCE_FINGERPRINT = (
+    _capture_loaded_source_fingerprint()
+)
 
 
 GIT_OBJECT_ID_PATTERN = re.compile(r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$")
