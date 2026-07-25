@@ -2,8 +2,8 @@
 
 ## Phase 1: Unified release lifecycle
 
-- [~] Task: Introduce the typed observed-state, candidate, transition, lifecycle, and action contracts
-- [ ] Task: Discover and certify the latest eligible release for Git and Release installations
+- [x] Task: Introduce the typed observed-state, candidate, transition, lifecycle, and action contracts c2e1f46
+- [~] Task: Discover and certify the latest eligible release for Git and Release installations
 - [ ] Task: Replace dependency overlays with one sanitized immutable generation service
 - [ ] Task: Simplify durable activation, cancellation, recovery, and rollback around explicit outcomes
 - [ ] Task: Replace split API caches and frontend inference with one backend-owned management view
