@@ -73,18 +73,19 @@ the release, and existing Git installs can choose **Use Release channel**
 instead of continuing with Git commits.
 
 Publishing a ZIP therefore can cause an automatic channel transition on a later
-weekly scan, but it never bypasses certification or pull-request review. Direct
-host checks do not move a Git-managed installation to the Release channel; the
-reviewed release index remains the authority for that first transition.
+weekly scan, but it never bypasses certification or pull-request review. The
+reviewed release index is the trust anchor for the first transition. After that
+anchor exists, **Refresh status** may certify a newer provider release directly
+on the host and offer that latest release for the Git-to-Release transition.
 
-For an existing Release-managed installation, **Refresh status** uses the
+For eligible Git and Release-managed installations, **Refresh status** uses the
 reviewed provider and artifact policy from the registry to resolve the latest
 stable release. The host downloads the immutable candidate, verifies its
 archive digest, safely extracts it, validates its canonical tree and plugin
 identity, and caches that certified target in memory. The UI labels it
-**Verified directly by this host**. Pressing **Update** downloads the same
-immutable artifact again and repeats those checks before activation, so this
-path does not wait for the next weekly index run.
+**Verified directly by this host**. Pressing **Update** or **Use Release**
+downloads the same immutable artifact again and repeats those checks before
+activation, so this path does not wait for the next weekly index run.
 
 Installed metadata records whether a release was authorized by
 `release_index` or certified locally as `provider_live`. Provider-live records
@@ -161,9 +162,13 @@ of reporting a newer plugin version, and it does not change files.
 Automatic-update mode executes only a fully proven transition; evidence marked
 manual requires an explicit, content-bound approval.
 
-Release operations stage code and a complete dependency snapshot, activate them
-atomically, retain the previous state for rollback, and then require a Domoticz
-restart. Local executable changes are never silently carried into a release.
+Release operations stage code and a complete dependency generation, activate
+them atomically, retain the previous state for rollback, and then require a
+Domoticz restart. Git changes use the same dependency builder and workflow
+lock. A generation resolves every installed plugin's requirements together,
+uses copy mode with `uv`, records `.pypluginstore-environment.json`, and can be
+recovered after interruption. Local executable changes are never silently
+carried into a release.
 
 ## Using Git through a local override
 
