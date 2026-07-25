@@ -1280,6 +1280,26 @@ def test_release_install_uses_provider_live_candidate_after_explicit_refresh(
     assert management["status"] == "available"
     assert management["available_version"] == "2.0.0"
     assert management["available_revision"] == runtime_release.revision
+    assert management["verification_status"] == "verified_on_host"
+    assert management["verification_message"] == (
+        "Verified directly from the release provider."
+    )
+    monkeypatch.setattr(
+        plugin_core_module.urllib.request,
+        "urlopen",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("Release versions must not come from the Git branch")
+        ),
+    )
+    versions = plugin.get_plugin_versions(
+        [entry.key],
+        {entry.key: "available"},
+        plugin.get_host().plugins_dir(),
+    )
+    assert versions[entry.key] == {
+        "installed": indexed_release.version,
+        "available": runtime_release.version,
+    }
 
 
 def test_management_map_rechecks_expiry_before_status_decisions(

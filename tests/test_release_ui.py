@@ -782,6 +782,19 @@ def test_release_status_text_surfaces_versions_verification_migration_and_restar
         },
         {
             "state": release_management_state(
+                verification_status="verified_on_host",
+                verification_message=(
+                    "Verified directly from the release provider."
+                ),
+            ),
+            "fragments": [
+                "v2.0.0",
+                "available",
+                "Verified directly by this host",
+            ],
+        },
+        {
+            "state": release_management_state(
                 status="current",
                 installed_version="",
                 available_version="",

@@ -1,11 +1,13 @@
 # Release and Git Management
 
 PyPluginStore is release-first when a package has a fresh, certified entry in
-`release_index.json`. Git remains a supported channel: it is used while no
-release is indexed, when the package policy selects Git, or when a local registry
-override explicitly selects a different source. Existing keep-Git state remains
-honored for upgrade and rollback safety, but no public action creates a new
-general Git-channel preference.
+`release_index.json`. Once a plugin is Release-managed, an explicit
+**Refresh status** also checks its configured upstream release provider
+directly. Git remains a supported channel: it is used while no release is
+indexed, when the package policy selects Git, or when a local registry override
+explicitly selects a different source. Existing keep-Git state remains honored
+for upgrade and rollback safety, but no public action creates a new general
+Git-channel preference.
 
 ## Package identity
 
@@ -71,9 +73,23 @@ the release, and existing Git installs can choose **Use Release channel**
 instead of continuing with Git commits.
 
 Publishing a ZIP therefore can cause an automatic channel transition on a later
-weekly scan, but it never bypasses certification or pull-request review. A
-provider API response is scanner input; only the provider-neutral, registry-bound
-release index is runtime authority.
+weekly scan, but it never bypasses certification or pull-request review. Direct
+host checks do not move a Git-managed installation to the Release channel; the
+reviewed release index remains the authority for that first transition.
+
+For an existing Release-managed installation, **Refresh status** uses the
+reviewed provider and artifact policy from the registry to resolve the latest
+stable release. The host downloads the immutable candidate, verifies its
+archive digest, safely extracts it, validates its canonical tree and plugin
+identity, and caches that certified target in memory. The UI labels it
+**Verified directly by this host**. Pressing **Update** downloads the same
+immutable artifact again and repeats those checks before activation, so this
+path does not wait for the next weekly index run.
+
+Installed metadata records whether a release was authorized by
+`release_index` or certified locally as `provider_live`. Provider-live records
+also store a candidate fingerprint. An indexed de-certification tombstone
+always overrides a cached direct-provider result.
 
 If a release was previously de-certified, the scanner keeps its tombstone and
 will not reconsider the same release ID. A later release can reactivate the
@@ -94,7 +110,9 @@ Provider policies are explicit in registry v2:
 GitHub, GitLab, and Codeberg packages receive an explicit standard stable-release
 policy during registry migration. Self-hosted Forgejo/Gitea and generic HTTPS
 sources need an explicit reviewed endpoint policy; unknown hosts remain Git-only
-until one is added. Provider adapters remain outside the Domoticz runtime.
+until one is added. The scanner and Domoticz runtime share the same provider
+resolution contracts; the runtime only invokes them for an explicit refresh of
+an existing Release-managed installation.
 
 ## Source archives, attached ZIPs, and migration evidence
 

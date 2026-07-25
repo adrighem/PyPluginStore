@@ -17801,8 +17801,37 @@ class BasePlugin:
                 if _manager_identity_is_valid(runtime_identity):
                     installed_version = runtime_identity["product_version"]
             available_version = None
+            release_managed = os.path.lexists(
+                os.path.join(
+                    plugin_dir,
+                    InstallMetadataService.FILE_NAME,
+                )
+            )
+            if release_managed:
+                try:
+                    context = self.getReleaseManagementContext(
+                        entry,
+                        operation="status",
+                        trigger="manual",
+                    )
+                    installed_release = context.get("installed_release")
+                    release = context.get("release")
+                    if installed_release is not None:
+                        installed_version = installed_release.version
+                    if release is not None:
+                        available_version = release.version
+                except (OSError, RuntimeError, ValueError) as error:
+                    Domoticz.Debug(
+                        "Could not resolve Release versions for "
+                        + entry.key
+                        + ": "
+                        + str(error)
+                    )
 
-            if update_status.get(plugin_key) == "available":
+            if (
+                not release_managed
+                and update_status.get(plugin_key) == "available"
+            ):
                 url = self.build_raw_plugin_url(entry.author, entry.repository, entry.branch)
                 if not url:
                     Domoticz.Debug("Could not build remote version URL for " + str(entry.repository))
@@ -17970,8 +17999,16 @@ class BasePlugin:
                 metadata,
                 tombstone,
             )
+            runtime_verified = runtime_release is not None
+            runtime_verification_message = ""
             if runtime_release is not None:
                 release = runtime_release
+                observation = self.runtime_release_observations.get(
+                    plugin_key
+                )
+                runtime_verification_message = str(
+                    getattr(observation, "message", "") or ""
+                )
             local_override_git_error = (
                 self.getLocalOverrideGitCheckoutError(entry, plugin_dir)
             )
@@ -18123,13 +18160,21 @@ class BasePlugin:
                         "unavailable"
                         if status == "release_metadata_unavailable"
                         else (
-                            "verified"
+                            (
+                                "verified_on_host"
+                                if runtime_verified
+                                else "verified"
+                            )
                             if release is not None
                             else "not_applicable"
                         )
                     )
                 ),
-                "verification_message": reason,
+                "verification_message": (
+                    runtime_verification_message
+                    if runtime_verified
+                    else reason
+                ),
                 "migration_status": migration_status,
                 "migration_message": reason if migration_status.startswith("migration_") else "",
                 "rollback_available": lifecycle["rollback_available"],

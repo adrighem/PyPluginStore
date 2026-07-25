@@ -3523,6 +3523,9 @@
             details.push(String(state.status).replace(/_/g, ' '));
         }
 
+        if (state.verification_status === 'verified_on_host') {
+            details.push('Verified directly by this host');
+        }
         if (state.restart_pending) details.push('Restart required');
         return [channel, ...details].filter(Boolean).join(' · ');
     }
