@@ -18700,7 +18700,7 @@ class BasePlugin:
         channel,
     ):
         """Return one compatible management record with all changes blocked."""
-        return {
+        state = {
             "channel": channel,
             "status": "verification_failed",
             "updateable": False,
@@ -18728,6 +18728,114 @@ class BasePlugin:
             "release_available": release is not None,
             "migration_action_state": "blocked",
         }
+        return self._management_presentation(
+            state,
+            entry,
+            is_manager=False,
+        )
+
+    def _management_presentation(
+        self,
+        state,
+        entry,
+        *,
+        is_manager,
+    ):
+        """Attach backend-owned status text and available actions."""
+        channel = (
+            "Release"
+            if state["channel"] == "release"
+            else "Git"
+        )
+        status = state["status"]
+        reason = (
+            state.get("verification_message")
+            or state.get("migration_message")
+            or ""
+        )
+        if state.get("restart_pending"):
+            summary = channel + " - restart required"
+            if state.get("rollback_available"):
+                summary += "; rollback is available"
+        elif status == "available":
+            version = state.get("available_version") or ""
+            summary = channel + " - "
+            if version:
+                summary += "v" + str(version).lstrip("vV") + " "
+            summary += "available"
+        elif status == "git_available":
+            summary = "Git - update available"
+        elif status == "migration_available":
+            summary = "Git - Release migration available"
+        elif status == "migration_confirmation_required":
+            summary = "Git - Release migration needs confirmation"
+        elif status == "current" or status == "git_current":
+            summary = channel + " - current"
+        elif status == "git_unknown":
+            summary = "Git - update status unknown"
+        else:
+            summary = channel + " - " + str(status).replace("_", " ")
+        if reason and status not in {
+            "current",
+            "git_current",
+            "available",
+            "git_available",
+        }:
+            summary += ": " + reason
+        if state.get("verification_status") == "verified_on_host":
+            summary += "; verified by this host"
+
+        actions = []
+
+        def action(action_id, label, enabled, action_reason=""):
+            actions.append(
+                {
+                    "id": action_id,
+                    "label": label,
+                    "enabled": bool(enabled),
+                    "reason": str(action_reason or ""),
+                }
+            )
+
+        if is_manager:
+            if state["channel"] == "git":
+                action("update", "Update", True)
+        elif state.get("restart_pending"):
+            action(
+                "update",
+                "Update",
+                False,
+                "Restart before another update.",
+            )
+            if state.get("rollback_available"):
+                action("rollback", "Rollback", True)
+        else:
+            migration_route = (
+                state["channel"] == "git"
+                and str(status).startswith("migration_")
+            )
+            action(
+                "update",
+                "Update",
+                state.get("updateable") and not migration_route,
+                reason if not state.get("updateable") else "",
+            )
+            if state["channel"] == "release":
+                if state.get("rollback_available"):
+                    action("rollback", "Rollback", True)
+            elif (
+                not entry.local
+                and state.get("migration_action_state")
+                in {"available", "confirmation_required"}
+            ):
+                action(
+                    "use_release",
+                    "Use Release",
+                    True,
+                )
+        state["summary"] = summary
+        state["actions"] = actions
+        return state
 
     def getPluginManagementMap(
         self,
@@ -18975,7 +19083,7 @@ class BasePlugin:
                 "migration_waiting_for_release",
                 "migration_confirmation_required",
             }
-            management[plugin_key] = {
+            management[plugin_key] = self._management_presentation({
                 "channel": channel,
                 "status": status,
                 "updateable": bool(
@@ -19017,7 +19125,7 @@ class BasePlugin:
                 "git_supported": entry.delivery.git_supported,
                 "release_available": release is not None,
                 "migration_action_state": migration_action_state,
-            }
+            }, entry, is_manager=(plugin_key == manager_key))
         return management
 
     def refresh_single_plugin_update_status(self, plugin_key, plugin_dir, fetch_first=True):

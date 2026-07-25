@@ -1284,6 +1284,14 @@ def test_release_install_uses_provider_live_candidate_after_explicit_refresh(
     assert management["verification_message"] == (
         "Verified directly from the release provider."
     )
+    assert management["summary"] == (
+        "Release - v2.0.0 available; verified by this host"
+    )
+    assert [
+        action["id"]
+        for action in management["actions"]
+        if action["enabled"]
+    ] == ["update"]
     monkeypatch.setattr(
         plugin_core_module.urllib.request,
         "urlopen",
