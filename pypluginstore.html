@@ -327,6 +327,10 @@
         box-shadow: var(--pps-panel-shadow);
     }
 
+    #pypluginstore-status:empty {
+        display: none;
+    }
+
     #pypluginstore-container .header-actions {
         display: flex;
         gap: 12px;
@@ -1362,36 +1366,33 @@
     }
 
     function renderManagerStatus(detailMessage) {
-        if (typeof detailMessage === 'string') {
-            managerStatusDetail = detailMessage.trim();
+        void detailMessage;
+        if (!managerIdentityVerdict) {
+            setStatus('Initializing...');
+            return;
         }
-        const parts = [];
-        if (managerIdentityVerdict) {
-            const runtime = managerIdentityVerdict.runtime || {};
-            let runtimeLabel = '';
-            if (runtime.product_version && runtime.build_id) {
-                runtimeLabel = 'PyPluginStore v' + runtime.product_version +
-                    ' · build ' + String(runtime.build_id).slice(0, 12);
-                if (runtime.git_commit) {
-                    runtimeLabel += ' · git ' + String(runtime.git_commit).slice(0, 8);
-                }
-            }
-            const verdictMessage = String(managerIdentityVerdict.message || '').trim();
-            parts.push(verdictMessage || runtimeLabel);
+        if (
+            managerIdentityVerdict.state === 'consistent' &&
+            managerIdentityVerdict.mutations_allowed === true
+        ) {
+            setStatus('');
+            return;
         }
-        if (selfUpdateIsVisible(selfUpdateState)) {
-            const selfUpdateMessage = String(
-                selfUpdateState.message || selfUpdatePhaseLabel(selfUpdateState)
-            ).trim();
-            const combined = parts.join(' · ');
-            if (selfUpdateMessage && !combined.includes(selfUpdateMessage)) {
-                parts.push('Self-update: ' + selfUpdateMessage);
-            }
+        if (managerIdentityVerdict.state === 'restart_required') {
+            setStatus('Restart Domoticz to finish the PyPluginStore update.');
+            return;
         }
-        if (managerStatusDetail && !parts.join(' · ').includes(managerStatusDetail)) {
-            parts.push(managerStatusDetail);
+        if ([
+            'frontend_stale',
+            'legacy_frontend',
+            'ui_deploy_stale'
+        ].includes(managerIdentityVerdict.state)) {
+            setStatus(
+                'Hard-refresh this page to load the current PyPluginStore frontend.'
+            );
+            return;
         }
-        setStatus(parts.filter(Boolean).join(' · ') || 'Initializing...');
+        setStatus(String(managerIdentityVerdict.message || '').trim());
     }
 
     function applyManagerIdentityVerdict(verdict) {
@@ -3529,9 +3530,6 @@
             details.push(String(state.status).replace(/_/g, ' '));
         }
 
-        if (state.verification_status === 'verified_on_host') {
-            details.push('Verified directly by this host');
-        }
         if (state.restart_pending) details.push('Restart required');
         return [channel, ...details].filter(Boolean).join(' · ');
     }

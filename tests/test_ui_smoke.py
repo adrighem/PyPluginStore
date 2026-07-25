@@ -699,12 +699,17 @@ def test_list_plugins_applies_manager_coherence_before_rendering():
 
     render_status = extract_js_function(script, "renderManagerStatus")
     assert "setStatus(" in render_status
-    assert "runtime" in render_status
-    assert "product_version" in render_status
-    assert "build_id" in render_status
-    assert "git_commit" in render_status
+    assert "state === 'consistent'" in render_status
+    assert "restart_required" in render_status
+    assert "frontend_stale" in render_status
+    assert "legacy_frontend" in render_status
+    assert "ui_deploy_stale" in render_status
+    assert "Hard-refresh this page" in render_status
     assert ".message" in render_status
-    assert "selfUpdateState" in render_status
+    assert "product_version" not in render_status
+    assert "build_id" not in render_status
+    assert "git_commit" not in render_status
+    assert "selfUpdateState" not in render_status
 
 
 def test_manager_identity_states_gate_mutations_and_keep_recovery_read_only():

@@ -82,10 +82,11 @@ For eligible Git and Release-managed installations, **Refresh status** uses the
 reviewed provider and artifact policy from the registry to resolve the latest
 stable release. The host downloads the immutable candidate, verifies its
 archive digest, safely extracts it, validates its canonical tree and plugin
-identity, and caches that certified target in memory. The UI labels it
-**Verified directly by this host**. Pressing **Update** or **Use Release**
-downloads the same immutable artifact again and repeats those checks before
-activation, so this path does not wait for the next weekly index run.
+identity, and caches that certified target in memory. The UI shows the
+available version without exposing where certification happened. Pressing
+**Update** or **Use Release** downloads the same immutable artifact again and
+repeats those checks before activation, so this path does not wait for the next
+weekly index run.
 
 Installed metadata records whether a release was authorized by
 `release_index` or certified locally as `provider_live`. Provider-live records

@@ -762,7 +762,7 @@ if (releaseChannelLabel({}) !== '') {
     )
 
 
-def test_release_status_text_surfaces_versions_verification_migration_and_restart():
+def test_release_status_text_surfaces_versions_migration_and_restart():
     script = load_inline_script()
     function_source = extract_js_function(
         script, "formatReleaseManagementStatus"
@@ -782,7 +782,6 @@ def test_release_status_text_surfaces_versions_verification_migration_and_restar
             "fragments": [
                 "v2.0.0",
                 "available",
-                "Verified directly by this host",
             ],
         },
         {
@@ -885,6 +884,9 @@ for (const item of cases) {
     const text = formatReleaseManagementStatus(item.state);
     if (text.toLowerCase().includes('revision')) {
         throw new Error(`internal release revision leaked into "${text}"`);
+    }
+    if (text.toLowerCase().includes('verified')) {
+        throw new Error(`verification origin leaked into "${text}"`);
     }
     for (const fragment of item.fragments) {
         if (!text.includes(fragment)) {

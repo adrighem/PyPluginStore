@@ -16146,56 +16146,46 @@ class ManagerIdentityService:
             state = "unverifiable"
             coherent = False
             message = (
-                label
-                + " \u00b7 runtime identity could not be verified. Repair or reinstall "
-                "PyPluginStore before making changes."
+                "PyPluginStore could not be verified. Repair or reinstall it "
+                "before making changes."
             )
         elif active_update:
             state = "updating"
             coherent = runtime_installed_match and deployed_match and frontend_match
             message = (
-                label
-                + " \u00b7 self-update is in progress. Changes are temporarily read-only."
+                "PyPluginStore update in progress. Wait for it to finish."
             )
         elif not runtime_installed_match:
             state = "restart_required"
             coherent = False
             message = (
-                label
-                + " is running, but a different build is installed. Restart "
-                "Domoticz to finish the PyPluginStore update."
+                "Restart Domoticz to finish the PyPluginStore update."
             )
         elif not deployed_match:
             state = "ui_deploy_stale"
             coherent = False
             message = (
-                label
-                + " \u00b7 the Domoticz custom page is not synchronized. Check template "
-                "permissions, restart Domoticz, then reload this page."
+                "Hard-refresh this page to load the current PyPluginStore "
+                "frontend."
             )
         elif frontend_identity is None:
             state = "legacy_frontend"
             coherent = False
             message = (
-                label
-                + " \u00b7 this browser page has no runtime identity. Hard-refresh the "
-                "page to enable changes."
+                "Hard-refresh this page to load the current PyPluginStore "
+                "frontend."
             )
         elif not frontend_match:
             state = "frontend_stale"
             coherent = False
             message = (
-                label
-                + " \u00b7 this browser page is from a different build. Hard-refresh "
-                "the page before making changes."
+                "Hard-refresh this page to load the current PyPluginStore "
+                "frontend."
             )
         else:
             state = "consistent"
             coherent = True
-            message = (
-                label
-                + " \u00b7 frontend, backend, and installed files match."
-            )
+            message = ""
 
         verdict = {
             "schema_version": MANAGER_IDENTITY_SCHEMA_VERSION,
@@ -16206,6 +16196,10 @@ class ManagerIdentityService:
             "runtime": _public_manager_identity(runtime),
             "installed": _public_manager_identity(installed),
             "deployed": deployed,
+            "matches": {
+                "frontend_backend": frontend_match,
+                "backend_installed": runtime_installed_match,
+            },
         }
         if frontend:
             verdict["frontend"] = frontend
@@ -18759,10 +18753,11 @@ class BasePlugin:
                 summary += "; rollback is available"
         elif status == "available":
             version = state.get("available_version") or ""
-            summary = channel + " - "
+            summary = ""
             if version:
-                summary += "v" + str(version).lstrip("vV") + " "
-            summary += "available"
+                summary = "v" + str(version).lstrip("vV") + " available"
+            else:
+                summary = "Update available"
         elif status == "git_available":
             summary = "Git - update available"
         elif status == "migration_available":
@@ -18782,9 +18777,6 @@ class BasePlugin:
             "git_available",
         }:
             summary += ": " + reason
-        if state.get("verification_status") == "verified_on_host":
-            summary += "; verified by this host"
-
         actions = []
 
         def action(action_id, label, enabled, action_reason=""):
