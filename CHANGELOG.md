@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.22.5](https://github.com/adrighem/PyPluginStore/compare/v2.22.4...v2.22.5) (2026-07-25)
+
+
+### Bug Fixes
+
+* **releases:** detect dotted version tags ([1b1bc4e](https://github.com/adrighem/PyPluginStore/commit/1b1bc4eea7907f9f75bedad0ed8e9d3b14e0f3ec))
+* **releases:** detect dotted version tags ([305bfff](https://github.com/adrighem/PyPluginStore/commit/305bfffd4b95e658849aad66f9a291fde70b3c44)), closes [#133](https://github.com/adrighem/PyPluginStore/issues/133)
+
 ## [2.22.4](https://github.com/adrighem/PyPluginStore/compare/v2.22.3...v2.22.4) (2026-07-24)
 
 
