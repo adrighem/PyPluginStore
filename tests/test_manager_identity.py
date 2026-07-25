@@ -15,6 +15,7 @@ RUNTIME_FILES = (
     "package_registry.py",
     "package_identity.py",
     "release_providers.py",
+    "release_domain.py",
     "pypluginstore.html",
 )
 DEVELOPMENT_FRONTEND_IDENTITY = {
@@ -38,6 +39,7 @@ def bundle_documents(
     registry_marker="registry-a",
     identity_marker="identity-a",
     providers_marker="providers-a",
+    domain_marker="domain-a",
     frontend_marker="frontend-a",
 ):
     development_identity = json.dumps(
@@ -61,6 +63,9 @@ def bundle_documents(
         ).encode(),
         "release_providers.py": (
             f'RELEASE_PROVIDERS_MARKER = "{providers_marker}"\n'
+        ).encode(),
+        "release_domain.py": (
+            f'RELEASE_DOMAIN_MARKER = "{domain_marker}"\n'
         ).encode(),
         "pypluginstore.html": (
             "<div id=\"pypluginstore-container\"></div>\n"
@@ -92,6 +97,14 @@ def require_identity_api(plugin_core_module):
         "from installed files"
     )
     return compute, service_class
+
+
+def test_runtime_identity_bundle_lists_every_shipped_runtime_module(
+    plugin_core_module,
+):
+    assert tuple(plugin_core_module.MANAGER_IDENTITY_RUNTIME_FILES) == (
+        RUNTIME_FILES
+    )
 
 
 def make_identity_service(
@@ -293,6 +306,11 @@ def test_cached_support_module_cannot_masquerade_as_loaded_disk_source(
         plugin_core_module,
         "_MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT",
         fingerprint(documents["release_providers.py"]),
+    )
+    monkeypatch.setattr(
+        plugin_core_module,
+        "_MANAGER_LOADED_RELEASE_DOMAIN_FINGERPRINT",
+        fingerprint(documents["release_domain.py"]),
     )
 
     plugin = plugin_core_module.BasePlugin()

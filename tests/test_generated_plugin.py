@@ -11,6 +11,7 @@ SELF_UPDATE_CANDIDATE_PYTHON_FILES = (
     "package_registry.py",
     "package_identity.py",
     "release_providers.py",
+    "release_domain.py",
 )
 
 

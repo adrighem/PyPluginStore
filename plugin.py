@@ -213,6 +213,54 @@ _MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT = getattr(
 )
 
 
+def _load_release_domain_module():
+    """Import the pure release lifecycle contracts."""
+    try:
+        import release_domain as domain_module
+
+        return domain_module
+    except ModuleNotFoundError as error:
+        if error.name != "release_domain":
+            raise
+
+    module_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "release_domain.py"
+    )
+    specification = importlib.util.spec_from_file_location(
+        "release_domain", module_path
+    )
+    if specification is None or specification.loader is None:
+        raise ImportError("Could not load the release lifecycle contracts.")
+    module = importlib.util.module_from_spec(specification)
+    sys.modules["release_domain"] = module
+    try:
+        specification.loader.exec_module(module)
+    except Exception:
+        if sys.modules.get("release_domain") is module:
+            del sys.modules["release_domain"]
+        raise
+    return module
+
+
+_release_domain_module = _load_release_domain_module()
+ActionDescriptor = _release_domain_module.ActionDescriptor
+InstallationChannel = _release_domain_module.InstallationChannel
+LifecycleNotice = _release_domain_module.LifecycleNotice
+LifecyclePhase = _release_domain_module.LifecyclePhase
+NoticeSeverity = _release_domain_module.NoticeSeverity
+ObservedInstallationState = (
+    _release_domain_module.ObservedInstallationState
+)
+PluginManagementView = _release_domain_module.PluginManagementView
+ReleaseCandidateState = _release_domain_module.ReleaseCandidateState
+TransitionState = _release_domain_module.TransitionState
+_MANAGER_LOADED_RELEASE_DOMAIN_FINGERPRINT = getattr(
+    _release_domain_module,
+    "PYPLUGINSTORE_LOADED_SOURCE_FINGERPRINT",
+    None,
+)
+
+
 API_PAYLOAD_MAX_LENGTH = 2000
 SELF_UPDATE_STARTUP_DELAY_SECONDS = 5
 SELF_UPDATE_ACTIVE_STALE_SECONDS = 15 * 60
@@ -949,6 +997,7 @@ else:
             "package_registry.py",
             "package_identity.py",
             "release_providers.py",
+            "release_domain.py",
             "pypluginstore.html",
             "registry.json",
         )
@@ -967,6 +1016,7 @@ else:
             "package_registry.py",
             "package_identity.py",
             "release_providers.py",
+            "release_domain.py",
         ):
             result, message = self.require_git_success(
                 plugin_dir,
@@ -14935,6 +14985,7 @@ MANAGER_IDENTITY_RUNTIME_FILES = (
     "package_registry.py",
     "package_identity.py",
     "release_providers.py",
+    "release_domain.py",
     "pypluginstore.html",
 )
 MANAGER_IDENTITY_MAX_FILE_BYTES = 4 * 1024 * 1024
@@ -15172,6 +15223,9 @@ class ManagerIdentityService:
             ),
             "release_providers.py": (
                 _MANAGER_LOADED_RELEASE_PROVIDERS_FINGERPRINT
+            ),
+            "release_domain.py": (
+                _MANAGER_LOADED_RELEASE_DOMAIN_FINGERPRINT
             ),
         }
         for relative_path, expected in expected_fingerprints.items():

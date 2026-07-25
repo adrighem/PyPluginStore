@@ -50,6 +50,9 @@ def write_manager_identity_bundle(
     (manager_dir / "release_providers.py").write_text(
         "RELEASE_PROVIDERS_MARKER = 'test'\n"
     )
+    (manager_dir / "release_domain.py").write_text(
+        "RELEASE_DOMAIN_MARKER = 'test'\n"
+    )
     development_identity = json.dumps(
         {
             "build_id": "0" * 64,

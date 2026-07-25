@@ -93,6 +93,7 @@ def add_self_update_candidate_checks(
     package_registry_py="REGISTRY_SCHEMA_VERSION = 2\n",
     package_identity_py="def certify_plugin_py(contents): return contents\n",
     release_providers_py="class GitHubReleaseAdapter: pass\n",
+    release_domain_py="class PluginManagementView: pass\n",
 ):
     for candidate_path in (
         "plugin.py",
@@ -100,6 +101,7 @@ def add_self_update_candidate_checks(
         "package_registry.py",
         "package_identity.py",
         "release_providers.py",
+        "release_domain.py",
         "pypluginstore.html",
         "registry.json",
     ):
@@ -118,6 +120,10 @@ def add_self_update_candidate_checks(
         scenario.expect(
             ["git", "show", upstream_ref + ":release_providers.py"],
             stdout=release_providers_py,
+        )
+        scenario.expect(
+            ["git", "show", upstream_ref + ":release_domain.py"],
+            stdout=release_domain_py,
         )
     return scenario
 
