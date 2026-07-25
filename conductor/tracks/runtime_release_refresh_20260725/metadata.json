@@ -3,6 +3,6 @@
   "type": "feature",
   "status": "in_progress",
   "created_at": "2026-07-25T08:00:07Z",
-  "updated_at": "2026-07-25T08:00:07Z",
+  "updated_at": "2026-07-25T08:08:00Z",
   "description": "Let release-managed plugins discover and locally certify upstream releases when users refresh status."
 }
