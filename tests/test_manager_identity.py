@@ -236,6 +236,24 @@ def test_docs_only_git_revision_is_diagnostic_and_does_not_require_reload(
     assert verdict["installed"]["git_commit"] == "b" * 40
 
 
+def test_verdict_exposes_ephemeral_runtime_instance_for_restart_recovery(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugin, service, _manager_dir, _commit, runtime_identity = (
+        make_identity_service(plugin_core_module, tmp_path, monkeypatch)
+    )
+    deploy_runtime_frontend(service, plugin)
+
+    verdict = service.get_verdict(frontend_identity=runtime_identity)
+    next_plugin = plugin_core_module.BasePlugin()
+
+    assert verdict["runtime_instance_id"] == plugin.runtime_instance_id
+    assert re.fullmatch(r"[0-9a-f]{32}", verdict["runtime_instance_id"])
+    assert next_plugin.runtime_instance_id != plugin.runtime_instance_id
+
+
 def test_runtime_snapshot_detects_same_version_installed_disk_change(
     plugin_core_module,
     tmp_path,

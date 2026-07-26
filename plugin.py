@@ -16193,6 +16193,7 @@ class ManagerIdentityService:
             "coherent": coherent,
             "mutations_allowed": state == "consistent",
             "message": message,
+            "runtime_instance_id": self.plugin.runtime_instance_id,
             "runtime": _public_manager_identity(runtime),
             "installed": _public_manager_identity(installed),
             "deployed": deployed,
@@ -16214,6 +16215,7 @@ class BasePlugin:
     socketOn = "FALSE"
 
     def __init__(self):
+        self.runtime_instance_id = os.urandom(16).hex()
         self.debug = False
         self.error = False
         self.nextpoll = None

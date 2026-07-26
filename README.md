@@ -137,11 +137,11 @@ Domoticz only shows the **Custom** menu when custom pages exist and the menu is 
 ### Manager Version and Recovery Status
 
 The status in the Plugin Store header is the authoritative manager-version
-check. It shows the semantic version and a short exact build ID, plus the Git
-revision when PyPluginStore is installed from Git. The build ID covers
-`plugin.py`, `package_registry.py`, `package_identity.py`, and
-`pypluginstore.html`, so same-version Git updates are detected as well as normal
-release version changes.
+check. A healthy, matching installation keeps this status quiet. The build ID
+covers `plugin.py`, `package_registry.py`, `package_identity.py`,
+`release_providers.py`, `release_domain.py`, and `pypluginstore.html`, so
+same-version Git updates are detected as well as normal release version
+changes.
 
 PyPluginStore compares the page running in the browser, the page deployed under
 `domoticz/www/templates`, the backend loaded by Domoticz, and the files currently
@@ -195,6 +195,13 @@ See [Release and Git management](docs/release_management.md) for migration decis
 ### Restart Button
 
 The **Restart Domoticz** button asks the host OS to restart Domoticz. This is not handled by a Domoticz JSON API endpoint.
+
+After the request is accepted, the page disables command controls and waits for
+a new backend instance whose build matches the installed files. Checks use the
+lightweight manager status command with bounded HTTP timeouts and backoff. The
+plugin list is loaded once after recovery is verified. If Domoticz does not
+recover within two minutes, controls are restored and the page shows manual
+recovery guidance inline.
 
 On Linux it tries these non-interactive service commands, in order:
 

@@ -299,10 +299,12 @@ def test_api_bridge_lookup_resolves_one_hardware_pair():
     function_source = "\n".join([
         extract_js_function(script, "normalizeDomoticzId"),
         extract_js_function(script, "matchingApiBridgeDevices"),
+        extract_js_function(script, "fetchWithTimeout"),
         extract_js_function(script, "fetchApiBridgeDevices"),
         extract_js_function(script, "findApiBridgeDevices"),
     ])
     node_script = """
+const API_BRIDGE_REQUEST_TIMEOUT_MS = 5000;
 let payloadIdx = null;
 let triggerIdx = null;
 const requests = [];
@@ -388,6 +390,7 @@ def test_api_bridge_lookup_rejects_ambiguous_or_mismatched_pairs():
     function_source = "\n".join([
         extract_js_function(script, "normalizeDomoticzId"),
         extract_js_function(script, "matchingApiBridgeDevices"),
+        extract_js_function(script, "fetchWithTimeout"),
         extract_js_function(script, "fetchApiBridgeDevices"),
         extract_js_function(script, "findApiBridgeDevices"),
     ])
@@ -497,6 +500,7 @@ def test_api_bridge_lookup_rejects_ambiguous_or_mismatched_pairs():
         },
     ]
     node_script = """
+const API_BRIDGE_REQUEST_TIMEOUT_MS = 5000;
 let payloadIdx = null;
 let triggerIdx = null;
 let requests = [];
@@ -544,8 +548,11 @@ async function fetch(url) {
         if (requests.some(url => url.includes('filter=all'))) {
             throw new Error(testCase.name + ': used a broad device scan');
         }
-        if (payloadIdx !== null || triggerIdx !== null) {
-            throw new Error(testCase.name + ': retained a partial bridge pair');
+        if (
+            payloadIdx !== 'stale-payload'
+            || triggerIdx !== 'stale-trigger'
+        ) {
+            throw new Error(testCase.name + ': replaced the valid cached pair');
         }
     }
 })().catch(error => {
@@ -558,11 +565,11 @@ async function fetch(url) {
     assert result.returncode == 0, result.stderr
 
 
-def test_api_bridge_payload_is_cleared_around_commands():
+def test_api_bridge_payload_is_cleared_after_completed_commands():
     script = load_inline_script()
 
-    assert "async function clearApiBridgePayload()" in script
-    assert "await clearApiBridgePayload();" in script
+    assert "async function clearApiBridgePayload(" in script
+    assert "await clearApiBridgePayload(requestTimeoutMs);" in script
     assert "Could not clear API bridge payload" in script
 
 
@@ -628,10 +635,10 @@ def test_api_bridge_accepts_error_response_without_action():
     poll_response_source = extract_js_function(load_inline_script(), "pollResponse")
     node_script = f"""
 const payloadIdx = 1;
+const API_BRIDGE_REQUEST_TIMEOUT_MS = 5000;
 let clearCalls = 0;
 const setTimeout = (resolve, delay) => resolve();
-const fetch = async () => ({{
-    json: async () => ({{
+const fetchWithTimeout = async () => ({{
         result: [{{
             Data: JSON.stringify({{
                 status: 'error',
@@ -639,7 +646,6 @@ const fetch = async () => ({{
                 message: 'preflight failed'
             }})
         }}]
-    }})
 }});
 async function clearApiBridgePayload() {{
     clearCalls += 1;
@@ -685,11 +691,13 @@ def test_self_update_does_not_reload_plugin_list_immediately():
 def test_list_plugins_applies_manager_coherence_before_rendering():
     script = load_inline_script()
     load_plugins = extract_js_function(script, "loadPlugins")
+    apply_loaded = extract_js_function(script, "applyLoadedPlugins")
 
-    apply_position = load_plugins.index(
+    assert "applyLoadedPlugins(response)" in load_plugins
+    apply_position = apply_loaded.index(
         "applyManagerIdentityVerdict(response.manager_identity)"
     )
-    render_position = load_plugins.index("filterAndRender()")
+    render_position = apply_loaded.index("filterAndRender()")
 
     assert apply_position < render_position
     assert "setStatus(`Loaded ${Object.keys(response.data).length} plugins.`)" not in (
@@ -810,12 +818,19 @@ def test_self_update_state_is_cached_polled_and_reported_as_activity():
     assert "selfUpdateState = response.self_update || null;" in script
     assert "function selfUpdateIsActive" in script
     assert "async function pollSelfUpdateStatus" in script
-    assert "sendCommand('self_update_status', {}, { retries: 10 })" in script
+    assert "'self_update_status'" in extract_js_function(
+        script,
+        "pollSelfUpdateStatus",
+    )
     assert "response.operation === 'self_update'" in script
     assert "pollSelfUpdateStatus();" in script
 
+    apply_loaded = extract_js_function(script, "applyLoadedPlugins")
+    assert apply_loaded.index("selfUpdateState =") < apply_loaded.index(
+        "filterAndRender()"
+    )
+
     for function_name in (
-        "loadPlugins",
         "handleAction",
         "pollSelfUpdateStatus",
         "refreshUpdateStatus",
@@ -1300,6 +1315,883 @@ def test_custom_ui_references_existing_icon_asset():
     assert 'src="images/pypluginstore-icon.png"' in html
     assert "this.src = '/images/pypluginstore-icon.png'" in html
     assert (REPO_ROOT / "pypluginstore-icon.png").is_file()
+
+
+def test_self_update_success_skips_only_the_generic_success_alert():
+    handle_action = extract_js_function(load_inline_script(), "handleAction")
+    node_script = f"""
+let installedScanError = '';
+let managerIdentityVerdict = {{
+    state: 'consistent',
+    mutations_allowed: true
+}};
+let managerKey = 'PyPluginStore';
+let selfUpdateState = null;
+let nextResponse = null;
+const alerts = [];
+const activities = [];
+let selfUpdatePolls = 0;
+const managerActionIsMutating = () => true;
+const managerIdentityAllowsMutations = () => true;
+const renderManagerStatus = () => {{}};
+const confirm = () => true;
+const actionDisplayName = action => action;
+const setManagerActivity = message => activities.push(message);
+const clearManagerActivity = () => activities.push('cleared');
+const sendCommand = async () => nextResponse;
+const handleReleaseManagementAction = async () => nextResponse;
+const filterAndRender = () => {{}};
+const pollSelfUpdateStatus = () => {{ selfUpdatePolls += 1; }};
+const loadPlugins = async () => {{}};
+const alert = message => alerts.push(message);
+
+{handle_action}
+
+(async () => {{
+    nextResponse = {{
+        status: 'success',
+        message: 'Plugin installed.'
+    }};
+    await handleAction('install', 'ExamplePlugin');
+    if (alerts.length !== 1 || alerts[0] !== 'Plugin installed.') {{
+        throw new Error('ordinary plugin success did not show its alert');
+    }}
+
+    nextResponse = {{
+        status: 'success',
+        operation: 'self_update',
+        message: 'PyPluginStore update scheduled.',
+        self_update: {{phase: 'scheduled'}}
+    }};
+    await handleAction('update', managerKey);
+    if (alerts.length !== 1) {{
+        throw new Error('self-update leaked the generic success alert');
+    }}
+    if (selfUpdatePolls !== 1) {{
+        throw new Error('self-update status polling was not started');
+    }}
+    if (!activities.includes('Updating PyPluginStore...')) {{
+        throw new Error('self-update activity was not kept inline');
+    }}
+}})().catch(error => {{
+    console.error(error);
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_send_command_concurrency_guard_is_silent_and_does_not_dispatch():
+    send_command = extract_js_function(load_inline_script(), "sendCommand")
+    node_script = f"""
+let isLoading = true;
+let managerIdentityVerdict = {{
+    state: 'consistent',
+    mutations_allowed: true
+}};
+let fetchCalls = 0;
+let alertCalls = 0;
+const managerActionIsMutating = () => false;
+const managerIdentityAllowsMutations = () => true;
+const renderManagerStatus = () => {{}};
+const fetch = async () => {{ fetchCalls += 1; }};
+const alert = () => {{ alertCalls += 1; }};
+
+{send_command}
+
+(async () => {{
+    const response = await sendCommand('list_plugins', {{}});
+    if (fetchCalls !== 0) {{
+        throw new Error('concurrent command reached the API bridge');
+    }}
+    if (alertCalls !== 0) {{
+        throw new Error('concurrent command used a modal alert');
+    }}
+    if (response !== null && response !== undefined) {{
+        throw new Error('silent guard returned an actionable response');
+    }}
+}})().catch(error => {{
+    console.error(error);
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+    assert "operation is already in progress" not in send_command.lower()
+    assert "setCommandBusy(true)" in send_command
+    assert "setCommandBusy(false)" in send_command
+    assert "setManagerActivity" not in send_command
+    assert "clearManagerActivity" not in send_command
+
+
+def test_command_busy_layer_disables_entries_and_preserves_control_state():
+    script = load_inline_script()
+    busy_layer = "\n".join(
+        extract_js_function(script, function_name)
+        for function_name in (
+            "managerControlsAreBusy",
+            "setManagerBusyDisabled",
+            "updateManagerBusyControls",
+            "setCommandBusy",
+        )
+    )
+    required_selectors = [
+        "button[data-action]",
+        "manage-local-registry",
+        "refresh-update-status",
+        "restart-domoticz",
+        "local-registry-reload",
+        "local-registry-add",
+        "local-registry-save",
+        "local-registry-edit",
+        "local-registry-delete",
+    ]
+    for selector in required_selectors:
+        assert selector in script
+
+    node_script = f"""
+let isLoading = false;
+let managerActivityActive = false;
+let managerStatusDetail = '';
+const MANAGER_COMMAND_CONTROL_SELECTOR = 'button';
+const enabled = {{
+    disabled: false,
+    title: 'Update available',
+    dataset: {{}}
+}};
+const preDisabled = {{
+    disabled: true,
+    title: 'Restart required',
+    dataset: {{}}
+}};
+const controls = [enabled, preDisabled];
+const attributes = {{}};
+const root = {{
+    querySelectorAll: () => controls,
+    setAttribute: (name, value) => {{ attributes[name] = value; }},
+    removeAttribute: name => {{ delete attributes[name]; }}
+}};
+const document = {{
+    getElementById: id => id === 'pypluginstore-container' ? root : null,
+    querySelectorAll: () => controls
+}};
+const updateManagerMutationControls = () => {{}};
+const updateLocalRegistryMutationState = () => {{}};
+
+{busy_layer}
+
+setCommandBusy(true);
+if (!enabled.disabled || !preDisabled.disabled) {{
+    throw new Error('busy state did not disable every command entry');
+}}
+if (attributes['aria-busy'] !== 'true') {{
+    throw new Error('busy state was not exposed accessibly');
+}}
+managerActivityActive = true;
+setCommandBusy(false);
+if (!enabled.disabled || attributes['aria-busy'] !== 'true') {{
+    throw new Error('command completion cleared caller-owned activity');
+}}
+managerActivityActive = false;
+updateManagerBusyControls();
+if (enabled.disabled) {{
+    throw new Error('previously enabled control was not restored');
+}}
+if (!preDisabled.disabled || preDisabled.title !== 'Restart required') {{
+    throw new Error('pre-disabled control state was overwritten');
+}}
+if (Object.prototype.hasOwnProperty.call(attributes, 'aria-busy')) {{
+    throw new Error('aria-busy was not cleared');
+}}
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+    assert "setManagerActivity" not in busy_layer
+    assert "clearManagerActivity" not in busy_layer
+
+
+def test_payload_is_cleared_only_after_a_matched_response():
+    script = load_inline_script()
+    send_command = extract_js_function(script, "sendCommand")
+    poll_response = extract_js_function(script, "pollResponse")
+
+    assert "clearApiBridgePayload" not in send_command
+    assert "await clearApiBridgePayload(requestTimeoutMs);" in poll_response
+    matched_response = poll_response.index(
+        "if (isExpectedActionResponse || isExpectedErrorResponse)"
+    )
+    matched_clear = poll_response.index(
+        "await clearApiBridgePayload(requestTimeoutMs);",
+        matched_response,
+    )
+    assert matched_response < matched_clear
+
+
+def test_restart_recovery_state_machine_is_bounded_and_build_aware():
+    script = load_inline_script()
+    matches = extract_js_function(
+        script,
+        "restartRecoveryResponseMatches",
+    )
+    recovery = extract_js_function(script, "waitForRestartRecovery")
+    node_script = f"""
+const RESTART_RECOVERY_DEADLINE_MS = 120000;
+const RESTART_RECOVERY_MAX_PROBES = 24;
+const RESTART_RECOVERY_RETRY_MS = 5000;
+const RESTART_RECOVERY_MAX_RETRY_MS = 15000;
+const probeRestartRecoveryBackend = async () => null;
+const console = {{warn: () => {{}}}};
+{matches}
+{recovery}
+
+(async () => {{
+    const expectedBuild = 'b'.repeat(64);
+    const previousRuntime = 'runtime-before-restart';
+    const transitions = [];
+    let probes = 0;
+    let clock = 0;
+    const responses = [
+        new Error('offline'),
+        {{
+            status: 'success',
+            manager_identity: {{
+                state: 'restart_required',
+                runtime_instance_id: previousRuntime,
+                runtime: {{build_id: 'a'.repeat(64)}},
+                matches: {{backend_installed: false}}
+            }}
+        }},
+        {{
+            status: 'success',
+            manager_identity: {{
+                state: 'consistent',
+                runtime_instance_id: previousRuntime,
+                runtime: {{build_id: expectedBuild}},
+                matches: {{backend_installed: true}}
+            }}
+        }},
+        {{
+            status: 'success',
+            manager_identity: {{
+                state: 'frontend_stale',
+                runtime_instance_id: 'runtime-after-restart',
+                runtime: {{build_id: expectedBuild}},
+                matches: {{backend_installed: true}}
+            }}
+        }}
+    ];
+    const recovered = await waitForRestartRecovery(expectedBuild, {{
+        deadlineMs: 60000,
+        maxProbes: 6,
+        pollIntervalMs: 5000,
+        previousRuntimeInstanceId: previousRuntime,
+        now: () => clock,
+        sleep: async delay => {{ clock += delay; }},
+        probe: async () => {{
+            probes += 1;
+            const response = responses.shift();
+            if (response instanceof Error) throw response;
+            return response;
+        }},
+        onTransition: state => transitions.push(state)
+    }});
+    for (const state of ['waiting', 'verifying', 'recovered']) {{
+        if (!transitions.includes(state)) {{
+            throw new Error(`missing restart transition ${{state}}`);
+        }}
+    }}
+    if (recovered.phase !== 'recovered' || probes !== 4) {{
+        throw new Error('new runtime and installed build were not both verified');
+    }}
+
+    const timeoutTransitions = [];
+    probes = 0;
+    clock = 0;
+    const timedOut = await waitForRestartRecovery(expectedBuild, {{
+        deadlineMs: 12000,
+        maxProbes: 2,
+        pollIntervalMs: 5000,
+        previousRuntimeInstanceId: previousRuntime,
+        now: () => clock,
+        sleep: async delay => {{ clock += delay; }},
+        probe: async () => {{
+            probes += 1;
+            return {{
+                status: 'success',
+                manager_identity: {{
+                    state: 'restart_required',
+                    runtime_instance_id: previousRuntime,
+                    runtime: {{build_id: 'c'.repeat(64)}},
+                    matches: {{backend_installed: false}}
+                }}
+            }};
+        }},
+        onTransition: state => timeoutTransitions.push(state)
+    }});
+    if (timedOut.phase !== 'timed_out') {{
+        throw new Error('restart recovery did not time out explicitly');
+    }}
+    if (!timeoutTransitions.includes('timed_out') || probes > 2) {{
+        throw new Error('restart probes were not bounded');
+    }}
+}})().catch(error => {{
+    console.error(error);
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+    assert "const deadline" in recovery
+
+
+def test_restart_recovery_clears_activity_only_after_expected_build():
+    restart = extract_js_function(load_inline_script(), "restartDomoticz")
+
+    expected_build = "managerIdentityVerdict.installed.build_id"
+    assert expected_build in restart
+    assert "managerIdentityVerdict.runtime_instance_id" in restart
+    assert "previousRuntimeInstanceId" in restart
+    wait_position = restart.index("await waitForRestartRecovery")
+    apply_position = restart.index("applyLoadedPlugins", wait_position)
+    clear_position = restart.index("clearManagerActivity", apply_position)
+    assert wait_position < apply_position < clear_position
+    assert "Hard-refresh" not in restart
+    assert "hard-refresh" not in restart
+    assert "recovery.phase === 'recovered'" in restart
+    assert "setManagerActivity" in restart
+    assert "setManagerNotice" in restart
+    assert "did not finish restarting" in restart
+    assert "Retry the restart" in restart
+
+
+def test_self_update_polling_is_five_seconds_bounded_and_clears_exhaustion():
+    poll = extract_js_function(load_inline_script(), "pollSelfUpdateStatus")
+    node_script = f"""
+const SELF_UPDATE_STATUS_POLL_INTERVAL_MS = 5000;
+const SELF_UPDATE_STATUS_MAX_ATTEMPTS = 12;
+const SELF_UPDATE_STATUS_DEADLINE_MS = 180000;
+const RESTART_RECOVERY_REQUEST_TIMEOUT_MS = 2000;
+let selfUpdateState = null;
+const delays = [];
+let calls = 0;
+let notices = 0;
+const setTimeout = (resolve, delay) => {{
+    delays.push(delay);
+    resolve();
+}};
+const sendCommand = async () => {{
+    calls += 1;
+    return {{
+        status: 'success',
+        self_update: {{phase: 'running'}}
+    }};
+}};
+const setManagerActivity = () => {{}};
+const clearManagerActivity = () => {{}};
+const setManagerNotice = () => {{ notices += 1; }};
+const filterAndRender = () => {{}};
+const selfUpdateIsActive = () => true;
+const console = {{warn: () => {{}}}};
+
+{poll}
+
+(async () => {{
+    await pollSelfUpdateStatus(3);
+    if (calls !== 3) {{
+        throw new Error(`expected three bounded probes, got ${{calls}}`);
+    }}
+    if (delays.length !== 3 || delays.some(delay => delay !== 5000)) {{
+        throw new Error(`unexpected poll delays: ${{JSON.stringify(delays)}}`);
+    }}
+    if (notices !== 1) {{
+        throw new Error('poll exhaustion did not restore controls with a notice');
+    }}
+}})().catch(error => {{
+    process.stderr.write(error.stack + '\\n');
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_fetch_with_timeout_bounds_fetch_and_json_without_abort_controller():
+    fetch_with_timeout = extract_js_function(
+        load_inline_script(),
+        "fetchWithTimeout",
+    )
+    node_script = f"""
+const AbortController = undefined;
+let fetchMode = 'fetch';
+let jsonCalls = 0;
+const fetch = async () => {{
+    if (fetchMode === 'fetch') return await new Promise(() => {{}});
+    return {{
+        ok: true,
+        json: async () => {{
+            jsonCalls += 1;
+            return await new Promise(() => {{}});
+        }}
+    }};
+}};
+const setTimeout = callback => {{
+    queueMicrotask(callback);
+    return 1;
+}};
+const clearTimeout = () => {{}};
+
+{fetch_with_timeout}
+
+async function expectTimeout(label, operation) {{
+    try {{
+        await operation();
+    }} catch (error) {{
+        if (!String(error.message).includes('timed out')) {{
+            throw new Error(label + ' rejected for the wrong reason');
+        }}
+        return;
+    }}
+    throw new Error(label + ' was not bounded by the timeout');
+}}
+
+(async () => {{
+    await expectTimeout(
+        'never-resolving fetch',
+        () => fetchWithTimeout('/probe', 5)
+    );
+    fetchMode = 'json';
+    await expectTimeout(
+        'never-resolving response.json',
+        () => fetchWithTimeout('/probe', 5, {{parseJson: true}})
+    );
+    if (jsonCalls !== 1) {{
+        throw new Error('response.json was not included in the request bound');
+    }}
+}})().catch(error => {{
+    process.stderr.write(error.stack + '\\n');
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_restart_recovery_rejects_invalid_or_late_matching_responses():
+    script = load_inline_script()
+    matches = extract_js_function(
+        script,
+        "restartRecoveryResponseMatches",
+    )
+    recovery = extract_js_function(script, "waitForRestartRecovery")
+    node_script = f"""
+const RESTART_RECOVERY_DEADLINE_MS = 120000;
+const RESTART_RECOVERY_MAX_PROBES = 24;
+const RESTART_RECOVERY_RETRY_MS = 5000;
+const RESTART_RECOVERY_MAX_RETRY_MS = 15000;
+const probeRestartRecoveryBackend = async () => null;
+const console = {{warn: () => {{}}}};
+{matches}
+{recovery}
+
+const expectedBuild = 'b'.repeat(64);
+const oldRuntime = 'runtime-before';
+const matchingResponse = {{
+    status: 'success',
+    manager_identity: {{
+        state: 'frontend_stale',
+        runtime_instance_id: 'runtime-after',
+        runtime: {{build_id: expectedBuild}},
+        matches: {{backend_installed: true}}
+    }}
+}};
+const rejectedCases = [
+    [
+        'same runtime nonce',
+        {{
+            ...matchingResponse,
+            manager_identity: {{
+                ...matchingResponse.manager_identity,
+                runtime_instance_id: oldRuntime
+            }}
+        }},
+        expectedBuild,
+        oldRuntime
+    ],
+    ['empty target build', matchingResponse, '', oldRuntime],
+    ['empty previous nonce', matchingResponse, expectedBuild, ''],
+    [
+        'unexpected build',
+        {{
+            ...matchingResponse,
+            manager_identity: {{
+                ...matchingResponse.manager_identity,
+                runtime: {{build_id: 'c'.repeat(64)}}
+            }}
+        }},
+        expectedBuild,
+        oldRuntime
+    ]
+];
+for (const [label, response, target, previous] of rejectedCases) {{
+    if (restartRecoveryResponseMatches(response, target, previous)) {{
+        throw new Error(label + ' was accepted');
+    }}
+}}
+
+(async () => {{
+    let clock = 0;
+    const result = await waitForRestartRecovery(expectedBuild, {{
+        deadlineMs: 100,
+        maxProbes: 1,
+        pollIntervalMs: 0,
+        maxPollIntervalMs: 0,
+        previousRuntimeInstanceId: oldRuntime,
+        now: () => clock,
+        sleep: async () => {{}},
+        probe: async () => {{
+            clock = 101;
+            return matchingResponse;
+        }}
+    }});
+    if (result.phase !== 'timed_out') {{
+        throw new Error('a response completing after the deadline was accepted');
+    }}
+}})().catch(error => {{
+    process.stderr.write(error.stack + '\\n');
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_restart_probe_is_lightweight_and_reuses_cached_bridge_ids():
+    probe = extract_js_function(
+        load_inline_script(),
+        "probeRestartRecoveryBackend",
+    )
+    node_script = f"""
+const RESTART_RECOVERY_COMMAND_RETRIES = 2;
+const RESTART_RECOVERY_REQUEST_TIMEOUT_MS = 2000;
+let payloadIdx = '10';
+let triggerIdx = '11';
+let discoveryCalls = 0;
+const commands = [];
+const findApiBridgeDevices = async () => {{ discoveryCalls += 1; }};
+const sendCommand = async (action, data, options) => {{
+    commands.push({{action, data, options}});
+    return {{status: 'success'}};
+}};
+const console = {{warn: () => {{}}}};
+
+{probe}
+
+(async () => {{
+    await probeRestartRecoveryBackend();
+    if (discoveryCalls !== 0) {{
+        throw new Error('cached bridge IDs triggered rediscovery');
+    }}
+    if (
+        commands.length !== 1
+        || commands[0].action !== 'self_update_status'
+    ) {{
+        throw new Error('restart probe used a heavyweight command');
+    }}
+    if (
+        commands[0].options.retries !== RESTART_RECOVERY_COMMAND_RETRIES
+        || commands[0].options.requestTimeoutMs
+            !== RESTART_RECOVERY_REQUEST_TIMEOUT_MS
+    ) {{
+        throw new Error('restart probe did not use its bounded options');
+    }}
+}})().catch(error => {{
+    process.stderr.write(error.stack + '\\n');
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_restart_loads_plugins_once_and_only_after_verified_recovery():
+    restart = extract_js_function(load_inline_script(), "restartDomoticz")
+    node_script = f"""
+let managerIdentityVerdict = {{
+    installed: {{build_id: 'b'.repeat(64)}},
+    runtime_instance_id: 'runtime-before'
+}};
+const actions = [];
+let actionsSeenByRecovery = null;
+let applied = 0;
+let cleared = 0;
+const confirm = () => true;
+const setManagerActivity = () => {{}};
+const setManagerNotice = message => {{
+    throw new Error('unexpected notice: ' + message);
+}};
+const alert = message => {{
+    throw new Error('unexpected alert: ' + message);
+}};
+const sendCommand = async action => {{
+    actions.push(action);
+    return action === 'restart_domoticz'
+        ? {{status: 'success'}}
+        : {{status: 'success', data: {{}}}};
+}};
+const waitForRestartRecovery = async () => {{
+    actionsSeenByRecovery = actions.slice();
+    return {{
+        phase: 'recovered',
+        response: {{status: 'success'}}
+    }};
+}};
+const applyLoadedPlugins = () => {{ applied += 1; }};
+const clearManagerActivity = () => {{ cleared += 1; }};
+const console = {{warn: () => {{}}}};
+
+{restart}
+
+(async () => {{
+    await restartDomoticz();
+    if (JSON.stringify(actionsSeenByRecovery) !== '["restart_domoticz"]') {{
+        throw new Error('plugin list was fetched before verified recovery');
+    }}
+    if (
+        actions.filter(action => action === 'list_plugins').length !== 1
+        || actions[actions.length - 1] !== 'list_plugins'
+    ) {{
+        throw new Error('plugin list was not fetched exactly once after recovery');
+    }}
+    if (applied !== 1 || cleared !== 1) {{
+        throw new Error('verified plugin state was not applied exactly once');
+    }}
+}})().catch(error => {{
+    process.stderr.write(error.stack + '\\n');
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_busy_and_identity_layers_compose_in_both_directions():
+    script = load_inline_script()
+    functions = "\n".join(
+        extract_js_function(script, function_name)
+        for function_name in (
+            "managerIdentityAllowsMutations",
+            "managerActionIsMutating",
+            "managerControlsAreBusy",
+            "setManagerBusyDisabled",
+            "updateManagerBusyControls",
+            "setCommandBusy",
+            "setManagerIdentityDisabled",
+            "updateManagerMutationControls",
+        )
+    )
+    node_script = f"""
+let isLoading = false;
+let managerActivityActive = false;
+let managerStatusDetail = '';
+let localRegistryReadOnly = false;
+let managerIdentityVerdict = {{
+    state: 'consistent',
+    mutations_allowed: true,
+    message: ''
+}};
+const MANAGER_COMMAND_CONTROL_SELECTOR = 'button';
+const controls = [];
+const root = {{
+    setAttribute: () => {{}},
+    removeAttribute: () => {{}}
+}};
+const document = {{
+    querySelectorAll: () => controls,
+    getElementById: id => id === 'pypluginstore-container' ? root : null
+}};
+const makeControl = () => ({{
+    disabled: false,
+    title: 'original',
+    dataset: {{action: 'update'}}
+}});
+
+{functions}
+
+const identityFirst = makeControl();
+controls.push(identityFirst);
+managerIdentityVerdict = {{
+    state: 'frontend_stale',
+    mutations_allowed: false,
+    message: 'Hard-refresh.'
+}};
+updateManagerMutationControls();
+setCommandBusy(true);
+managerIdentityVerdict = {{
+    state: 'consistent',
+    mutations_allowed: true,
+    message: ''
+}};
+updateManagerMutationControls();
+setCommandBusy(false);
+if (identityFirst.disabled) {{
+    throw new Error('busy release resurrected an old identity block');
+}}
+
+const busyFirst = makeControl();
+controls.splice(0, controls.length, busyFirst);
+setCommandBusy(true);
+managerIdentityVerdict = {{
+    state: 'frontend_stale',
+    mutations_allowed: false,
+    message: 'Hard-refresh.'
+}};
+updateManagerMutationControls();
+setCommandBusy(false);
+if (!busyFirst.disabled || busyFirst.title !== 'Hard-refresh.') {{
+    throw new Error('identity block was lost when busy state cleared');
+}}
+managerIdentityVerdict = {{
+    state: 'consistent',
+    mutations_allowed: true,
+    message: ''
+}};
+updateManagerMutationControls();
+if (busyFirst.disabled || busyFirst.title !== 'original') {{
+    throw new Error('identity release did not restore the base control state');
+}}
+
+setCommandBusy(true);
+const dynamic = makeControl();
+controls.push(dynamic);
+updateManagerBusyControls();
+if (!dynamic.disabled) {{
+    throw new Error('dynamically added command control stayed enabled');
+}}
+setCommandBusy(false);
+if (dynamic.disabled || dynamic.title !== 'original') {{
+    throw new Error('dynamic control was not safely restored');
+}}
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("terminal_phase", ["failed", "stale_unknown"])
+def test_terminal_self_update_becomes_inline_notice_and_releases_controls(
+    terminal_phase,
+):
+    script = load_inline_script()
+    functions = "\n".join(
+        extract_js_function(script, function_name)
+        for function_name in (
+            "managerIdentityAllowsMutations",
+            "managerActionIsMutating",
+            "managerControlsAreBusy",
+            "setManagerBusyDisabled",
+            "updateManagerBusyControls",
+            "setManagerIdentityDisabled",
+            "updateManagerMutationControls",
+            "renderManagerStatus",
+            "setManagerActivity",
+            "setManagerNotice",
+            "selfUpdatePhase",
+            "selfUpdateIsActive",
+            "pollSelfUpdateStatus",
+        )
+    )
+    node_script = f"""
+const SELF_UPDATE_STATUS_POLL_INTERVAL_MS = 5000;
+const SELF_UPDATE_STATUS_MAX_ATTEMPTS = 12;
+const SELF_UPDATE_STATUS_DEADLINE_MS = 180000;
+const RESTART_RECOVERY_REQUEST_TIMEOUT_MS = 2000;
+const MANAGER_COMMAND_CONTROL_SELECTOR = 'button';
+let isLoading = false;
+let managerActivityActive = false;
+let managerStatusDetail = '';
+let localRegistryReadOnly = false;
+let selfUpdateState = null;
+let managerIdentityVerdict = {{
+    state: 'consistent',
+    mutations_allowed: true,
+    message: ''
+}};
+const control = {{
+    disabled: false,
+    title: 'Update',
+    dataset: {{action: 'update'}}
+}};
+const root = {{
+    setAttribute: () => {{}},
+    removeAttribute: () => {{}}
+}};
+const statusMessages = [];
+const document = {{
+    querySelectorAll: () => [control],
+    getElementById: id => id === 'pypluginstore-container' ? root : null
+}};
+const setStatus = message => statusMessages.push(message);
+const setTimeout = resolve => resolve();
+const filterAndRender = () => {{}};
+const clearManagerActivity = () => {{
+    throw new Error('terminal failure was cleared instead of retained');
+}};
+const sendCommand = async () => ({{
+    status: 'success',
+    self_update: {{
+        phase: {json.dumps(terminal_phase)},
+        message: 'Update needs attention.'
+    }}
+}});
+const console = {{warn: () => {{}}}};
+
+{functions}
+
+(async () => {{
+    setManagerActivity('Updating PyPluginStore...');
+    if (!control.disabled || !managerActivityActive) {{
+        throw new Error('test did not begin in an active state');
+    }}
+    await pollSelfUpdateStatus(1);
+    if (managerActivityActive || control.disabled) {{
+        throw new Error('terminal self-update did not release controls');
+    }}
+    if (
+        managerStatusDetail !== 'Update needs attention.'
+        || statusMessages[statusMessages.length - 1]
+            !== 'Update needs attention.'
+    ) {{
+        throw new Error('terminal self-update was not retained inline');
+    }}
+}})().catch(error => {{
+    process.stderr.write(error.stack + '\\n');
+    process.exit(1);
+}});
+"""
+
+    result = run_node_script(node_script)
+    assert result.returncode == 0, result.stderr
+
+
+def test_manager_status_is_an_accessible_polite_live_region():
+    html = (REPO_ROOT / "pypluginstore.html").read_text(encoding="utf-8")
+    status_start = html.index('<div id="pypluginstore-status"')
+    status_end = html.index(">", status_start)
+    status_tag = html[status_start:status_end]
+
+    assert 'role="status"' in status_tag
+    assert 'aria-live="polite"' in status_tag
+    assert 'aria-atomic="true"' in status_tag
 
 
 def run_node_script(source):
