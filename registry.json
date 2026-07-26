@@ -1179,31 +1179,6 @@
       }
     },
     {
-      "package_id": "Domoticz-Python-Plugin-Template",
-      "domoticz_key": "Your-Plugin-Key",
-      "description": "Template repository for making Domoticz Python Plugins",
-      "repository": {
-        "url": "https://github.com/galadril/Domoticz-Python-Plugin-Template",
-        "branch": "main"
-      },
-      "platforms": [
-        "linux",
-        "windows"
-      ],
-      "delivery": {
-        "preferred": "release_if_indexed",
-        "git_supported": true,
-        "release": {
-          "provider": "github",
-          "channel": "stable",
-          "tag_pattern": "^v\\.[0-9]+(?:\\.[0-9]+){1,3}$",
-          "artifact": "source_zip",
-          "source_path": ".",
-          "mutable_paths": []
-        }
-      }
-    },
-    {
       "package_id": "Domoticz-RAVEn-Plugin",
       "domoticz_key": "RAVEn",
       "description": "Python plugin alternative to the built in RAVEn Zigbee power consumption monitor",

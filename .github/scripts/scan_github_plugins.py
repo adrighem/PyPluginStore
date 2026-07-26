@@ -57,10 +57,11 @@ RECOGNIZED_STABLE_TAG_PATTERNS = (
 
 # Repositories that should never be added to or kept in the registry.
 REPO_BLOCKLIST = {
-    "ycahome/pp-manager",
     "adrighem/pp-manager",
     "adrighem/pypluginstore",
     "domoticz/domoticz",
+    "galadril/domoticz-python-plugin-template",
+    "ycahome/pp-manager",
 }
 
 def is_valid_plugin_repo(repo_name):

@@ -1,7 +1,7 @@
 {
   "expires_at": "2026-08-02T06:44:35Z",
   "generated_at": "2026-07-26T06:44:35Z",
-  "registry_sha256": "d9d0182dbb0ccc853a518fa74e79518420e4b48c84a1970c63b3a817d1d9f889",
+  "registry_sha256": "d0ef0bfb729ab6137287f47ddc0bc2cfac151bad59f0061a66e215b92e691be9",
   "releases": [
     {
       "artifact": {
@@ -181,36 +181,6 @@
       "revision": 1,
       "supersedes": [],
       "tag": "v0.0.1",
-      "version": "0.0.1"
-    },
-    {
-      "artifact": {
-        "kind": "source_zip",
-        "migration": {
-          "evidence": "commit_source_archive",
-          "mode": "automatic"
-        },
-        "provenance": "forge_source_archive",
-        "root_prefix": "galadril-Domoticz-Python-Plugin-Template-43674e8",
-        "sha256": "bff367aa03ab5a82f45de538459900ae4bd85624be21bfd944ad644ca4475354",
-        "size": 4838,
-        "source_path": ".",
-        "tree_sha256": "0757db684d8f1005e9cd513b7285c989ae82f207ea77bd0af9d4011144f56ef6",
-        "url": "https://api.github.com/repos/galadril/domoticz-python-plugin-template/zipball/43674e81363f867b682582ed3de1b94c3e567249"
-      },
-      "certified_identity": {
-        "domoticz_key": "Your-Plugin-Key",
-        "plugin_py_sha256": "5f45d88d75a0622f02606e0d86493f7f2dbd977fd85827c5383dd23f92a364bc"
-      },
-      "commit": "43674e81363f867b682582ed3de1b94c3e567249",
-      "package_id": "Domoticz-Python-Plugin-Template",
-      "provider": "github",
-      "release_id": "github:galadril/domoticz-python-plugin-template:v.0.0.1",
-      "released_at": "2025-01-08T10:05:44Z",
-      "repository_identity": "github.com/galadril/domoticz-python-plugin-template",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v.0.0.1",
       "version": "0.0.1"
     },
     {

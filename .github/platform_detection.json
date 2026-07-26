@@ -1612,21 +1612,6 @@
       "source": "legacy_detected"
     },
     {
-      "branch": "main",
-      "confidence": "unknown",
-      "evidence_class": "legacy",
-      "identity": "github.com/galadril/domoticz-python-plugin-template@main",
-      "owner": "galadril",
-      "package_id": "Domoticz-Python-Plugin-Template",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "Domoticz-Python-Plugin-Template",
-      "reviewed": false,
-      "source": "legacy_detected"
-    },
-    {
       "branch": "master",
       "confidence": "unknown",
       "evidence_class": "legacy",
