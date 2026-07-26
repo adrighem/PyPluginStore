@@ -6,7 +6,7 @@
 #
 
 """
-<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="2.24.0" externallink="https://forum.domoticz.com/viewtopic.php?t=44626"> <!-- x-release-please-version -->
+<plugin key="PP-MANAGER" name="PyPluginStore" author="adrighem" version="2.24.1" externallink="https://forum.domoticz.com/viewtopic.php?t=44626"> <!-- x-release-please-version -->
     <description>
         <h2>PyPluginStore</h2><br/>
         This plugin manages other Domoticz Python plugins.<br/><br/>
@@ -37,7 +37,7 @@
     </params>
 </plugin>
 """
-PYPLUGINSTORE_VERSION = "2.24.0"  # x-release-please-version
+PYPLUGINSTORE_VERSION = "2.24.1"  # x-release-please-version
 
 
 
