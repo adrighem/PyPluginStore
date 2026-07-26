@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.24.0](https://github.com/adrighem/PyPluginStore/compare/v2.23.0...v2.24.0) (2026-07-26)
+
+
+### Features
+
+* **releases:** switch Git installations directly to the latest host-certified release ([9557d44](https://github.com/adrighem/PyPluginStore/commit/9557d446ae7166f52923a7102be673044eb3f66d))
+* **dependencies:** build immutable shared generations with uv copy mode ([b041e3e](https://github.com/adrighem/PyPluginStore/commit/b041e3eaef492ffdc40e4f4d965cda6d3e65d875))
+* **lifecycle:** recover interrupted code and dependency activations ([1d99be3](https://github.com/adrighem/PyPluginStore/commit/1d99be3eecc777ad1888e013f707bc21f31c16d0))
+* **ui:** use backend-owned actions and actionable lifecycle status ([960eca9](https://github.com/adrighem/PyPluginStore/commit/960eca9abc8989c772c30313aca5e97d6237eb0a), [0b72610](https://github.com/adrighem/PyPluginStore/commit/0b726105dbbba5e8df43b1423e8906d6a598ec))
+* **ui:** show transient activity and bound restart recovery ([b475c83](https://github.com/adrighem/PyPluginStore/commit/b475c830e368f3621ee7fc8db091e5dbdd93a628), [4182f8d](https://github.com/adrighem/PyPluginStore/commit/4182f8d1ff6a68f86fc6c7cedb1bec5b2e0d9045))
+* update Domoticz Python plugin registry ([6a300c2](https://github.com/adrighem/PyPluginStore/commit/6a300c21dcd1f925735a3adfff04d8bf5a8a132b))
+
+
+### Bug Fixes
+
+* **scanner:** exclude plugin template repository ([53eca9d](https://github.com/adrighem/PyPluginStore/commit/53eca9d3ea62cfa8b443173a699dd3e724ea6c32))
+
+
+### Documentation
+
+* **releases:** describe unified host lifecycle ([be3f9e8](https://github.com/adrighem/PyPluginStore/commit/be3f9e8e485b1a12943f350e8efe6dc6a5a4693a))
+
 ## [2.23.0](https://github.com/adrighem/PyPluginStore/compare/v2.22.5...v2.23.0) (2026-07-25)
 
 
