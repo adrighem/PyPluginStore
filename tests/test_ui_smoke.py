@@ -803,7 +803,7 @@ def test_manager_identity_verdict_disables_mutating_controls():
     assert "renderManagerStatus(" in apply_verdict
 
 
-def test_self_update_state_is_cached_polled_and_reported_in_main_status():
+def test_self_update_state_is_cached_polled_and_reported_as_activity():
     script = load_inline_script()
 
     assert "let selfUpdateState = null;" in script
@@ -822,11 +822,31 @@ def test_self_update_state_is_cached_polled_and_reported_in_main_status():
     ):
         function_source = extract_js_function(script, function_name)
         state_position = function_source.index("selfUpdateState =")
-        status_position = function_source.index(
-            "renderManagerStatus(",
-            state_position,
-        )
-        assert state_position < status_position
+        status_positions = [
+            position
+            for position in (
+                function_source.find("setManagerActivity(", state_position),
+                function_source.find("clearManagerActivity(", state_position),
+            )
+            if position >= 0
+        ]
+        assert status_positions
+        assert state_position < min(status_positions)
+
+
+def test_main_status_shows_transient_activity_and_clears_after_completion():
+    script = load_inline_script()
+    render_status = extract_js_function(script, "renderManagerStatus")
+    set_activity = extract_js_function(script, "setManagerActivity")
+    clear_activity = extract_js_function(script, "clearManagerActivity")
+
+    assert "managerStatusDetail" in render_status
+    assert "setStatus(managerStatusDetail)" in render_status
+    assert "managerStatusDetail =" in set_activity
+    assert "managerStatusDetail = ''" in clear_activity
+    assert 'setManagerActivity("Refreshing plugins...")' in script
+    assert 'setManagerActivity("Restarting Domoticz...")' in script
+    assert 'setManagerActivity("Loading plugins...")' in script
 
 
 def test_self_update_detail_card_rendering_is_removed_completely():

@@ -1365,8 +1365,11 @@
         });
     }
 
-    function renderManagerStatus(detailMessage) {
-        void detailMessage;
+    function renderManagerStatus() {
+        if (managerStatusDetail) {
+            setStatus(managerStatusDetail);
+            return;
+        }
         if (!managerIdentityVerdict) {
             setStatus('Initializing...');
             return;
@@ -1393,6 +1396,16 @@
             return;
         }
         setStatus(String(managerIdentityVerdict.message || '').trim());
+    }
+
+    function setManagerActivity(message) {
+        managerStatusDetail = String(message || '').trim();
+        renderManagerStatus();
+    }
+
+    function clearManagerActivity() {
+        managerStatusDetail = '';
+        renderManagerStatus();
     }
 
     function applyManagerIdentityVerdict(verdict) {
@@ -2567,12 +2580,12 @@
             filterAndRender();
         };
 
-        renderManagerStatus("Finding API bridge...");
+        setManagerActivity("Connecting to PyPluginStore...");
         try {
             await findApiBridgeDevices();
 
             if (!payloadIdx || !triggerIdx) {
-                renderManagerStatus("Error: PyPluginStore devices not found (" + (payloadIdx ? 'Y' : 'N') + "/" + (triggerIdx ? 'Y' : 'N') + "). Please ensure the plugin is added in Hardware.");
+                clearManagerActivity();
                 return;
             }
 
@@ -2580,7 +2593,7 @@
             loadPlugins();
         } catch (e) {
             console.error("Init Error:", e);
-            renderManagerStatus("Failed to initialize PyPluginStore: " + e.message);
+            clearManagerActivity();
         }
     }
 
@@ -2785,7 +2798,7 @@
     }
 
     async function loadPlugins() {
-        renderManagerStatus("Loading plugins from registry...");
+        setManagerActivity("Loading plugins...");
         try {
             const response = await sendCommand('list_plugins', {});
             if (response && response.status === 'success') {
@@ -2802,18 +2815,13 @@
                 installedScanError = String(response.installed_scan_error || '');
                 managerKey = response.manager_key || null;
                 selfUpdateState = response.self_update || null;
-                renderManagerStatus();
                 filterAndRender();
-                renderManagerStatus(
-                    installedScanError
-                        ? 'Installed plugin scan warning: ' + installedScanError
-                        : `Loaded ${Object.keys(response.data).length} plugins.`
-                );
+                clearManagerActivity();
             } else {
-                renderManagerStatus("Error loading plugins: " + (response ? response.message : "Unknown error"));
+                clearManagerActivity();
             }
         } catch (e) {
-            renderManagerStatus(e.message);
+            clearManagerActivity();
         }
     }
 
@@ -4010,7 +4018,7 @@
         }
 
         const actionName = actionDisplayName(action);
-        renderManagerStatus(`Executing ${actionName} for ${pluginKey}... This may take a moment.`);
+        setManagerActivity(`Executing ${actionName} for ${pluginKey}...`);
         try {
             const isReleaseManagementAction = ['update', 'use_release', 'rollback'].includes(action);
             const response = isReleaseManagementAction ?
@@ -4019,22 +4027,23 @@
             if (response && response.status === 'success') {
                 const successMessage = response.message || `Successfully completed ${actionName} for ${pluginKey}. Domoticz restart may be required.`;
                 alert(successMessage);
-                renderManagerStatus(successMessage);
                 if (response.operation === 'self_update') {
                     selfUpdateState = response.self_update || selfUpdateState;
-                    renderManagerStatus();
+                    setManagerActivity("Updating PyPluginStore...");
                     filterAndRender();
                     pollSelfUpdateStatus();
                 } else if (!(action === 'update' && pluginKey === managerKey)) {
                     await loadPlugins();
+                } else {
+                    clearManagerActivity();
                 }
             } else {
                 alert(`Error during ${actionName}: ` + (response ? response.message : "Unknown error"));
-                renderManagerStatus("Operation failed.");
+                clearManagerActivity();
             }
         } catch (e) {
             alert("Error: " + e.message);
-            renderManagerStatus("Operation failed.");
+            clearManagerActivity();
         }
     }
 
@@ -4045,10 +4054,10 @@
                 const response = await sendCommand('self_update_status', {}, { retries: 10 });
                 if (response && response.status === 'success') {
                     selfUpdateState = response.self_update || selfUpdateState;
-                    renderManagerStatus();
+                    setManagerActivity("Updating PyPluginStore...");
                     filterAndRender();
                     if (!selfUpdateIsActive(selfUpdateState)) {
-                        renderManagerStatus(selfUpdateState && selfUpdateState.message ? selfUpdateState.message : "Self-update status refreshed.");
+                        clearManagerActivity();
                         return;
                     }
                 }
@@ -4061,7 +4070,7 @@
     async function refreshUpdateStatus() {
         if (!pluginCache) return;
 
-        renderManagerStatus("Refreshing update status...");
+        setManagerActivity("Refreshing plugins...");
         try {
             const response = await sendCommand('refresh_update_status', {});
             if (response && response.status === 'success') {
@@ -4077,20 +4086,15 @@
                 installedScanError = String(response.installed_scan_error || '');
                 managerKey = response.manager_key || managerKey;
                 selfUpdateState = response.self_update || selfUpdateState;
-                renderManagerStatus();
                 filterAndRender();
-                renderManagerStatus(
-                    installedScanError
-                        ? 'Installed plugin scan warning: ' + installedScanError
-                        : 'Update status refreshed.'
-                );
+                clearManagerActivity();
             } else {
                 alert("Refresh failed: " + (response ? response.message : "Unknown error"));
-                renderManagerStatus("Refresh failed.");
+                clearManagerActivity();
             }
         } catch (e) {
             alert("Refresh failed: " + e.message);
-            renderManagerStatus("Refresh failed.");
+            clearManagerActivity();
         }
     }
 
@@ -4099,18 +4103,18 @@
             return;
         }
 
-        renderManagerStatus("Requesting Domoticz restart...");
+        setManagerActivity("Restarting Domoticz...");
         try {
             const response = await sendCommand('restart_domoticz', {});
             if (response && response.status === 'success') {
-                renderManagerStatus("Domoticz restart requested. Reconnect after the service comes back online.");
+                setManagerActivity("Restarting Domoticz...");
             } else {
                 alert("Restart request failed: " + (response ? response.message : "Unknown error"));
-                renderManagerStatus("Restart request failed.");
+                clearManagerActivity();
             }
         } catch (e) {
             alert("Restart request failed: " + e.message);
-            renderManagerStatus("Restart request failed.");
+            clearManagerActivity();
         }
     }
 

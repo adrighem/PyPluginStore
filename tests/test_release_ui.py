@@ -576,7 +576,9 @@ def test_ui_load_and_refresh_treat_management_map_as_optional_extension():
     )
     assert "installedScanError = String(response.installed_scan_error || '')" in load_plugins
     assert "response.installation_conflicts || installationConflictCache" in refresh
-    assert "installed plugin scan warning" in load_plugins.lower()
+    assert "installed plugin scan warning" not in load_plugins.lower()
+    assert 'setManagerActivity("Loading plugins...")' in load_plugins
+    assert "clearManagerActivity()" in load_plugins
     assert "installedCache.forEach" in filter_plugins
     assert "matchDetails.management_error" in filter_plugins
     assert "not present in the current registry" in filter_plugins
