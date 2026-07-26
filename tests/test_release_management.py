@@ -480,6 +480,55 @@ def test_fresh_index_missing_previously_activated_entry_still_fails_closed(
     assert decision.reason == "release_entry_missing"
 
 
+def test_expected_git_fallback_does_not_expose_missing_release_reason(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    decision = decide(
+        coordinator,
+        entry,
+        operation="status",
+        installed_mode="git",
+        release=None,
+        git_status="unknown",
+    )
+
+    assert decision.route == "git_status"
+    assert decision.status == "git_unknown"
+    assert decision.reason == "release_entry_missing"
+
+    state = {
+        "channel": "git",
+        "status": decision.status,
+        "updateable": True,
+        "verification_message": decision.reason,
+        "migration_message": "",
+        "restart_pending": False,
+        "rollback_available": False,
+        "git_supported": True,
+        "release_available": False,
+        "migration_action_state": "blocked",
+    }
+    presented = plugin_core_module.BasePlugin()._management_presentation(
+        state,
+        entry,
+        is_manager=False,
+    )
+
+    assert presented["summary"] == "Git - update status unknown"
+    assert "release_entry_missing" not in presented["summary"]
+    assert presented["verification_message"] == "release_entry_missing"
+    assert presented["actions"] == [
+        {
+            "id": "update",
+            "label": "Update",
+            "enabled": True,
+            "reason": "",
+        }
+    ]
+
+
 def test_higher_release_requires_complete_predecessor_lineage(
     plugin_core_module,
 ):

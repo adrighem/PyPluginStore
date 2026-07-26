@@ -427,6 +427,26 @@ def test_pip_and_uv_always_target_staging_never_live(
     assert tree_snapshot(transaction.paths.live_dependencies) == live_before
 
 
+def test_uv_discovery_uses_the_same_sanitized_path_as_execution(
+    plugin_core_module,
+    monkeypatch,
+):
+    calls = []
+
+    def which(command, *, path=None):
+        calls.append((command, path))
+        return "/usr/bin/uv"
+
+    monkeypatch.setattr(plugin_core_module.shutil, "which", which)
+
+    assert plugin_core_module._ReleaseDependencyCommandRunner().available(
+        "uv"
+    )
+    assert calls == [
+        ("uv", plugin_core_module.RELEASE_DEPENDENCY_INSTALLER_PATH)
+    ]
+
+
 def test_auto_installer_prefers_uv_then_falls_back_to_pip(
     plugin_core_module, tmp_path
 ):
@@ -794,10 +814,69 @@ def test_installer_failure_discards_stage_and_never_mutates_live(
     )
 
     assert "exit code 1" in error.message
+    assert "while resolving 1 plugin requirement file" in error.message
+    assert "safely recognizable cause" in error.message
+    assert "Raw installer output was not logged" in error.message
     assert "resolver failed" not in error.message
     assert tree_snapshot(transaction.paths.live_dependencies) == live_before
     assert not Path(transaction.paths.staged_dependencies).exists()
     assert transaction.phase == "dependency_blocked"
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        (
+            "No solution found when resolving dependencies",
+            "resolution_conflict",
+        ),
+        (
+            "No matching distribution found for example-package",
+            "package_not_found",
+        ),
+        (
+            "example-package Requires-Python >=3.14",
+            "python_incompatible",
+        ),
+        (
+            "certificate verify failed while downloading",
+            "network_tls",
+        ),
+        (
+            "temporary failure in name resolution",
+            "network_unavailable",
+        ),
+        (
+            "permission denied while creating target",
+            "permission_denied",
+        ),
+        (
+            "no space left on device",
+            "disk_full",
+        ),
+        (
+            "failed to build example-package",
+            "build_failed",
+        ),
+        (
+            "unexpected argument '--link-mode'",
+            "installer_incompatible",
+        ),
+        (
+            "SENSITIVE_INSTALLER_DETAIL",
+            "unknown",
+        ),
+    ],
+)
+def test_installer_failure_output_is_reduced_to_an_allowlisted_category(
+    plugin_core_module,
+    output,
+    expected,
+):
+    assert plugin_core_module.classify_release_dependency_failure(
+        "",
+        output,
+    ) == expected
 
 
 def test_validation_failure_discards_installed_stage_and_never_mutates_live(

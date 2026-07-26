@@ -923,6 +923,16 @@ const available = formatReleaseManagementStatus({
 if (available !== 'Git · Update available') {
     throw new Error(`available Git update rendered as "${available}"`);
 }
+const expectedFallback = formatReleaseManagementStatus({
+    channel: 'git',
+    status: 'git_unknown',
+    summary: 'Git - update status unknown',
+    verification_message: 'release_entry_missing'
+});
+if (expectedFallback !== 'Git - update status unknown' ||
+    expectedFallback.includes('release_entry_missing')) {
+    throw new Error(`Git fallback leaked internal state as "${expectedFallback}"`);
+}
 """
     )
 

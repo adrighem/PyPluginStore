@@ -11628,12 +11628,152 @@ class _ReleaseDependencyFilesystem:
             raise
 
 
+RELEASE_DEPENDENCY_INSTALLER_PATH = os.pathsep.join(
+    part
+    for part in ("/usr/local/bin", os.defpath)
+    if part
+)
+
+RELEASE_DEPENDENCY_FAILURE_PATTERNS = (
+    (
+        "disk_full",
+        (
+            "no space left on device",
+            "disk quota exceeded",
+        ),
+    ),
+    (
+        "permission_denied",
+        (
+            "permission denied",
+            "operation not permitted",
+            "not permitted",
+            "access is denied",
+            "read-only file system",
+        ),
+    ),
+    (
+        "network_tls",
+        (
+            "certificate verify failed",
+            "certificate verification failed",
+            "invalid peer certificate",
+            "tls certificate",
+            "ssl certificate",
+        ),
+    ),
+    (
+        "network_unavailable",
+        (
+            "timed out",
+            "timeout",
+            "temporary failure in name resolution",
+            "name or service not known",
+            "connection refused",
+            "connection reset",
+            "network is unreachable",
+            "failed to resolve host",
+            "dns error",
+        ),
+    ),
+    (
+        "python_incompatible",
+        (
+            "requires-python",
+            "requires python",
+            "not compatible with python",
+            "does not support python",
+            "unsupported python version",
+        ),
+    ),
+    (
+        "package_not_found",
+        (
+            "was not found in the package registry",
+            "no matching distribution found",
+            "could not find a version that satisfies the requirement",
+            "package not found",
+        ),
+    ),
+    (
+        "resolution_conflict",
+        (
+            "no solution found when resolving dependencies",
+            "resolution impossible",
+            "conflicting dependencies",
+            "dependency conflict",
+        ),
+    ),
+    (
+        "build_failed",
+        (
+            "failed to build",
+            "build backend failed",
+            "subprocess-exited-with-error",
+            "could not build wheels",
+        ),
+    ),
+    (
+        "installer_incompatible",
+        (
+            "unexpected argument",
+            "unrecognized arguments",
+            "no such option",
+        ),
+    ),
+)
+
+RELEASE_DEPENDENCY_FAILURE_MESSAGES = {
+    "disk_full": "The dependency filesystem is out of space.",
+    "permission_denied": (
+        "The dependency installer could not write its files."
+    ),
+    "network_tls": (
+        "The package index TLS certificate could not be verified."
+    ),
+    "network_unavailable": "The package index could not be reached.",
+    "python_incompatible": (
+        "A required package is incompatible with this Python version."
+    ),
+    "package_not_found": (
+        "A required package was not found in the configured package index."
+    ),
+    "resolution_conflict": (
+        "The installed plugins have incompatible dependency requirements."
+    ),
+    "build_failed": (
+        "A dependency package could not be built for this host."
+    ),
+    "installer_incompatible": (
+        "The dependency installer does not support the required command."
+    ),
+    "unknown": (
+        "The installer did not report a safely recognizable cause."
+    ),
+}
+
+
+def classify_release_dependency_failure(stdout, stderr):
+    """Classify installer output without retaining or returning raw text."""
+    output = "\n".join(
+        str(part or "")
+        for part in (stderr, stdout)
+    ).casefold()
+    for category, markers in RELEASE_DEPENDENCY_FAILURE_PATTERNS:
+        if any(marker in output for marker in markers):
+            return category
+    return "unknown"
+
+
 class _ReleaseDependencyCommandRunner:
     """Discover and execute supported dependency installers."""
 
     def available(self, command):
         if command == "uv":
-            return shutil.which("uv") is not None
+            return shutil.which(
+                "uv",
+                path=RELEASE_DEPENDENCY_INSTALLER_PATH,
+            ) is not None
         if command == "pip":
             try:
                 __import__("pip")
@@ -12013,13 +12153,8 @@ class ReleaseDependencySnapshotService:
             "installer-cache",
         )
         os.makedirs(cache_root, exist_ok=True)
-        path = os.pathsep.join(
-            part
-            for part in ("/usr/local/bin", os.defpath)
-            if part
-        )
         return {
-            "PATH": path,
+            "PATH": RELEASE_DEPENDENCY_INSTALLER_PATH,
             "LANG": "C.UTF-8",
             "LC_ALL": "C.UTF-8",
             "PYTHONUTF8": "1",
@@ -12207,12 +12342,29 @@ class ReleaseDependencySnapshotService:
                     + type(error).__name__,
                 )
             if completed.returncode != 0:
+                category = classify_release_dependency_failure(
+                    completed.stdout,
+                    completed.stderr,
+                )
+                requirement_count = len(requirements)
+                requirement_label = (
+                    "plugin requirement file"
+                    if requirement_count == 1
+                    else "plugin requirement files"
+                )
                 self._generation_error(
                     "install_failed",
-                    "Dependency installation failed with exit code "
+                    "Dependency installation failed using "
+                    + selected_installer
+                    + " with exit code "
                     + str(completed.returncode)
-                    + ". Installer output was withheld to avoid exposing "
-                    "credentials.",
+                    + " while resolving "
+                    + str(requirement_count)
+                    + " "
+                    + requirement_label
+                    + ". "
+                    + RELEASE_DEPENDENCY_FAILURE_MESSAGES[category]
+                    + " Raw installer output was not logged.",
                 )
         try:
             self._write_manifest(
@@ -18772,7 +18924,11 @@ class BasePlugin:
             summary = "Git - update status unknown"
         else:
             summary = channel + " - " + str(status).replace("_", " ")
-        if reason and status not in {
+        expected_git_fallback = (
+            state["channel"] == "git"
+            and reason == "release_entry_missing"
+        )
+        if reason and not expected_git_fallback and status not in {
             "current",
             "git_current",
             "available",
