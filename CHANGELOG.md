@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.24.0](https://github.com/adrighem/PyPluginStore/compare/v2.23.0...v2.24.0) (2026-07-26)
+
+
+### Features
+
+* update Domoticz Python plugin registry ([6a300c2](https://github.com/adrighem/PyPluginStore/commit/6a300c21dcd1f925735a3adfff04d8bf5a8a132b))
+
+
+### Bug Fixes
+
+* **scanner:** exclude plugin template repository ([53eca9d](https://github.com/adrighem/PyPluginStore/commit/53eca9d3ea62cfa8b443173a699dd3e724ea6c32))
+
+
+### Documentation
+
+* **releases:** describe unified host lifecycle ([be3f9e8](https://github.com/adrighem/PyPluginStore/commit/be3f9e8e485b1a12943f350e8efe6dc6a5a4693a))
+
 ## [2.23.0](https://github.com/adrighem/PyPluginStore/compare/v2.22.5...v2.23.0) (2026-07-25)
 
 
