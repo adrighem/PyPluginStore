@@ -1,6 +1,6 @@
 {
   "missing_certifications": [],
-  "package_count": 257,
+  "package_count": 256,
   "package_mappings": [
     {
       "domoticz_key": "RFSwitches",
@@ -701,13 +701,6 @@
       "package_id": "domoticz-python-melcloud",
       "plugin_py_sha256": "089cc075db94553bd9de61f51b9042ca431bfc104f9c3a08120ed7a9189bd428",
       "repository_identity": "github.com/gysmo38/domoticz-python-melcloud"
-    },
-    {
-      "domoticz_key": "Your-Plugin-Key",
-      "legacy_package_id": "Domoticz-Python-Plugin-Template",
-      "package_id": "Domoticz-Python-Plugin-Template",
-      "plugin_py_sha256": "5f45d88d75a0622f02606e0d86493f7f2dbd977fd85827c5383dd23f92a364bc",
-      "repository_identity": "github.com/galadril/domoticz-python-plugin-template"
     },
     {
       "domoticz_key": "RAVEn",

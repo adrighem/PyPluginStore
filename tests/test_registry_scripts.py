@@ -604,9 +604,35 @@ def test_scanner_explains_unscannable_repositories(scan_plugins_module, repo, ex
     assert scan_plugins_module.get_repo_skip_reason(repo) == expected
 
 
-def test_scanner_blocks_explicit_repositories(scan_plugins_module):
-    assert scan_plugins_module.get_repo_block_reason("domoticz", "domoticz") == "Repo blocklisted"
-    assert scan_plugins_module.get_repo_block_reason("owner", "repo") is None
+@pytest.mark.parametrize(
+    ("owner", "repository"),
+    [
+        ("domoticz", "domoticz"),
+        ("galadril", "Domoticz-Python-Plugin-Template"),
+        ("GaLaDrIl", "DOMOTICZ-PYTHON-PLUGIN-TEMPLATE"),
+    ],
+)
+def test_scanner_blocks_explicit_repositories(
+    scan_plugins_module,
+    owner,
+    repository,
+):
+    assert (
+        scan_plugins_module.get_repo_block_reason(owner, repository)
+        == "Repo blocklisted"
+    )
+
+
+def test_scanner_blocklist_matches_repository_identity_not_name(
+    scan_plugins_module,
+):
+    assert (
+        scan_plugins_module.get_repo_block_reason(
+            "another-owner",
+            "Domoticz-Python-Plugin-Template",
+        )
+        is None
+    )
 
 
 def test_scanner_normalizes_supported_host_registry_entries(scan_plugins_module):
@@ -1892,49 +1918,152 @@ def test_scanner_removes_empty_existing_repo_and_does_not_readd(scan_plugins_mod
     assert "Domoticz_integration" not in update_times
 
 
-def test_scanner_removes_blocklisted_existing_repo_and_does_not_readd(scan_plugins_module, tmp_path, monkeypatch):
+def test_scanner_removes_blocklisted_existing_repo_and_does_not_readd(
+    scan_plugins_module,
+    tmp_path,
+    monkeypatch,
+):
     registry_file = tmp_path / "registry.json"
     update_times_file = tmp_path / "update_times.json"
     metadata_file = tmp_path / "platform_detection.json"
     registry_file.write_text(json.dumps({
         "Idle": ["Idle", "Idle", "Idle", "master"],
-        "domoticz": [
-            "domoticz",
-            "domoticz",
-            "Free open source home automation system",
-            "development",
+        "TemplateAlias": [
+            "galadril",
+            "Domoticz-Python-Plugin-Template",
+            "Template repository for making Domoticz Python Plugins",
+            "main",
+            "",
+            ["linux", "windows"],
         ],
     }))
     update_times_file.write_text(json.dumps({
-        "domoticz": "2026-06-13T09:52:48Z",
+        "TemplateAlias": "2025-01-08T10:05:44Z",
+    }))
+    metadata_file.write_text(json.dumps({
+        "version": 1,
+        "entries": {
+            "TemplateAlias": {
+                "identity": (
+                    "github.com/galadril/"
+                    "domoticz-python-plugin-template@main"
+                ),
+                "owner": "galadril",
+                "repository": "Domoticz-Python-Plugin-Template",
+                "branch": "main",
+                "registry_platforms": ["linux", "windows"],
+                "source": "legacy_detected",
+                "confidence": "unknown",
+                "evidence_class": "legacy",
+                "reviewed": False,
+            },
+        },
     }))
 
-    domoticz_repo = {
+    template_repo = {
         "archived": False,
         "disabled": False,
         "size": 100,
-        "full_name": "domoticz/domoticz",
-        "owner": {"login": "domoticz"},
-        "name": "domoticz",
-        "description": "Free open source home automation system",
-        "default_branch": "development",
-        "pushed_at": "2026-06-13T09:52:48Z",
+        "full_name": "galadril/Domoticz-Python-Plugin-Template",
+        "owner": {"login": "galadril"},
+        "name": "Domoticz-Python-Plugin-Template",
+        "description": "Template repository for making Domoticz Python Plugins",
+        "default_branch": "main",
+        "pushed_at": "2025-01-08T10:05:44Z",
     }
 
     def fail_get_repo_info(owner, repo):
         raise AssertionError("blocklisted repositories should not be fetched")
 
-    patch_scanner_paths(scan_plugins_module, monkeypatch, registry_file, update_times_file, metadata_file)
+    def fail_candidate_inspection(*args, **kwargs):
+        raise AssertionError(
+            "blocklisted repositories should not be inspected"
+        )
+
+    patch_scanner_paths(
+        scan_plugins_module,
+        monkeypatch,
+        registry_file,
+        update_times_file,
+        metadata_file,
+    )
     monkeypatch.setattr(scan_plugins_module, "get_repo_info", fail_get_repo_info)
-    monkeypatch.setattr(scan_plugins_module, "search_github", lambda: [domoticz_repo])
+    monkeypatch.setattr(
+        scan_plugins_module,
+        "search_github",
+        lambda: [template_repo],
+    )
     monkeypatch.setattr(scan_plugins_module, "search_gitlab", lambda: [])
     monkeypatch.setattr(scan_plugins_module, "search_codeberg", lambda: [])
+    monkeypatch.setattr(
+        scan_plugins_module,
+        "discovered_repo_has_root_plugin_py",
+        fail_candidate_inspection,
+    )
+    monkeypatch.setattr(
+        scan_plugins_module,
+        "detect_platforms_for_repo",
+        fail_candidate_inspection,
+    )
     monkeypatch.setenv("GITHUB_TOKEN", "test-token")
 
     scan_plugins_module.main()
 
     registry = saved_packages(registry_file)
     update_times = saved_update_times(update_times_file)
+    metadata = saved_platform_entries(metadata_file)
 
-    assert "domoticz" not in registry
-    assert "domoticz" not in update_times
+    assert "TemplateAlias" not in registry
+    assert "TemplateAlias" not in update_times
+    assert "TemplateAlias" not in metadata
+
+
+def test_checked_in_active_artifacts_exclude_blocklisted_repositories(
+    scan_plugins_module,
+):
+    registry = scan_plugins_module.load_registry_file(
+        REPO_ROOT / "registry.json"
+    )
+    registry_repositories = set()
+    for package_id, entry in registry.items():
+        if package_id == "Idle":
+            continue
+        record = scan_plugins_module.RegistryRecord.from_entry(
+            package_id,
+            entry,
+        )
+        registry_repositories.add(
+            scan_plugins_module.normalize_full_name(
+                record.owner,
+                record.repository,
+            )
+        )
+    release_index = json.loads(
+        (REPO_ROOT / "release_index.json").read_text()
+    )
+    blocked_repository_identities = {
+        f"github.com/{repository}"
+        for repository in scan_plugins_module.REPO_BLOCKLIST
+    }
+    active_release_repositories = {
+        release["repository_identity"].casefold()
+        for release in release_index["releases"]
+    }
+    migration = json.loads(
+        (
+            REPO_ROOT / ".github" / "package_identity_migration.json"
+        ).read_text()
+    )
+    migration_repositories = {
+        mapping["repository_identity"].casefold()
+        for mapping in migration["package_mappings"]
+    }
+
+    assert registry_repositories.isdisjoint(
+        scan_plugins_module.REPO_BLOCKLIST
+    )
+    assert active_release_repositories.isdisjoint(
+        blocked_repository_identities
+    )
+    assert migration["package_count"] == len(migration["package_mappings"])
+    assert migration_repositories.isdisjoint(blocked_repository_identities)
