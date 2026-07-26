@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.24.1](https://github.com/adrighem/PyPluginStore/compare/v2.24.0...v2.24.1) (2026-07-26)
+
+
+### Bug Fixes
+
+* **releases:** clarify dependency and Git fallback failures ([1af52fd](https://github.com/adrighem/PyPluginStore/commit/1af52fdade96f977ab98f3413c61d3b599343af4)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+
 ## [2.24.0](https://github.com/adrighem/PyPluginStore/compare/v2.23.0...v2.24.0) (2026-07-26)
 
 
