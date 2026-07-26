@@ -2041,10 +2041,13 @@ def test_checked_in_active_artifacts_exclude_blocklisted_repositories(
     release_index = json.loads(
         (REPO_ROOT / "release_index.json").read_text()
     )
+    blocked_repository_identities = {
+        f"github.com/{repository}"
+        for repository in scan_plugins_module.REPO_BLOCKLIST
+    }
     active_release_repositories = {
-        release["repository_identity"].removeprefix("github.com/")
+        release["repository_identity"].casefold()
         for release in release_index["releases"]
-        if release["repository_identity"].startswith("github.com/")
     }
     migration = json.loads(
         (
@@ -2052,18 +2055,15 @@ def test_checked_in_active_artifacts_exclude_blocklisted_repositories(
         ).read_text()
     )
     migration_repositories = {
-        mapping["repository_identity"].removeprefix("github.com/")
+        mapping["repository_identity"].casefold()
         for mapping in migration["package_mappings"]
-        if mapping["repository_identity"].startswith("github.com/")
     }
 
     assert registry_repositories.isdisjoint(
         scan_plugins_module.REPO_BLOCKLIST
     )
     assert active_release_repositories.isdisjoint(
-        scan_plugins_module.REPO_BLOCKLIST
+        blocked_repository_identities
     )
     assert migration["package_count"] == len(migration["package_mappings"])
-    assert migration_repositories.isdisjoint(
-        scan_plugins_module.REPO_BLOCKLIST
-    )
+    assert migration_repositories.isdisjoint(blocked_repository_identities)
