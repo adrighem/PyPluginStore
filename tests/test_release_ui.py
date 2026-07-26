@@ -560,23 +560,27 @@ def test_confirmation_challenge_response_is_not_replayed_as_a_request(
 def test_ui_load_and_refresh_treat_management_map_as_optional_extension():
     script = load_inline_script()
     load_plugins = extract_js_function(script, "loadPlugins")
+    apply_loaded = extract_js_function(script, "applyLoadedPlugins")
     refresh = extract_js_function(script, "refreshUpdateStatus")
     filter_plugins = extract_js_function(script, "filterAndRender")
 
-    assert "managementCache = response.management || {};" in load_plugins
+    assert "applyLoadedPlugins(response)" in load_plugins
+    assert "managementCache = response.management || {};" in apply_loaded
     assert (
         "managementCache = response.management || managementCache;" in refresh
     )
-    assert "pluginCache = response.data" in load_plugins
-    assert "updateStatusCache = response.update_status || {}" in load_plugins
-    assert "versionsCache = response.versions || {}" in load_plugins
+    assert "pluginCache = response.data" in apply_loaded
+    assert "updateStatusCache = response.update_status || {}" in apply_loaded
+    assert "versionsCache = response.versions || {}" in apply_loaded
     assert (
         "installationConflictCache = response.installation_conflicts || {};"
-        in load_plugins
+        in apply_loaded
     )
-    assert "installedScanError = String(response.installed_scan_error || '')" in load_plugins
+    assert "installedScanError = String(response.installed_scan_error || '')" in apply_loaded
     assert "response.installation_conflicts || installationConflictCache" in refresh
-    assert "installed plugin scan warning" in load_plugins.lower()
+    assert "installed plugin scan warning" not in load_plugins.lower()
+    assert 'setManagerActivity("Loading plugins...")' in load_plugins
+    assert "clearManagerActivity()" in load_plugins
     assert "installedCache.forEach" in filter_plugins
     assert "matchDetails.management_error" in filter_plugins
     assert "not present in the current registry" in filter_plugins

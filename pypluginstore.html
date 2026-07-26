@@ -1125,7 +1125,7 @@
             <button id="manage-local-registry" class="btn-local-registry" type="button">Local registry</button>
             <button id="refresh-update-status" class="btn-refresh" type="button">Refresh status</button>
             <button id="restart-domoticz" class="btn-restart" type="button">Restart Domoticz</button>
-            <div id="pypluginstore-status">Initializing...</div>
+            <div id="pypluginstore-status" role="status" aria-live="polite" aria-atomic="true">Initializing...</div>
         </div>
     </div>
 
@@ -1254,6 +1254,7 @@
     let localRegistryFormDirty = false;
     let localRegistryPendingDeleteKey = '';
     let currentSort = 'name';
+    let managerActivityActive = false;
     let themeRefreshTimer = null;
     let themeObserver = null;
     const INSTALLED_FILTER_STORAGE_KEY = 'pypluginstore.installedOnly';
@@ -1261,6 +1262,27 @@
     const LOCAL_REGISTRY_PAYLOAD_MAX_LENGTH = 2000;
     const LAYOUT_PYPLUGIN = 'pyplugin';
     const LAYOUT_THEME = 'theme';
+    const MANAGER_COMMAND_CONTROL_SELECTOR = [
+        'button[data-action]',
+        '#manage-local-registry',
+        '#refresh-update-status',
+        '#restart-domoticz',
+        '#local-registry-reload',
+        '#local-registry-add',
+        '#local-registry-save',
+        '.local-registry-edit',
+        '.local-registry-delete'
+    ].join(', ');
+    const API_BRIDGE_REQUEST_TIMEOUT_MS = 5000;
+    const SELF_UPDATE_STATUS_POLL_INTERVAL_MS = 5000;
+    const SELF_UPDATE_STATUS_MAX_ATTEMPTS = 12;
+    const SELF_UPDATE_STATUS_DEADLINE_MS = 180000;
+    const RESTART_RECOVERY_DEADLINE_MS = 120000;
+    const RESTART_RECOVERY_MAX_PROBES = 24;
+    const RESTART_RECOVERY_RETRY_MS = 5000;
+    const RESTART_RECOVERY_MAX_RETRY_MS = 15000;
+    const RESTART_RECOVERY_REQUEST_TIMEOUT_MS = 2000;
+    const RESTART_RECOVERY_COMMAND_RETRIES = 2;
     const THEME_TILE_HOVER_SELECTORS = [
         '#holder #dashcontent .row .span3 .item table[id^="item"] > tbody > tr:hover',
         '#holder #dashcontent .row .span4 .item table[id^="item"] > tbody > tr:hover',
@@ -1322,6 +1344,56 @@
         ].includes(String(action || ''));
     }
 
+    function managerControlsAreBusy() {
+        return isLoading || managerActivityActive;
+    }
+
+    function setManagerBusyDisabled(control, disabled) {
+        if (!control) return;
+        if (disabled) {
+            if (control.dataset.managerBusyDisabled !== 'true') {
+                control.dataset.managerBusyWasDisabled = control.disabled
+                    ? 'true'
+                    : 'false';
+                control.dataset.managerBusyTitle = control.title || '';
+            }
+            control.dataset.managerBusyDisabled = 'true';
+            control.disabled = true;
+            control.title = managerStatusDetail || 'PyPluginStore is busy.';
+            return;
+        }
+        if (control.dataset.managerBusyDisabled === 'true') {
+            control.disabled = control.dataset.managerBusyWasDisabled === 'true';
+            control.title = control.dataset.managerBusyTitle || '';
+            delete control.dataset.managerBusyDisabled;
+            delete control.dataset.managerBusyWasDisabled;
+            delete control.dataset.managerBusyTitle;
+        }
+    }
+
+    function updateManagerBusyControls() {
+        const disabled = managerControlsAreBusy();
+        document.querySelectorAll(MANAGER_COMMAND_CONTROL_SELECTOR).forEach(
+            control => setManagerBusyDisabled(control, disabled)
+        );
+        const container = document.getElementById('pypluginstore-container');
+        if (container) {
+            if (disabled) {
+                container.setAttribute('aria-busy', 'true');
+            } else {
+                container.removeAttribute('aria-busy');
+            }
+        }
+    }
+
+    function setCommandBusy(busy) {
+        isLoading = Boolean(busy);
+        updateManagerBusyControls();
+        if (!managerControlsAreBusy()) {
+            updateManagerMutationControls();
+        }
+    }
+
     function setManagerIdentityDisabled(control, disabled) {
         if (!control) return;
         if (disabled) {
@@ -1346,6 +1418,10 @@
     }
 
     function updateManagerMutationControls() {
+        if (managerControlsAreBusy()) {
+            updateManagerBusyControls();
+            return;
+        }
         const disabled = !managerIdentityAllowsMutations(managerIdentityVerdict);
         document.querySelectorAll('button[data-action]').forEach(control => {
             if (managerActionIsMutating(control.dataset.action)) {
@@ -1365,8 +1441,11 @@
         });
     }
 
-    function renderManagerStatus(detailMessage) {
-        void detailMessage;
+    function renderManagerStatus() {
+        if (managerStatusDetail) {
+            setStatus(managerStatusDetail);
+            return;
+        }
         if (!managerIdentityVerdict) {
             setStatus('Initializing...');
             return;
@@ -1395,6 +1474,29 @@
         setStatus(String(managerIdentityVerdict.message || '').trim());
     }
 
+    function setManagerActivity(message) {
+        managerStatusDetail = String(message || '').trim();
+        managerActivityActive = Boolean(managerStatusDetail);
+        updateManagerBusyControls();
+        renderManagerStatus();
+    }
+
+    function setManagerNotice(message) {
+        managerStatusDetail = String(message || '').trim();
+        managerActivityActive = false;
+        updateManagerBusyControls();
+        updateManagerMutationControls();
+        renderManagerStatus();
+    }
+
+    function clearManagerActivity() {
+        managerStatusDetail = '';
+        managerActivityActive = false;
+        updateManagerBusyControls();
+        updateManagerMutationControls();
+        renderManagerStatus();
+    }
+
     function applyManagerIdentityVerdict(verdict) {
         managerIdentityVerdict = verdict && typeof verdict === 'object'
             ? verdict
@@ -1407,6 +1509,7 @@
                 runtime: {}
             };
         updateManagerMutationControls();
+        updateManagerBusyControls();
         renderManagerStatus();
     }
 
@@ -2567,12 +2670,12 @@
             filterAndRender();
         };
 
-        renderManagerStatus("Finding API bridge...");
+        setManagerActivity("Connecting to PyPluginStore...");
         try {
             await findApiBridgeDevices();
 
             if (!payloadIdx || !triggerIdx) {
-                renderManagerStatus("Error: PyPluginStore devices not found (" + (payloadIdx ? 'Y' : 'N') + "/" + (triggerIdx ? 'Y' : 'N') + "). Please ensure the plugin is added in Hardware.");
+                clearManagerActivity();
                 return;
             }
 
@@ -2580,7 +2683,7 @@
             loadPlugins();
         } catch (e) {
             console.error("Init Error:", e);
-            renderManagerStatus("Failed to initialize PyPluginStore: " + e.message);
+            clearManagerActivity();
         }
     }
 
@@ -2604,19 +2707,21 @@
         ));
     }
 
-    async function fetchApiBridgeDevices(query) {
+    async function fetchApiBridgeDevices(
+        query,
+        timeoutMs = API_BRIDGE_REQUEST_TIMEOUT_MS
+    ) {
         const url = 'json.htm?type=command&param=getdevices&' + query + '&t=' + Date.now();
         console.log("Fetching bridge devices from " + url);
-        const req = await fetch(url);
-        if (!req.ok) throw new Error("HTTP error " + req.status);
-        const devices = await req.json();
+        const devices = await fetchWithTimeout(
+            url,
+            timeoutMs,
+            { parseJson: true }
+        );
         return Array.isArray(devices.result) ? devices.result : [];
     }
 
     async function findApiBridgeDevices() {
-        payloadIdx = null;
-        triggerIdx = null;
-
         // Avoid serializing unrelated meter devices while discovering our hardware.
         const lightDevices = await fetchApiBridgeDevices(
             'filter=light&used=all&displayhidden=1'
@@ -2692,6 +2797,29 @@
         triggerIdx = scopedTriggerIdx;
     }
 
+    function createTransactionId() {
+        if (
+            typeof crypto === 'object'
+            && crypto
+            && typeof crypto.randomUUID === 'function'
+        ) {
+            return Date.now().toString() + '-' + crypto.randomUUID();
+        }
+        if (
+            typeof crypto === 'object'
+            && crypto
+            && typeof crypto.getRandomValues === 'function'
+        ) {
+            const random = new Uint32Array(4);
+            crypto.getRandomValues(random);
+            return Date.now().toString() + '-' + Array.from(
+                random,
+                value => value.toString(16).padStart(8, '0')
+            ).join('');
+        }
+        return Date.now().toString() + '-' + Math.random().toString(36).slice(2);
+    }
+
     async function sendCommand(action, data, options = {}) {
         if (
             managerActionIsMutating(action) &&
@@ -2712,14 +2840,16 @@
             };
         }
         if (isLoading) {
-            alert("An operation is already in progress. Please wait.");
+            renderManagerStatus();
             return null;
         }
-        isLoading = true;
+        setCommandBusy(true);
 
         try {
-            await clearApiBridgePayload();
-            const txId = Date.now().toString();
+            const requestTimeoutMs = Number.isFinite(options.requestTimeoutMs)
+                ? Math.max(1, options.requestTimeoutMs)
+                : API_BRIDGE_REQUEST_TIMEOUT_MS;
+            const txId = createTransactionId();
             const payload = JSON.stringify({
                 action,
                 tx_id: txId,
@@ -2731,32 +2861,56 @@
             }
 
             console.log("Sending command: " + action);
-            await fetch(`json.htm?type=command&param=udevice&idx=${payloadIdx}&nvalue=0&svalue=${encodeURIComponent(payload)}`);
-            await fetch(`json.htm?type=command&param=switchlight&idx=${triggerIdx}&switchcmd=On`);
+            await fetchWithTimeout(
+                `json.htm?type=command&param=udevice&idx=${payloadIdx}&nvalue=0&svalue=${encodeURIComponent(payload)}`,
+                requestTimeoutMs
+            );
+            await fetchWithTimeout(
+                `json.htm?type=command&param=switchlight&idx=${triggerIdx}&switchcmd=On`,
+                requestTimeoutMs
+            );
 
-            return await pollResponse(action, txId, options.retries || 120);
+            return await pollResponse(
+                action,
+                txId,
+                options.retries || 120,
+                requestTimeoutMs
+            );
         } finally {
-            isLoading = false;
+            setCommandBusy(false);
         }
     }
 
-    async function clearApiBridgePayload() {
+    async function clearApiBridgePayload(
+        timeoutMs = API_BRIDGE_REQUEST_TIMEOUT_MS
+    ) {
         if (!payloadIdx) return;
 
         try {
-            await fetch(`json.htm?type=command&param=udevice&idx=${payloadIdx}&nvalue=0&svalue=`);
+            await fetchWithTimeout(
+                `json.htm?type=command&param=udevice&idx=${payloadIdx}&nvalue=0&svalue=`,
+                timeoutMs
+            );
         } catch (e) {
             console.warn("Could not clear API bridge payload", e);
         }
     }
 
-    async function pollResponse(action, txId, retries = 120) {
+    async function pollResponse(
+        action,
+        txId,
+        retries = 120,
+        requestTimeoutMs = API_BRIDGE_REQUEST_TIMEOUT_MS
+    ) {
         console.log("Polling for response to " + action + " (tx_id: " + txId + ")...");
         for (let i = 0; i < retries; i++) {
             await new Promise(r => setTimeout(r, 1000));
             try {
-                const req = await fetch(`json.htm?type=command&param=getdevices&rid=${payloadIdx}&t=` + Date.now());
-                const resp = await req.json();
+                const resp = await fetchWithTimeout(
+                    `json.htm?type=command&param=getdevices&rid=${payloadIdx}&t=` + Date.now(),
+                    requestTimeoutMs,
+                    { parseJson: true }
+                );
 
                 if (resp.result && resp.result.length > 0) {
                     const dataStr = resp.result[0].Data;
@@ -2769,7 +2923,7 @@
                                 "Received response for " + action + ": "
                                 + String(data.status || "unknown")
                             );
-                            await clearApiBridgePayload();
+                            await clearApiBridgePayload(requestTimeoutMs);
                             if (typeof applyManagerIdentityVerdict === 'function') {
                                 applyManagerIdentityVerdict(data.manager_identity);
                             }
@@ -2784,36 +2938,35 @@
         throw new Error("Timeout waiting for plugin response.");
     }
 
+    function applyLoadedPlugins(response) {
+        applyManagerIdentityVerdict(response.manager_identity);
+        pluginCache = response.data;
+        installedCache = response.installed;
+        localCache = response.local_plugins || [];
+        updateStatusCache = response.update_status || {};
+        versionsCache = response.versions || {};
+        managementCache = response.management || {};
+        platformCache = response.platforms || {};
+        installedMatchDetailsCache = response.installed_match_details || {};
+        installationConflictCache = response.installation_conflicts || {};
+        installedScanError = String(response.installed_scan_error || '');
+        managerKey = response.manager_key || null;
+        selfUpdateState = response.self_update || null;
+        filterAndRender();
+    }
+
     async function loadPlugins() {
-        renderManagerStatus("Loading plugins from registry...");
+        setManagerActivity("Loading plugins...");
         try {
             const response = await sendCommand('list_plugins', {});
             if (response && response.status === 'success') {
-                applyManagerIdentityVerdict(response.manager_identity);
-                pluginCache = response.data;
-                installedCache = response.installed;
-                localCache = response.local_plugins || [];
-                updateStatusCache = response.update_status || {};
-                versionsCache = response.versions || {};
-                managementCache = response.management || {};
-                platformCache = response.platforms || {};
-                installedMatchDetailsCache = response.installed_match_details || {};
-                installationConflictCache = response.installation_conflicts || {};
-                installedScanError = String(response.installed_scan_error || '');
-                managerKey = response.manager_key || null;
-                selfUpdateState = response.self_update || null;
-                renderManagerStatus();
-                filterAndRender();
-                renderManagerStatus(
-                    installedScanError
-                        ? 'Installed plugin scan warning: ' + installedScanError
-                        : `Loaded ${Object.keys(response.data).length} plugins.`
-                );
+                applyLoadedPlugins(response);
+                clearManagerActivity();
             } else {
-                renderManagerStatus("Error loading plugins: " + (response ? response.message : "Unknown error"));
+                clearManagerActivity();
             }
         } catch (e) {
-            renderManagerStatus(e.message);
+            clearManagerActivity();
         }
     }
 
@@ -4010,45 +4163,86 @@
         }
 
         const actionName = actionDisplayName(action);
-        renderManagerStatus(`Executing ${actionName} for ${pluginKey}... This may take a moment.`);
+        setManagerActivity(`Executing ${actionName} for ${pluginKey}...`);
         try {
             const isReleaseManagementAction = ['update', 'use_release', 'rollback'].includes(action);
             const response = isReleaseManagementAction ?
                 await handleReleaseManagementAction(action, pluginKey) :
                 await sendCommand(action, { plugin_key: pluginKey });
             if (response && response.status === 'success') {
-                const successMessage = response.message || `Successfully completed ${actionName} for ${pluginKey}. Domoticz restart may be required.`;
-                alert(successMessage);
-                renderManagerStatus(successMessage);
                 if (response.operation === 'self_update') {
                     selfUpdateState = response.self_update || selfUpdateState;
-                    renderManagerStatus();
+                    setManagerActivity("Updating PyPluginStore...");
                     filterAndRender();
                     pollSelfUpdateStatus();
-                } else if (!(action === 'update' && pluginKey === managerKey)) {
+                } else {
+                    const successMessage = response.message || `Successfully completed ${actionName} for ${pluginKey}. Domoticz restart may be required.`;
+                    alert(successMessage);
+                }
+                if (
+                    response.operation !== 'self_update'
+                    && !(action === 'update' && pluginKey === managerKey)
+                ) {
                     await loadPlugins();
+                } else if (response.operation !== 'self_update') {
+                    clearManagerActivity();
                 }
             } else {
                 alert(`Error during ${actionName}: ` + (response ? response.message : "Unknown error"));
-                renderManagerStatus("Operation failed.");
+                clearManagerActivity();
             }
         } catch (e) {
             alert("Error: " + e.message);
-            renderManagerStatus("Operation failed.");
+            clearManagerActivity();
         }
     }
 
-    async function pollSelfUpdateStatus(maxAttempts = 30) {
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-            await new Promise(r => setTimeout(r, 2000));
+    async function pollSelfUpdateStatus(
+        maxAttempts = SELF_UPDATE_STATUS_MAX_ATTEMPTS
+    ) {
+        const deadlineAt = Date.now() + SELF_UPDATE_STATUS_DEADLINE_MS;
+        for (
+            let attempt = 0;
+            attempt < maxAttempts && Date.now() < deadlineAt;
+            attempt++
+        ) {
+            await new Promise(
+                resolve => setTimeout(
+                    resolve,
+                    SELF_UPDATE_STATUS_POLL_INTERVAL_MS
+                )
+            );
+            if (Date.now() >= deadlineAt) break;
             try {
-                const response = await sendCommand('self_update_status', {}, { retries: 10 });
+                const response = await sendCommand(
+                    'self_update_status',
+                    {},
+                    {
+                        retries: 3,
+                        requestTimeoutMs: RESTART_RECOVERY_REQUEST_TIMEOUT_MS
+                    }
+                );
                 if (response && response.status === 'success') {
                     selfUpdateState = response.self_update || selfUpdateState;
-                    renderManagerStatus();
+                    setManagerActivity("Updating PyPluginStore...");
                     filterAndRender();
                     if (!selfUpdateIsActive(selfUpdateState)) {
-                        renderManagerStatus(selfUpdateState && selfUpdateState.message ? selfUpdateState.message : "Self-update status refreshed.");
+                        const phase = selfUpdatePhase(selfUpdateState);
+                        if ([
+                            'failed',
+                            'preflight_failed',
+                            'stale_unknown'
+                        ].includes(phase)) {
+                            setManagerNotice(
+                                String(
+                                    selfUpdateState
+                                    && selfUpdateState.message
+                                    || 'PyPluginStore update failed. Refresh status before retrying.'
+                                )
+                            );
+                        } else {
+                            clearManagerActivity();
+                        }
                         return;
                     }
                 }
@@ -4056,12 +4250,15 @@
                 console.warn("Self-update status polling failed", e);
             }
         }
+        setManagerNotice(
+            "PyPluginStore update status is still unknown. Refresh status to check again."
+        );
     }
 
     async function refreshUpdateStatus() {
         if (!pluginCache) return;
 
-        renderManagerStatus("Refreshing update status...");
+        setManagerActivity("Refreshing plugins...");
         try {
             const response = await sendCommand('refresh_update_status', {});
             if (response && response.status === 'success') {
@@ -4077,21 +4274,178 @@
                 installedScanError = String(response.installed_scan_error || '');
                 managerKey = response.manager_key || managerKey;
                 selfUpdateState = response.self_update || selfUpdateState;
-                renderManagerStatus();
                 filterAndRender();
-                renderManagerStatus(
-                    installedScanError
-                        ? 'Installed plugin scan warning: ' + installedScanError
-                        : 'Update status refreshed.'
-                );
+                clearManagerActivity();
             } else {
                 alert("Refresh failed: " + (response ? response.message : "Unknown error"));
-                renderManagerStatus("Refresh failed.");
+                clearManagerActivity();
             }
         } catch (e) {
             alert("Refresh failed: " + e.message);
-            renderManagerStatus("Refresh failed.");
+            clearManagerActivity();
         }
+    }
+
+    function restartRecoveryResponseMatches(
+        response,
+        expectedBuildId,
+        previousRuntimeInstanceId
+    ) {
+        if (!response || response.status !== 'success') return false;
+        const verdict = response.manager_identity;
+        if (!verdict || !verdict.matches) return false;
+        if (verdict.matches.backend_installed !== true) return false;
+
+        const currentRuntimeInstanceId = String(
+            verdict.runtime_instance_id || ''
+        );
+        const previousRuntime = String(previousRuntimeInstanceId || '');
+        const expected = String(expectedBuildId || '');
+        if (
+            !expected
+            || !previousRuntime
+            || !currentRuntimeInstanceId
+            || currentRuntimeInstanceId === previousRuntime
+        ) {
+            return false;
+        }
+
+        const runtimeBuildId = String(
+            verdict.runtime && verdict.runtime.build_id || ''
+        );
+        return (
+            runtimeBuildId === expected
+            && !['restart_required', 'updating'].includes(
+                String(verdict.state || '')
+            )
+        );
+    }
+
+    async function fetchWithTimeout(url, timeoutMs, options = {}) {
+        const controller = typeof AbortController === 'function'
+            ? new AbortController()
+            : null;
+        let timeoutId = null;
+        const requestOptions = {
+            cache: 'no-store',
+            ...(options.fetchOptions || {})
+        };
+        if (controller) requestOptions.signal = controller.signal;
+
+        const request = (async () => {
+            const response = await fetch(url, requestOptions);
+            if (response && response.ok === false) {
+                throw new Error(
+                    "HTTP request failed with status "
+                    + String(response.status || 'unknown')
+                    + "."
+                );
+            }
+            return options.parseJson ? await response.json() : response;
+        })();
+        const timeout = new Promise((_, reject) => {
+            timeoutId = setTimeout(() => {
+                if (controller) controller.abort();
+                reject(new Error("HTTP request timed out."));
+            }, Math.max(1, timeoutMs));
+        });
+        try {
+            return await Promise.race([request, timeout]);
+        } finally {
+            if (timeoutId !== null) clearTimeout(timeoutId);
+        }
+    }
+
+    async function probeRestartRecoveryBackend() {
+        try {
+            if (!payloadIdx || !triggerIdx) {
+                await findApiBridgeDevices();
+            }
+            return await sendCommand(
+                'self_update_status',
+                {},
+                {
+                    retries: RESTART_RECOVERY_COMMAND_RETRIES,
+                    requestTimeoutMs: RESTART_RECOVERY_REQUEST_TIMEOUT_MS
+                }
+            );
+        } catch (error) {
+            console.warn("Domoticz restart recovery probe failed", error);
+            return null;
+        }
+    }
+
+    async function waitForRestartRecovery(expectedBuildId, options = {}) {
+        const now = options.now || (() => Date.now());
+        const sleep = options.sleep || (
+            delay => new Promise(resolve => setTimeout(resolve, delay))
+        );
+        const probe = options.probe || probeRestartRecoveryBackend;
+        const onTransition = options.onTransition || (() => {});
+        const previousRuntimeInstanceId = String(
+            options.previousRuntimeInstanceId || ''
+        );
+        const deadlineMs = Number.isFinite(options.deadlineMs)
+            ? Math.max(0, options.deadlineMs)
+            : RESTART_RECOVERY_DEADLINE_MS;
+        const maxProbes = Number.isFinite(options.maxProbes)
+            ? Math.max(0, Math.floor(options.maxProbes))
+            : RESTART_RECOVERY_MAX_PROBES;
+        const pollIntervalMs = Number.isFinite(options.pollIntervalMs)
+            ? Math.max(0, options.pollIntervalMs)
+            : RESTART_RECOVERY_RETRY_MS;
+        const maxPollIntervalMs = Number.isFinite(options.maxPollIntervalMs)
+            ? Math.max(pollIntervalMs, options.maxPollIntervalMs)
+            : RESTART_RECOVERY_MAX_RETRY_MS;
+        const deadlineAt = now() + deadlineMs;
+        let probes = 0;
+        let phase = '';
+        let nextDelayMs = pollIntervalMs;
+
+        const transition = nextPhase => {
+            if (phase === nextPhase) return;
+            phase = nextPhase;
+            onTransition(phase, {
+                probes,
+                maxProbes,
+                deadlineAt
+            });
+        };
+
+        transition('waiting');
+        while (probes < maxProbes && now() < deadlineAt) {
+            const remainingMs = Math.max(0, deadlineAt - now());
+            await sleep(Math.min(nextDelayMs, remainingMs));
+            if (now() >= deadlineAt) break;
+            nextDelayMs = Math.min(
+                maxPollIntervalMs,
+                Math.max(pollIntervalMs, nextDelayMs * 2)
+            );
+
+            probes += 1;
+            let response = null;
+            try {
+                response = await probe();
+            } catch (error) {
+                console.warn("Domoticz restart recovery probe failed", error);
+            }
+            if (now() >= deadlineAt) break;
+            if (!response) continue;
+
+            transition('verifying');
+            if (restartRecoveryResponseMatches(
+                response,
+                expectedBuildId,
+                previousRuntimeInstanceId
+            )) {
+                transition('recovered');
+                return { phase, probes, response };
+            }
+            transition('waiting');
+        }
+
+        transition('timed_out');
+        return { phase, probes, response: null };
     }
 
     async function restartDomoticz() {
@@ -4099,18 +4453,75 @@
             return;
         }
 
-        renderManagerStatus("Requesting Domoticz restart...");
+        const expectedBuildId = String(
+            managerIdentityVerdict
+            && managerIdentityVerdict.installed
+            && managerIdentityVerdict.installed.build_id
+            || ''
+        );
+        const previousRuntimeInstanceId = String(
+            managerIdentityVerdict
+            && managerIdentityVerdict.runtime_instance_id
+            || ''
+        );
+        setManagerActivity("Restarting Domoticz...");
         try {
             const response = await sendCommand('restart_domoticz', {});
             if (response && response.status === 'success') {
-                renderManagerStatus("Domoticz restart requested. Reconnect after the service comes back online.");
+                const recovery = await waitForRestartRecovery(
+                    expectedBuildId,
+                    {
+                        previousRuntimeInstanceId,
+                        onTransition: phase => {
+                            if (phase === 'verifying') {
+                                setManagerActivity(
+                                    "Checking restarted Domoticz..."
+                                );
+                            } else if (phase === 'waiting') {
+                                setManagerActivity("Restarting Domoticz...");
+                            }
+                        }
+                    }
+                );
+                if (recovery.phase === 'recovered') {
+                    setManagerActivity("Loading plugins...");
+                    try {
+                        const pluginsResponse = await sendCommand(
+                            'list_plugins',
+                            {}
+                        );
+                        if (
+                            pluginsResponse
+                            && pluginsResponse.status === 'success'
+                        ) {
+                            applyLoadedPlugins(pluginsResponse);
+                            clearManagerActivity();
+                        } else {
+                            setManagerNotice(
+                                "Domoticz restarted, but PyPluginStore could not reload its plugin list. Reload this page."
+                            );
+                        }
+                    } catch (error) {
+                        console.warn(
+                            "Could not reload plugins after restart",
+                            error
+                        );
+                        setManagerNotice(
+                            "Domoticz restarted, but PyPluginStore could not reload its plugin list. Reload this page."
+                        );
+                    }
+                } else {
+                    setManagerNotice(
+                        "Domoticz did not finish restarting. Retry the restart or restart Domoticz manually, then reload this page."
+                    );
+                }
             } else {
                 alert("Restart request failed: " + (response ? response.message : "Unknown error"));
-                renderManagerStatus("Restart request failed.");
+                clearManagerActivity();
             }
         } catch (e) {
             alert("Restart request failed: " + e.message);
-            renderManagerStatus("Restart request failed.");
+            clearManagerActivity();
         }
     }
 
