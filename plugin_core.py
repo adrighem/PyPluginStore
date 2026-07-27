@@ -260,6 +260,50 @@ def parameter_get(parameters, key, default):
             return default
 
 
+def dependency_installer_unavailable_message(
+    installer="auto",
+    platform_name="",
+):
+    """Return actionable guidance without exposing probe output or paths."""
+    platform_name = str(platform_name or "").strip().casefold()
+    unavailable = {
+        "pip": (
+            "Python pip cannot be run by the Domoticz Python runtime."
+        ),
+        "uv": (
+            "uv was not found on the sanitized dependency installer PATH."
+        ),
+        "auto": (
+            "No dependency installer is available: uv was not found and "
+            "Python pip cannot be run by the Domoticz Python runtime."
+        ),
+    }.get(installer, "No supported dependency installer is available.")
+
+    if platform_name == "linux":
+        pip_guidance = (
+            "install the Python 3 pip package for the interpreter used by "
+            "Domoticz (commonly python3-pip, or py3-pip on Alpine)"
+        )
+    else:
+        pip_guidance = (
+            "enable pip for the Python installation used by Domoticz"
+        )
+    uv_guidance = "install uv on the system PATH used by Domoticz"
+    if installer == "pip":
+        guidance = pip_guidance
+    elif installer == "uv":
+        guidance = uv_guidance
+    else:
+        guidance = pip_guidance + ", or " + uv_guidance
+    return (
+        unavailable
+        + " To continue, "
+        + guidance
+        + ", restart Domoticz, and retry. Until then, dependencies must "
+        "be handled manually."
+    )
+
+
 class HostRuntime:
     platform_name = "generic"
 
@@ -564,18 +608,6 @@ class HostRuntime:
 
     def command_available(self, command):
         return shutil.which(command) is not None
-
-    def command_can_run(self, command, timeout=10):
-        try:
-            result = subprocess.run(
-                command,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=timeout
-            )
-            return result.returncode == 0
-        except Exception:
-            return False
 
     def _run_git_once(self, command, cwd, timeout=15):
         try:
@@ -1330,45 +1362,6 @@ write_state(
                 job_id=job_id,
                 upstream_ref=preflight_plan["upstream_ref"],
             )
-            return False, str(e)
-
-    def dependency_install_command(self, requirements_file, target_dir):
-        if self.command_available("uv") and sys.executable:
-            return ["uv", "pip", "install", "--python", sys.executable, "-r", requirements_file, "--target", target_dir]
-
-        if sys.executable and self.command_can_run([sys.executable, "-m", "pip", "--version"]):
-            return [sys.executable, "-m", "pip", "install", "-r", requirements_file, "--target", target_dir]
-
-        for command in ("pip3", "pip"):
-            if self.command_available(command):
-                return [command, "install", "-r", requirements_file, "--target", target_dir]
-        return None
-
-    def install_requirements(self, requirements_file, target_dir, plugin_key):
-        if not os.path.isfile(requirements_file):
-            Domoticz.Log("No requirements.txt found for plugin: " + plugin_key)
-            return True, "No requirements.txt found"
-
-        Domoticz.Log("requirements.txt found for plugin: " + plugin_key)
-        os.makedirs(target_dir, exist_ok=True)
-
-        install_command = self.dependency_install_command(requirements_file, target_dir)
-        if not install_command:
-            Domoticz.Log("Neither 'uv' nor a working pip command found. Skipping automatic dependency installation.")
-            Domoticz.Log(f"Please install dependencies manually from {requirements_file} into {target_dir}")
-            return False, "No Python dependency installer found"
-
-        Domoticz.Log("Installing dependencies using: " + self.format_command(install_command))
-        try:
-            pr = subprocess.Popen(install_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            out, error = pr.communicate()
-            if pr.returncode == 0:
-                Domoticz.Log("Dependencies installed successfully: " + out.strip())
-                return True, ""
-            Domoticz.Error("Error installing dependencies: " + error.strip())
-            return False, error.strip()
-        except Exception as e:
-            Domoticz.Error("Error running installation command: " + str(e))
             return False, str(e)
 
     def is_locked_file_error(self, error):
@@ -8273,6 +8266,91 @@ RELEASE_TRANSACTION_PHASES = RELEASE_TRANSACTION_FINAL_PHASES | {
 _RELEASE_TRANSACTION_LOCKS = {}
 _RELEASE_TRANSACTION_LOCKS_GUARD = threading.Lock()
 
+RELEASE_DEPENDENCY_STRATEGY_REBUILD = "rebuild"
+RELEASE_DEPENDENCY_STRATEGY_RETAIN_LIVE = "retain_live"
+RELEASE_DEPENDENCY_STRATEGIES = {
+    RELEASE_DEPENDENCY_STRATEGY_REBUILD,
+    RELEASE_DEPENDENCY_STRATEGY_RETAIN_LIVE,
+}
+RELEASE_REQUIREMENTS_MAX_BYTES = 1024 * 1024
+
+
+def _dependency_snapshot_strategy(snapshot):
+    """Read the durable dependency strategy, defaulting old journals safely."""
+    if not isinstance(snapshot, dict):
+        return RELEASE_DEPENDENCY_STRATEGY_REBUILD
+    strategy = snapshot.get(
+        "strategy",
+        RELEASE_DEPENDENCY_STRATEGY_REBUILD,
+    )
+    if strategy not in RELEASE_DEPENDENCY_STRATEGIES:
+        raise ValueError("Dependency snapshot strategy is unsupported.")
+    return strategy
+
+
+def _regular_file_fingerprint(path):
+    """Hash one small regular file without following links."""
+    contents = _read_small_regular_file(path)
+    if contents is None:
+        return None
+    return len(contents), hashlib.sha256(contents).hexdigest()
+
+
+def _read_small_regular_file(path):
+    """Read one bounded regular file without following links."""
+    try:
+        path_stat = os.lstat(path)
+    except FileNotFoundError:
+        return None
+    if (
+        not stat.S_ISREG(path_stat.st_mode)
+        or stat.S_ISLNK(path_stat.st_mode)
+        or getattr(path_stat, "st_nlink", 1) > 1
+        or path_stat.st_size > RELEASE_REQUIREMENTS_MAX_BYTES
+    ):
+        raise ValueError("Dependency requirements file is unsafe.")
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0)
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    contents = bytearray()
+    try:
+        opened_stat = os.fstat(descriptor)
+        if (
+            not stat.S_ISREG(opened_stat.st_mode)
+            or opened_stat.st_dev != path_stat.st_dev
+            or opened_stat.st_ino != path_stat.st_ino
+            or opened_stat.st_size != path_stat.st_size
+            or getattr(opened_stat, "st_nlink", 1) > 1
+        ):
+            raise ValueError("Dependency requirements file changed.")
+        while True:
+            chunk = os.read(descriptor, RELEASE_HTTP_CHUNK_SIZE)
+            if not chunk:
+                break
+            contents.extend(chunk)
+            if len(contents) > RELEASE_REQUIREMENTS_MAX_BYTES:
+                raise ValueError("Dependency requirements file is too large.")
+        final_stat = os.fstat(descriptor)
+        if (
+            final_stat.st_dev != opened_stat.st_dev
+            or final_stat.st_ino != opened_stat.st_ino
+            or final_stat.st_size != opened_stat.st_size
+            or len(contents) != opened_stat.st_size
+        ):
+            raise ValueError("Dependency requirements file changed.")
+    finally:
+        os.close(descriptor)
+    return bytes(contents)
+
+
+def _regular_files_match(left, right):
+    try:
+        return _regular_file_fingerprint(left) == _regular_file_fingerprint(
+            right
+        )
+    except (OSError, ValueError):
+        return False
+
 
 def _transaction_json_copy(value, label):
     """Return a JSON-only deep copy for a durable transaction descriptor."""
@@ -9331,6 +9409,72 @@ class ReleaseTransactionManager:
             )
         )
 
+    def _retains_live_dependencies(self, transaction):
+        return (
+            _dependency_snapshot_strategy(transaction.dependency_snapshot)
+            == RELEASE_DEPENDENCY_STRATEGY_RETAIN_LIVE
+        )
+
+    def can_retain_live_dependencies(
+        self,
+        transaction,
+        requirements_file,
+    ):
+        """Allow a no-op dependency plan only for an exact clean migration."""
+        if (
+            transaction.operation != "release_migration"
+            or transaction.phase != "staged_verified"
+            or os.path.lexists(transaction.paths.staged_dependencies)
+        ):
+            return False
+        migration = transaction.expected_current.get("migration_snapshot")
+        if not isinstance(migration, dict):
+            return False
+        installed_commit = transaction.expected_current.get("commit")
+        target_commit = transaction.target.get("commit")
+        if (
+            not installed_commit
+            or installed_commit != target_commit
+            or migration.get("release_commit") != target_commit
+            or migration.get("relationship") != "equal"
+            or migration.get("tracked_changes") != []
+            or migration.get("untracked_files") != []
+        ):
+            return False
+        staged_root = os.path.abspath(transaction.paths.staged_code)
+        staged_requirements = os.path.abspath(str(requirements_file))
+        try:
+            relative_requirements = os.path.relpath(
+                staged_requirements,
+                staged_root,
+            )
+            contained = os.path.commonpath(
+                (staged_root, staged_requirements)
+            ) == staged_root
+        except ValueError:
+            return False
+        if (
+            not contained
+            or relative_requirements == os.pardir
+            or relative_requirements.startswith(os.pardir + os.sep)
+        ):
+            return False
+        live_requirements = os.path.join(
+            transaction.paths.live_code,
+            relative_requirements,
+        )
+        return bool(
+            _regular_files_match(
+                live_requirements,
+                staged_requirements,
+            )
+            and self._dependency_tree_matches(
+                transaction.paths.live_dependencies,
+                transaction.dependency_state["expected"],
+                "Retained dependency snapshot",
+            )
+        )
+
     def _complete_pre_activation_rollback_locked(
         self,
         transaction,
@@ -9465,6 +9609,23 @@ class ReleaseTransactionManager:
         )
         transaction.expected_current = expected_current
         transaction.target = target
+        if self._retains_live_dependencies(transaction):
+            if (
+                transaction.operation != "release_migration"
+                or transaction.dependency_state["target"]
+                != transaction.dependency_state["expected"]
+                or transaction.phase
+                in {
+                    "dependency_confirmation_required",
+                    "dependencies_backup_pending",
+                    "dependencies_backed_up",
+                    "dependencies_activation_pending",
+                    "dependencies_activated",
+                }
+            ):
+                raise ValueError(
+                    "Retained dependency transaction state is inconsistent."
+                )
         repaired = False
         try:
             self._require_operation_containers(transaction.paths)
@@ -9526,6 +9687,7 @@ class ReleaseTransactionManager:
             or transaction.phase not in {"restart_pending", "release_managed"}
         ):
             return False
+        retains_dependencies = self._retains_live_dependencies(transaction)
         return bool(
             self._release_tree_matches_target(
                 transaction.paths.live_code,
@@ -9537,10 +9699,13 @@ class ReleaseTransactionManager:
                 transaction.plugin_key,
                 transaction.expected_current,
             )
-            and self._dependency_tree_matches(
-                transaction.paths.backup_dependencies,
-                transaction.dependency_state["expected"],
-                "Retained dependency backup",
+            and (
+                retains_dependencies
+                or self._dependency_tree_matches(
+                    transaction.paths.backup_dependencies,
+                    transaction.dependency_state["expected"],
+                    "Retained dependency backup",
+                )
             )
         )
 
@@ -10150,6 +10315,13 @@ class ReleaseTransactionManager:
         )
         if not isinstance(dependency_snapshot, dict):
             raise ValueError("dependency_snapshot must be an object.")
+        if (
+            _dependency_snapshot_strategy(dependency_snapshot)
+            != RELEASE_DEPENDENCY_STRATEGY_REBUILD
+        ):
+            raise ValueError(
+                "A rebuilt dependency snapshot must use rebuild strategy."
+            )
         with self.operation_lock():
             transaction = self._load_transaction(operation_id)
             if transaction.phase not in {
@@ -10186,6 +10358,47 @@ class ReleaseTransactionManager:
             self._write_transaction(transaction)
             return transaction
 
+    def mark_dependencies_retained(
+        self,
+        operation_id,
+        dependency_snapshot,
+        requirements_file,
+    ):
+        """Pin the unchanged live dependency tree for an exact migration."""
+        dependency_snapshot = _transaction_json_copy(
+            dependency_snapshot,
+            "dependency_snapshot",
+        )
+        if not isinstance(dependency_snapshot, dict):
+            raise ValueError("dependency_snapshot must be an object.")
+        if (
+            _dependency_snapshot_strategy(dependency_snapshot)
+            != RELEASE_DEPENDENCY_STRATEGY_RETAIN_LIVE
+        ):
+            raise ValueError(
+                "A retained dependency snapshot must use retain_live strategy."
+            )
+        with self.operation_lock():
+            transaction = self._load_transaction(operation_id)
+            if not self.can_retain_live_dependencies(
+                transaction,
+                requirements_file,
+            ):
+                raise ValueError(
+                    "Live dependencies cannot be retained for this migration."
+                )
+            transaction.dependency_state["target"] = (
+                _transaction_json_copy(
+                    transaction.dependency_state["expected"],
+                    "dependency_state.expected",
+                )
+            )
+            transaction.dependency_snapshot = dependency_snapshot
+            transaction.phase = "dependencies_staged"
+            transaction.error = ""
+            self._write_transaction(transaction)
+            return transaction
+
     def mark_dependency_confirmation_required(
         self,
         operation_id,
@@ -10197,6 +10410,13 @@ class ReleaseTransactionManager:
         )
         if not isinstance(dependency_snapshot, dict):
             raise ValueError("dependency_snapshot must be an object.")
+        if (
+            _dependency_snapshot_strategy(dependency_snapshot)
+            != RELEASE_DEPENDENCY_STRATEGY_REBUILD
+        ):
+            raise ValueError(
+                "Dependency confirmation requires rebuild strategy."
+            )
         with self.operation_lock():
             transaction = self._load_transaction(operation_id)
             if transaction.phase != "staged_verified":
@@ -10439,13 +10659,24 @@ class ReleaseTransactionManager:
         transaction_device = os.stat(
             os.path.dirname(transaction.paths.journal)
         ).st_dev
-        for path, label in (
+        retains_dependencies = self._retains_live_dependencies(transaction)
+        staged_paths = [
             (transaction.paths.staged_code, "Staged release code"),
-            (
-                transaction.paths.staged_dependencies,
-                "Staged dependency snapshot",
-            ),
-        ):
+        ]
+        if retains_dependencies:
+            if os.path.lexists(transaction.paths.staged_dependencies):
+                raise ValueError(
+                    "A retained dependency transaction must not stage "
+                    "dependency files."
+                )
+        else:
+            staged_paths.append(
+                (
+                    transaction.paths.staged_dependencies,
+                    "Staged dependency snapshot",
+                )
+            )
+        for path, label in staged_paths:
             self._require_real_directory(path, label)
             if os.stat(path).st_dev != transaction_device:
                 raise ValueError(
@@ -10556,6 +10787,7 @@ class ReleaseTransactionManager:
             and transaction.rollback_from
             else transaction.phase
         )
+        retains_dependencies = self._retains_live_dependencies(transaction)
         if transaction.phase != "rollback_pending":
             transaction.rollback_from = original_phase
         code_backup_authoritative = original_phase in {
@@ -10575,16 +10807,20 @@ class ReleaseTransactionManager:
                 os.path.lexists(transaction.paths.backup_code)
                 and not os.path.lexists(transaction.paths.live_code)
             )
-        dependencies_backup_authoritative = original_phase in {
-            "dependencies_backed_up",
-            "dependencies_activation_pending",
-            "dependencies_activated",
-            "code_activation_pending",
-            "release_activated",
-            "restart_pending",
-            "release_managed",
-            "rollback_pending",
-        }
+        dependencies_backup_authoritative = bool(
+            not retains_dependencies
+            and original_phase
+            in {
+                "dependencies_backed_up",
+                "dependencies_activation_pending",
+                "dependencies_activated",
+                "code_activation_pending",
+                "release_activated",
+                "restart_pending",
+                "release_managed",
+                "rollback_pending",
+            }
+        )
         if original_phase == "dependencies_backup_pending":
             dependencies_backup_authoritative = bool(
                 os.path.lexists(transaction.paths.backup_dependencies)
@@ -10596,14 +10832,18 @@ class ReleaseTransactionManager:
             "restart_pending",
             "release_managed",
         }
-        dependencies_may_be_activated = original_phase in {
-            "dependencies_activation_pending",
-            "dependencies_activated",
-            "code_activation_pending",
-            "release_activated",
-            "restart_pending",
-            "release_managed",
-        }
+        dependencies_may_be_activated = bool(
+            not retains_dependencies
+            and original_phase
+            in {
+                "dependencies_activation_pending",
+                "dependencies_activated",
+                "code_activation_pending",
+                "release_activated",
+                "restart_pending",
+                "release_managed",
+            }
+        )
         self._set_phase(
             transaction,
             "rollback_pending",
@@ -10796,13 +11036,37 @@ class ReleaseTransactionManager:
             error = "Staged release metadata does not match the pinned target."
             self._rollback_locked(transaction, error)
             raise ValueError(error)
+        retains_dependencies = self._retains_live_dependencies(transaction)
         target_dependencies = transaction.dependency_state.get("target")
-        if target_dependencies is None or not self._dependency_tree_matches(
-            transaction.paths.staged_dependencies,
-            target_dependencies,
-            "Staged dependency snapshot",
+        dependency_source = (
+            transaction.paths.live_dependencies
+            if retains_dependencies
+            else transaction.paths.staged_dependencies
+        )
+        dependency_label = (
+            "Retained dependency snapshot"
+            if retains_dependencies
+            else "Staged dependency snapshot"
+        )
+        if (
+            target_dependencies is None
+            or (
+                retains_dependencies
+                and target_dependencies
+                != transaction.dependency_state["expected"]
+            )
+            or not self._dependency_tree_matches(
+                dependency_source,
+                target_dependencies,
+                dependency_label,
+            )
         ):
             error = "Staged dependencies do not match their pinned snapshot."
+            if retains_dependencies:
+                error = (
+                    "Live dependencies changed after they were approved for "
+                    "retention."
+                )
             self._rollback_locked(transaction, error)
             raise ValueError(error)
         if validate_current:
@@ -10855,20 +11119,21 @@ class ReleaseTransactionManager:
                 "code_backed_up",
             )
             self._revalidate_migration_backup_locked(transaction)
-            self._replace_directory(
-                transaction,
-                transaction.paths.live_dependencies,
-                transaction.paths.backup_dependencies,
-                "dependencies_backup_pending",
-                "dependencies_backed_up",
-            )
-            self._replace_directory(
-                transaction,
-                transaction.paths.staged_dependencies,
-                transaction.paths.live_dependencies,
-                "dependencies_activation_pending",
-                "dependencies_activated",
-            )
+            if not retains_dependencies:
+                self._replace_directory(
+                    transaction,
+                    transaction.paths.live_dependencies,
+                    transaction.paths.backup_dependencies,
+                    "dependencies_backup_pending",
+                    "dependencies_backed_up",
+                )
+                self._replace_directory(
+                    transaction,
+                    transaction.paths.staged_dependencies,
+                    transaction.paths.live_dependencies,
+                    "dependencies_activation_pending",
+                    "dependencies_activated",
+                )
             self._replace_directory(
                 transaction,
                 transaction.paths.staged_code,
@@ -10975,14 +11240,20 @@ class ReleaseTransactionManager:
                     transaction.paths.live_code,
                     transaction,
                 ) and self._active_dependencies_match_target(transaction)
+                retains_dependencies = self._retains_live_dependencies(
+                    transaction
+                )
                 backup_matches = self._code_path_matches(
                     transaction.paths.backup_code,
                     transaction.plugin_key,
                     transaction.expected_current,
-                ) and self._dependency_tree_matches(
-                    transaction.paths.backup_dependencies,
-                    transaction.dependency_state["expected"],
-                    "Retained dependency backup",
+                ) and (
+                    retains_dependencies
+                    or self._dependency_tree_matches(
+                        transaction.paths.backup_dependencies,
+                        transaction.dependency_state["expected"],
+                        "Retained dependency backup",
+                    )
                 )
                 if not live_target_matches or not backup_matches:
                     raise RuntimeError(
@@ -11216,6 +11487,7 @@ class ReleaseTransactionManager:
                     for transaction in reversed(transactions)
                     if transaction.phase
                     in RELEASE_GLOBAL_DEPENDENCY_ROLLBACK_PHASES
+                    and not self._retains_live_dependencies(transaction)
                     and self._release_tree_matches_target(
                         transaction.paths.live_code,
                         transaction,
@@ -11237,6 +11509,7 @@ class ReleaseTransactionManager:
                     not in RELEASE_TRANSACTION_FINAL_PHASES
                     and origin_phase
                     in RELEASE_GLOBAL_DEPENDENCY_ROLLBACK_PHASES
+                    and not self._retains_live_dependencies(transaction)
                 ):
                     global_recovery_candidates.append(transaction)
             if (
@@ -11268,6 +11541,7 @@ class ReleaseTransactionManager:
                     not in RELEASE_TRANSACTION_FINAL_PHASES
                     and origin_phase
                     in RELEASE_GLOBAL_DEPENDENCY_ROLLBACK_PHASES
+                    and not self._retains_live_dependencies(transaction)
                 )
                 if superseded_dependencies:
                     error = (
@@ -11357,6 +11631,10 @@ class ReleaseDependencyError(RuntimeError):
         self.manual_required = bool(manual_required)
 
 
+RELEASE_DEPENDENCY_SNAPSHOT_SCHEMA_VERSION = 2
+PREVIOUS_RELEASE_DEPENDENCY_SNAPSHOT_SCHEMA_VERSION = 1
+
+
 @dataclass(frozen=True)
 class ReleaseDependencySnapshotResult:
     """Auditable outcome of constructing a staged dependency snapshot."""
@@ -11369,10 +11647,11 @@ class ReleaseDependencySnapshotResult:
     compatibility_conflicts: list
     requires_confirmation: bool
     compatibility_confirmed: bool
+    strategy: str = RELEASE_DEPENDENCY_STRATEGY_REBUILD
 
     def to_document(self):
         return {
-            "schema_version": 1,
+            "schema_version": RELEASE_DEPENDENCY_SNAPSHOT_SCHEMA_VERSION,
             "status": self.status,
             "installer": self.installer,
             "command": list(self.command),
@@ -11381,14 +11660,16 @@ class ReleaseDependencySnapshotResult:
             "compatibility_conflicts": list(self.compatibility_conflicts),
             "requires_confirmation": self.requires_confirmation,
             "compatibility_confirmed": self.compatibility_confirmed,
+            "strategy": self.strategy,
         }
 
     @classmethod
     def from_document(cls, document):
-        document = _require_document(
-            document,
-            "dependency snapshot",
-            (
+        if not isinstance(document, dict):
+            raise ValueError("dependency snapshot must be an object.")
+        schema_version = document.get("schema_version")
+        if schema_version == RELEASE_DEPENDENCY_SNAPSHOT_SCHEMA_VERSION:
+            fields = (
                 "schema_version",
                 "status",
                 "installer",
@@ -11398,13 +11679,38 @@ class ReleaseDependencySnapshotResult:
                 "compatibility_conflicts",
                 "requires_confirmation",
                 "compatibility_confirmed",
-            ),
-        )
-        if (
-            type(document["schema_version"]) is not int
-            or document["schema_version"] != 1
+                "strategy",
+            )
+        elif (
+            schema_version
+            == PREVIOUS_RELEASE_DEPENDENCY_SNAPSHOT_SCHEMA_VERSION
         ):
+            fields = (
+                "schema_version",
+                "status",
+                "installer",
+                "command",
+                "requirements_file",
+                "compatibility_warnings",
+                "compatibility_conflicts",
+                "requires_confirmation",
+                "compatibility_confirmed",
+            )
+        else:
             raise ValueError("Dependency snapshot schema is unsupported.")
+        document = _require_document(
+            document,
+            "dependency snapshot",
+            fields,
+        )
+        strategy = (
+            RELEASE_DEPENDENCY_STRATEGY_REBUILD
+            if schema_version
+            == PREVIOUS_RELEASE_DEPENDENCY_SNAPSHOT_SCHEMA_VERSION
+            else document["strategy"]
+        )
+        if strategy not in RELEASE_DEPENDENCY_STRATEGIES:
+            raise ValueError("Dependency snapshot strategy is unsupported.")
         status = _require_nonempty_string(document["status"], "status")
         if status not in {
             "dependencies_staged",
@@ -11454,6 +11760,15 @@ class ReleaseDependencySnapshotResult:
             raise ValueError("Staged dependency state is inconsistent.")
         if (installer == "none") != (command == []):
             raise ValueError("Dependency installer command is inconsistent.")
+        if strategy == RELEASE_DEPENDENCY_STRATEGY_RETAIN_LIVE and (
+            status != "dependencies_staged"
+            or installer != "none"
+            or messages("compatibility_warnings")
+            or conflicts
+            or requires_confirmation
+            or compatibility_confirmed
+        ):
+            raise ValueError("Retained dependency snapshot is inconsistent.")
         return cls(
             status=status,
             installer=installer,
@@ -11463,6 +11778,7 @@ class ReleaseDependencySnapshotResult:
             compatibility_conflicts=conflicts,
             requires_confirmation=requires_confirmation,
             compatibility_confirmed=compatibility_confirmed,
+            strategy=strategy,
         )
 
 
@@ -11640,6 +11956,7 @@ RELEASE_DEPENDENCY_FAILURE_PATTERNS = (
         (
             "requires-python",
             "requires python",
+            "requires a different python version",
             "not compatible with python",
             "does not support python",
             "unsupported python version",
@@ -11695,7 +12012,8 @@ RELEASE_DEPENDENCY_FAILURE_MESSAGES = {
         "A required package is incompatible with this Python version."
     ),
     "package_not_found": (
-        "A required package was not found in the configured package index."
+        "A matching required package version was not available from the "
+        "configured package index for this Python runtime."
     ),
     "resolution_conflict": (
         "The installed plugins have incompatible dependency requirements."
@@ -11710,6 +12028,108 @@ RELEASE_DEPENDENCY_FAILURE_MESSAGES = {
         "The installer did not report a safely recognizable cause."
     ),
 }
+
+RELEASE_DEPENDENCY_FAILURE_PACKAGE_PATTERNS = (
+    re.compile(
+        r"could not find a version that satisfies the requirement "
+        r"([a-z0-9][a-z0-9._-]{0,127})",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"no matching distribution found for "
+        r"([a-z0-9][a-z0-9._-]{0,127})",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"([a-z0-9][a-z0-9._-]{0,127}) "
+        r"was not found in the package registry",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"([a-z0-9][a-z0-9._-]{0,127}) "
+        r"requires a different python version",
+        re.IGNORECASE,
+    ),
+)
+RELEASE_DEPENDENCY_REQUIREMENT_NAME = re.compile(
+    r"^\s*([a-z0-9][a-z0-9._-]{0,127})"
+    r"(?:\s*\[[^\]\r\n]{0,256}\])?"
+    r"\s*(?:===|==|~=|!=|<=|>=|<|>|@|;|$)",
+    re.IGNORECASE,
+)
+RELEASE_DEPENDENCY_RESERVED_NAMES = {
+    "file",
+    "git",
+    "http",
+    "https",
+}
+
+
+def _canonical_dependency_name(value):
+    name = re.sub(r"[-_.]+", "-", str(value or "").strip()).casefold()
+    if (
+        not name
+        or len(name) > 128
+        or name in RELEASE_DEPENDENCY_RESERVED_NAMES
+        or re.fullmatch(r"[a-z0-9][a-z0-9-]{0,127}", name) is None
+    ):
+        return ""
+    return name
+
+
+def release_dependency_failure_packages(stdout, stderr):
+    """Extract only allowlisted package identifiers from installer output."""
+    output = "\n".join(str(part or "") for part in (stderr, stdout))
+    packages = set()
+    for pattern in RELEASE_DEPENDENCY_FAILURE_PACKAGE_PATTERNS:
+        for match in pattern.finditer(output):
+            package = _canonical_dependency_name(match.group(1))
+            if package:
+                packages.add(package)
+    return sorted(packages)
+
+
+def _requirement_package_names(path):
+    """Read direct requirement names without retaining requirement details."""
+    try:
+        contents = _read_small_regular_file(path)
+    except (OSError, ValueError):
+        return set()
+    if contents is None:
+        return set()
+    names = set()
+    for line in contents.decode("utf-8", errors="replace").splitlines():
+        stripped = line.lstrip()
+        if not stripped or stripped.startswith(("#", "-")):
+            continue
+        match = RELEASE_DEPENDENCY_REQUIREMENT_NAME.match(line)
+        if match is None:
+            continue
+        name = _canonical_dependency_name(match.group(1))
+        if name:
+            names.add(name)
+    return names
+
+
+def _safe_dependency_owner(value):
+    owner = re.sub(r"[^A-Za-z0-9._-]", "_", str(value or ""))
+    owner = owner.strip("._-")[:128]
+    return owner
+
+
+def release_dependency_failure_owners(requirements, stdout, stderr):
+    """Map reported direct packages to sanitized requirement owners."""
+    reported = set(release_dependency_failure_packages(stdout, stderr))
+    if not reported:
+        return []
+    matches = set()
+    for owner, path in requirements:
+        safe_owner = _safe_dependency_owner(owner)
+        if not safe_owner:
+            continue
+        for package in reported & _requirement_package_names(path):
+            matches.add((safe_owner, package))
+    return sorted(matches, key=lambda item: (item[0].casefold(), item[1]))
 
 
 def classify_release_dependency_failure(stdout, stderr):
@@ -11727,17 +12147,40 @@ def classify_release_dependency_failure(stdout, stderr):
 class _ReleaseDependencyCommandRunner:
     """Discover and execute supported dependency installers."""
 
-    def available(self, command):
+    def available(self, command, *, env=None):
+        environment = (
+            dict(env)
+            if env is not None
+            else {
+                "PATH": RELEASE_DEPENDENCY_INSTALLER_PATH,
+                "LANG": "C.UTF-8",
+                "LC_ALL": "C.UTF-8",
+                "PYTHONUTF8": "1",
+            }
+        )
+        installer_path = str(
+            environment.get("PATH")
+            or RELEASE_DEPENDENCY_INSTALLER_PATH
+        )
         if command == "uv":
             return shutil.which(
                 "uv",
-                path=RELEASE_DEPENDENCY_INSTALLER_PATH,
+                path=installer_path,
             ) is not None
         if command == "pip":
+            if not sys.executable:
+                return False
             try:
-                __import__("pip")
-                return True
-            except ImportError:
+                completed = subprocess.run(
+                    [sys.executable, "-m", "pip", "--version"],
+                    env=environment,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                    timeout=10,
+                )
+                return completed.returncode == 0
+            except (OSError, subprocess.SubprocessError):
                 return False
         return False
 
@@ -12210,6 +12653,73 @@ class ReleaseDependencySnapshotService:
             manual_required=manual_required,
         )
 
+    def _installer_unavailable_message(self, installer):
+        try:
+            platform_name = self.plugin.get_host().platform_name
+        except Exception:
+            platform_name = ""
+        return dependency_installer_unavailable_message(
+            installer,
+            platform_name,
+        )
+
+    def _failure_context(
+        self,
+        requirements,
+        stdout,
+        stderr,
+        category,
+    ):
+        packages = release_dependency_failure_packages(stdout, stderr)
+        owners = release_dependency_failure_owners(
+            requirements,
+            stdout,
+            stderr,
+        )
+        details = []
+        if owners:
+            shown = owners[:5]
+            label = (
+                "Blocking requirement: "
+                if len(shown) == 1 and len(owners) == 1
+                else "Blocking requirements: "
+            )
+            detail = label + "; ".join(
+                package + " from " + owner
+                for owner, package in shown
+            )
+            if len(owners) > len(shown):
+                detail += (
+                    "; "
+                    + str(len(owners) - len(shown))
+                    + " more omitted"
+                )
+            details.append(detail + ".")
+        elif packages:
+            details.append(
+                (
+                    "Reported package: "
+                    if len(packages) == 1
+                    else "Reported packages: "
+                )
+                + ", ".join(packages[:5])
+                + "."
+            )
+        if category in {"python_incompatible", "package_not_found"}:
+            details.append(
+                "Domoticz is using Python "
+                + str(sys.version_info[0])
+                + "."
+                + str(sys.version_info[1])
+                + "."
+            )
+            if owners:
+                details.append(
+                    "Review that plugin's requirements or use a compatible "
+                    "Domoticz Python runtime."
+                )
+        return " ".join(details)
+
     def _build_generation(
         self,
         transaction,
@@ -12244,6 +12754,9 @@ class ReleaseDependencySnapshotService:
         selected_installer = "none"
         command = []
         if requirements:
+            installer_environment = self._installer_environment(
+                staged_dependencies
+            )
             candidates = (
                 ("uv", "pip")
                 if installer == "auto"
@@ -12253,15 +12766,17 @@ class ReleaseDependencySnapshotService:
                 (
                     candidate
                     for candidate in candidates
-                    if self.command_runner.available(candidate)
+                    if self.command_runner.available(
+                        candidate,
+                        env=installer_environment,
+                    )
                 ),
                 "",
             )
             if not selected_installer:
                 self._generation_error(
                     "installer_unavailable",
-                    "No supported dependency installer is available; manual "
-                    "dependency handling is required.",
+                    self._installer_unavailable_message(installer),
                     manual_required=True,
                 )
             if selected_installer == "uv":
@@ -12290,9 +12805,7 @@ class ReleaseDependencySnapshotService:
             try:
                 completed = self.command_runner.run(
                     command,
-                    env=self._installer_environment(
-                        staged_dependencies
-                    ),
+                    env=installer_environment,
                 )
             except Exception as error:
                 self._generation_error(
@@ -12304,6 +12817,12 @@ class ReleaseDependencySnapshotService:
                 category = classify_release_dependency_failure(
                     completed.stdout,
                     completed.stderr,
+                )
+                failure_context = self._failure_context(
+                    requirements,
+                    completed.stdout,
+                    completed.stderr,
+                    category,
                 )
                 requirement_count = len(requirements)
                 requirement_label = (
@@ -12323,6 +12842,7 @@ class ReleaseDependencySnapshotService:
                     + requirement_label
                     + ". "
                     + RELEASE_DEPENDENCY_FAILURE_MESSAGES[category]
+                    + (" " + failure_context if failure_context else "")
                     + " Raw installer output was not logged.",
                 )
         try:
@@ -12392,12 +12912,34 @@ class ReleaseDependencySnapshotService:
             compatibility_conflicts=list(result.compatibility_conflicts),
             requires_confirmation=False,
             compatibility_confirmed=True,
+            strategy=result.strategy,
         )
         self.transaction_manager.mark_dependencies_staged(
             transaction.operation_id,
             confirmed.to_document(),
         )
         return confirmed
+
+    def _can_retain_live_dependencies(
+        self,
+        transaction,
+        requirements_file,
+    ):
+        checker = getattr(
+            self.transaction_manager,
+            "can_retain_live_dependencies",
+            None,
+        )
+        marker = getattr(
+            self.transaction_manager,
+            "mark_dependencies_retained",
+            None,
+        )
+        return bool(
+            callable(checker)
+            and callable(marker)
+            and checker(transaction, requirements_file)
+        )
 
     def stage(
         self,
@@ -12429,6 +12971,27 @@ class ReleaseDependencySnapshotService:
             str(transaction.paths.staged_dependencies)
         )
         try:
+            if self._can_retain_live_dependencies(
+                transaction,
+                requirements_file,
+            ):
+                retained = ReleaseDependencySnapshotResult(
+                    status="dependencies_staged",
+                    installer="none",
+                    command=[],
+                    requirements_file=requirements_file,
+                    compatibility_warnings=[],
+                    compatibility_conflicts=[],
+                    requires_confirmation=False,
+                    compatibility_confirmed=False,
+                    strategy=RELEASE_DEPENDENCY_STRATEGY_RETAIN_LIVE,
+                )
+                self.transaction_manager.mark_dependencies_retained(
+                    transaction.operation_id,
+                    retained.to_document(),
+                    requirements_file,
+                )
+                return retained
             selected_installer, command, _requirements = (
                 self._build_generation(
                     transaction,

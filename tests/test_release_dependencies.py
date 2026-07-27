@@ -81,9 +81,11 @@ class RecordingCommandRunner:
         self.stderr = stderr
         self.on_run = on_run
         self.events = events if events is not None else []
+        self.available_calls = []
         self.calls = []
 
-    def available(self, command):
+    def available(self, command, *, env=None):
+        self.available_calls.append((command, dict(env or {})))
         return command in self.available_commands
 
     def run(self, command, *, env=None):
@@ -145,6 +147,30 @@ class RecordingTransactionManager:
         assert operation_id == self.transaction.operation_id
         self.events.append("mark_dependencies_staged")
         self.calls.append(("staged", snapshot))
+        self.transaction.phase = "dependencies_staged"
+        self.transaction.dependency_snapshot = snapshot
+        return self.transaction
+
+    def can_retain_live_dependencies(
+        self,
+        transaction,
+        requirements_file,
+    ):
+        del requirements_file
+        assert transaction is self.transaction
+        return bool(
+            getattr(transaction, "retain_live_dependencies", False)
+        )
+
+    def mark_dependencies_retained(
+        self,
+        operation_id,
+        snapshot,
+        requirements_file,
+    ):
+        assert operation_id == self.transaction.operation_id
+        self.events.append("mark_dependencies_retained")
+        self.calls.append(("retained", snapshot, requirements_file))
         self.transaction.phase = "dependencies_staged"
         self.transaction.dependency_snapshot = snapshot
         return self.transaction
@@ -424,6 +450,7 @@ def test_pip_and_uv_always_target_staging_never_live(
         "PIP_CACHE_DIR",
         "UV_CACHE_DIR",
     }
+    assert runner.available_calls == [(installer, environment)]
     assert tree_snapshot(transaction.paths.live_dependencies) == live_before
 
 
@@ -444,6 +471,62 @@ def test_uv_discovery_uses_the_same_sanitized_path_as_execution(
     )
     assert calls == [
         ("uv", plugin_core_module.RELEASE_DEPENDENCY_INSTALLER_PATH)
+    ]
+
+
+@pytest.mark.parametrize(
+    ("returncode", "expected"),
+    [(0, True), (1, False)],
+)
+def test_pip_discovery_runs_the_domoticz_python_with_sanitized_environment(
+    plugin_core_module,
+    monkeypatch,
+    returncode,
+    expected,
+):
+    calls = []
+    environment = {
+        "PATH": plugin_core_module.RELEASE_DEPENDENCY_INSTALLER_PATH,
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "PYTHONUTF8": "1",
+        "PIP_CACHE_DIR": "/safe/pip-cache",
+        "UV_CACHE_DIR": "/safe/uv-cache",
+    }
+
+    def run(command, **kwargs):
+        calls.append((list(command), kwargs))
+        return SimpleNamespace(
+            returncode=returncode,
+            stderr="credential-bearing probe detail",
+        )
+
+    monkeypatch.setattr(plugin_core_module.subprocess, "run", run)
+
+    available = (
+        plugin_core_module._ReleaseDependencyCommandRunner().available(
+            "pip",
+            env=environment,
+        )
+    )
+
+    assert available is expected
+    assert calls == [
+        (
+            [
+                plugin_core_module.sys.executable,
+                "-m",
+                "pip",
+                "--version",
+            ],
+            {
+                "env": environment,
+                "stdout": plugin_core_module.subprocess.DEVNULL,
+                "stderr": plugin_core_module.subprocess.DEVNULL,
+                "check": False,
+                "timeout": 10,
+            },
+        )
     ]
 
 
@@ -516,6 +599,62 @@ def test_generation_resolves_all_installed_requirements_in_one_command(
     ]
 
 
+def test_exact_migration_retains_live_dependencies_without_resolving_other_plugins(
+    plugin_core_module,
+    tmp_path,
+):
+    transaction = stub_transaction(tmp_path)
+    transaction.operation = "release_migration"
+    transaction.retain_live_dependencies = True
+    requirements = Path(transaction.paths.staged_code) / "requirements.txt"
+    write_files(
+        Path(transaction.paths.live_code),
+        {"requirements.txt": requirements.read_bytes()},
+    )
+    write_files(
+        Path(transaction.paths.live_code).parent
+        / "domoticz-solaredge-modbustcp-plugin",
+        {
+            "requirements.txt": (
+                "pymodbus==3.6.9\n"
+                "solaredge_modbus==0.8.0\n"
+            )
+        },
+    )
+    live_before = tree_snapshot(transaction.paths.live_dependencies)
+    runner = RecordingCommandRunner(
+        returncode=1,
+        stderr=(
+            "No matching distribution found for solaredge_modbus==0.8.0"
+        ),
+    )
+    validator = RecordingValidator()
+    manager = RecordingTransactionManager(transaction)
+    service = make_service(
+        plugin_core_module,
+        manager,
+        runner=runner,
+        validator=validator,
+    )
+
+    result = stage(service, transaction)
+
+    assert result.status == "dependencies_staged"
+    assert result.strategy == "retain_live"
+    assert result.installer == "none"
+    assert result.command == []
+    assert runner.calls == []
+    assert runner.available_calls == []
+    assert validator.calls == []
+    assert not Path(transaction.paths.staged_dependencies).exists()
+    assert tree_snapshot(transaction.paths.live_dependencies) == live_before
+    assert manager.calls[-1][0] == "retained"
+    persisted = plugin_core_module.ReleaseDependencySnapshotResult.from_document(
+        manager.calls[-1][1]
+    )
+    assert persisted.strategy == "retain_live"
+
+
 def test_fresh_generation_ignores_legacy_hardlinks_in_live_tree(
     plugin_core_module,
     tmp_path,
@@ -582,6 +721,49 @@ def test_git_dependency_refresh_uses_same_atomic_generation_builder(
     command, environment = runner.calls[0]
     assert command[command.index("--link-mode") + 1] == "copy"
     assert "HOME" not in environment
+
+
+def test_git_missing_installer_reports_pip_guidance_without_live_mutation(
+    plugin_core_module,
+    tmp_path,
+):
+    plugins_dir, manager_dir = configure_home(
+        plugin_core_module,
+        tmp_path,
+    )
+    plugin_dir = write_files(
+        plugins_dir / "ExamplePlugin",
+        {
+            "plugin.py": "print('git plugin')\n",
+            "requirements.txt": "new-dependency==2.0\n",
+        },
+    )
+    live = write_files(
+        manager_dir / ".shared_deps",
+        {"working_dependency/__init__.py": "WORKING = True\n"},
+    )
+    live_before = tree_snapshot(live)
+    plugin = plugin_core_module.BasePlugin()
+    plugin.installed_plugin_folders = {
+        "ExamplePlugin": str(plugin_dir)
+    }
+    runner = RecordingCommandRunner(available=[])
+    service = plugin_core_module.ReleaseDependencySnapshotService(
+        plugin,
+        transaction_manager=plugin.release_transaction_manager,
+        command_runner=runner,
+        filesystem=RecordingFilesystem(),
+        validator=RecordingValidator(),
+    )
+
+    success, message = service.rebuild_live("ExamplePlugin")
+
+    assert success is False
+    assert "uv was not found" in message
+    assert "Python pip cannot be run" in message
+    assert "python3-pip" in message
+    assert tree_snapshot(live) == live_before
+    assert runner.calls == []
 
 
 @pytest.mark.parametrize(
@@ -687,6 +869,7 @@ def test_no_requirements_builds_empty_manifested_generation_without_installer(
     result = stage(service, transaction)
 
     assert runner.calls == []
+    assert runner.available_calls == []
     assert validator.calls == [
         (Path(transaction.paths.staged_dependencies), requirements)
     ]
@@ -701,6 +884,31 @@ def test_no_requirements_builds_empty_manifested_generation_without_installer(
     )
     assert manifest["installer"] == "none"
     assert manifest["requirements"] == []
+
+
+def test_dependency_snapshot_schema_one_defaults_to_rebuild_strategy(
+    plugin_core_module,
+):
+    previous = plugin_core_module.ReleaseDependencySnapshotResult(
+        status="dependencies_staged",
+        installer="none",
+        command=[],
+        requirements_file="",
+        compatibility_warnings=[],
+        compatibility_conflicts=[],
+        requires_confirmation=False,
+        compatibility_confirmed=False,
+    ).to_document()
+    previous["schema_version"] = 1
+    previous.pop("strategy")
+
+    restored = (
+        plugin_core_module.ReleaseDependencySnapshotResult.from_document(
+            previous
+        )
+    )
+
+    assert restored.strategy == "rebuild"
 
 
 def test_validation_runs_after_install_and_before_journal_stage(
@@ -774,7 +982,7 @@ def test_unavailable_installer_reports_manual_dependency_state_without_live_muta
     manager = RecordingTransactionManager(transaction)
     service = make_service(plugin_core_module, manager, runner=runner)
 
-    assert_dependency_error(
+    error = assert_dependency_error(
         plugin_core_module,
         "installer_unavailable",
         lambda: stage(service, transaction),
@@ -784,7 +992,27 @@ def test_unavailable_installer_reports_manual_dependency_state_without_live_muta
     assert tree_snapshot(transaction.paths.live_dependencies) == live_before
     assert not Path(transaction.paths.staged_dependencies).exists()
     assert transaction.phase == "dependency_blocked"
+    assert "uv was not found" in error.message
+    assert "Python pip cannot be run" in error.message
+    assert "python3-pip" in error.message
     assert "manual" in transaction.error.lower()
+    assert "credential" not in transaction.error.lower()
+
+
+def test_missing_installer_guidance_is_platform_specific(
+    plugin_core_module,
+):
+    windows_message = (
+        plugin_core_module.dependency_installer_unavailable_message(
+            "auto",
+            "windows",
+        )
+    )
+
+    assert "Python pip cannot be run" in windows_message
+    assert "Python installation used by Domoticz" in windows_message
+    assert "python3-pip" not in windows_message
+    assert "py3-pip" not in windows_message
 
 
 @pytest.mark.parametrize("installer", ["uv", "pip"])
@@ -823,6 +1051,68 @@ def test_installer_failure_discards_stage_and_never_mutates_live(
     assert transaction.phase == "dependency_blocked"
 
 
+def test_installer_failure_identifies_the_blocking_requirement_owner_safely(
+    plugin_core_module,
+    tmp_path,
+):
+    transaction = stub_transaction(tmp_path)
+    blocker = (
+        Path(transaction.paths.live_code).parent
+        / "domoticz-solaredge-modbustcp-plugin"
+        / "requirements.txt"
+    )
+    write_files(
+        blocker.parent,
+        {
+            "requirements.txt": (
+                "pymodbus==3.6.9\n"
+                "solaredge_modbus==0.8.0\n"
+            )
+        },
+    )
+    runner = RecordingCommandRunner(
+        available=["pip"],
+        returncode=1,
+        stderr=(
+            "Looking in indexes: "
+            "https://account:credential@example.invalid/simple\n"
+            "ERROR: Package solaredge_modbus requires a different Python "
+            "version: 3.7.3 not in '>=3.8'\n"
+            "ERROR: No matching distribution found for "
+            "solaredge_modbus==0.8.0"
+        ),
+    )
+    manager = RecordingTransactionManager(transaction)
+    service = make_service(
+        plugin_core_module,
+        manager,
+        runner=runner,
+    )
+
+    error = assert_dependency_error(
+        plugin_core_module,
+        "install_failed",
+        lambda: stage(service, transaction, installer="pip"),
+    )
+
+    assert (
+        "Blocking requirement: solaredge-modbus from "
+        "domoticz-solaredge-modbustcp-plugin."
+    ) in error.message
+    assert (
+        "Domoticz is using Python "
+        + str(sys.version_info[0])
+        + "."
+        + str(sys.version_info[1])
+        + "."
+    ) in error.message
+    assert "use a compatible Domoticz Python runtime" in error.message
+    assert "account" not in error.message
+    assert "credential" not in error.message
+    assert "example.invalid" not in error.message
+    assert runner.stderr not in error.message
+
+
 @pytest.mark.parametrize(
     ("output", "expected"),
     [
@@ -836,6 +1126,10 @@ def test_installer_failure_discards_stage_and_never_mutates_live(
         ),
         (
             "example-package Requires-Python >=3.14",
+            "python_incompatible",
+        ),
+        (
+            "example-package requires a different Python version",
             "python_incompatible",
         ),
         (

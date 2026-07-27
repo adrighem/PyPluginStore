@@ -1400,20 +1400,28 @@ def test_daily_heartbeat_refreshes_update_status_once(plugin_core_module, tmp_pa
     assert Path(refresh_calls[0]["plugins_dir"]).name == "plugins"
 
 
-def test_dependency_install_command_prefers_uv_with_active_python(plugin_core_module, tmp_path):
-    runtime = plugin_core_module.LinuxHostRuntime({})
-    runtime.command_available = lambda command: command == "uv"
+def test_missing_pip_guidance_is_logged_for_dependency_rebuild(
+    plugin_core_module,
+    monkeypatch,
+):
+    plugin = plugin_core_module.BasePlugin()
+    message = (
+        plugin_core_module.dependency_installer_unavailable_message(
+            "auto",
+            "linux",
+        )
+    )
+    monkeypatch.setattr(
+        plugin.release_dependency_service,
+        "rebuild_live",
+        lambda plugin_key: (False, message),
+    )
 
-    command = runtime.dependency_install_command(str(tmp_path / "requirements.txt"), str(tmp_path / "deps"))
+    success, returned_message = plugin.installDependencies(
+        "ExamplePlugin"
+    )
 
-    assert command[:5] == ["uv", "pip", "install", "--python", plugin_core_module.sys.executable]
-
-
-def test_dependency_install_command_prefers_current_python_before_pip3(plugin_core_module, tmp_path):
-    runtime = plugin_core_module.LinuxHostRuntime({})
-    runtime.command_available = lambda command: command == "pip3"
-    runtime.command_can_run = lambda command, timeout=10: command == [plugin_core_module.sys.executable, "-m", "pip", "--version"]
-
-    command = runtime.dependency_install_command(str(tmp_path / "requirements.txt"), str(tmp_path / "deps"))
-
-    assert command[:3] == [plugin_core_module.sys.executable, "-m", "pip"]
+    assert success is False
+    assert returned_message == message
+    assert "python3-pip" in message
+    assert message in recorded_messages(plugin_core_module, "Error")

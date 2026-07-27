@@ -324,6 +324,8 @@ def prepare_migration_transaction(
     plugins_dir,
     manager_dir,
     operation_id="operation-001",
+    retain_dependencies=False,
+    stage_dependencies=True,
 ):
     live_code, installed_commit = initialize_repository(
         plugins_dir / "ExamplePlugin"
@@ -369,15 +371,40 @@ def prepare_migration_transaction(
         ),
         encoding="utf-8",
     )
-    shutil.copytree(
-        live_dependencies,
-        transaction.paths.staged_dependencies,
-    )
     manager.mark_staged_verified(operation_id)
-    transaction = manager.mark_dependencies_staged(
-        operation_id,
-        dependency_snapshot(),
-    )
+    if not stage_dependencies:
+        return (
+            manager.load_transaction(operation_id),
+            live_code,
+            installed_commit,
+            preflight,
+        )
+    if retain_dependencies:
+        retained = plugin_core_module.ReleaseDependencySnapshotResult(
+            status="dependencies_staged",
+            installer="none",
+            command=[],
+            requirements_file=str(staged_code / "requirements.txt"),
+            compatibility_warnings=[],
+            compatibility_conflicts=[],
+            requires_confirmation=False,
+            compatibility_confirmed=False,
+            strategy="retain_live",
+        )
+        transaction = manager.mark_dependencies_retained(
+            operation_id,
+            retained.to_document(),
+            str(staged_code / "requirements.txt"),
+        )
+    else:
+        shutil.copytree(
+            live_dependencies,
+            transaction.paths.staged_dependencies,
+        )
+        transaction = manager.mark_dependencies_staged(
+            operation_id,
+            dependency_snapshot(),
+        )
     return transaction, live_code, installed_commit, preflight
 
 
@@ -1664,6 +1691,255 @@ def test_release_transaction_records_operation_specific_expected_current_state(
     assert transaction.expected_current == operation_expected_current
     assert document["operation"] == operation
     assert document["expected_current"] == operation_expected_current
+
+
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+def test_exact_migration_retains_live_dependencies_without_a_global_swap(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module, tmp_path
+    )
+    transaction, live_code, installed_commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+            stage_dependencies=False,
+        )
+    )
+    blocker = (
+        plugins_dir
+        / "domoticz-solaredge-modbustcp-plugin"
+        / "requirements.txt"
+    )
+    blocker.parent.mkdir()
+    blocker.write_text(
+        "pymodbus==3.6.9\nsolaredge_modbus==0.8.0\n",
+        encoding="utf-8",
+    )
+
+    class InstallerMustNotRun:
+        def available(self, command, *, env=None):
+            del command, env
+            raise AssertionError("dependency installer discovery ran")
+
+        def run(self, command, *, env=None):
+            del command, env
+            raise AssertionError("dependency installer ran")
+
+    dependency_service = (
+        plugin_core_module.ReleaseDependencySnapshotService(
+            manager.plugin,
+            transaction_manager=manager,
+            command_runner=InstallerMustNotRun(),
+        )
+    )
+    dependency_result = dependency_service.stage(
+        transaction.operation_id,
+        requirements_file=str(
+            Path(transaction.paths.staged_code) / "requirements.txt"
+        ),
+    )
+    transaction = manager.load_transaction(transaction.operation_id)
+    dependency_file = Path(
+        transaction.paths.live_dependencies,
+        "old-only.py",
+    )
+    dependency_identity = (
+        dependency_file.stat().st_dev,
+        dependency_file.stat().st_ino,
+    )
+    journal = json.loads(
+        Path(transaction.paths.journal).read_text(encoding="utf-8")
+    )
+
+    assert dependency_result.strategy == "retain_live"
+    assert journal["dependency_snapshot"]["strategy"] == "retain_live"
+    assert journal["dependency_state"]["target"] == (
+        journal["dependency_state"]["expected"]
+    )
+    assert not Path(transaction.paths.staged_dependencies).exists()
+
+    activated = manager.activate(transaction.operation_id)
+
+    assert activated.phase == "restart_pending"
+    assert not Path(activated.paths.backup_dependencies).exists()
+    assert not Path(activated.paths.staged_dependencies).exists()
+    assert (
+        dependency_file.stat().st_dev,
+        dependency_file.stat().st_ino,
+    ) == dependency_identity
+
+    completed = manager.mark_release_managed(transaction.operation_id)
+    rolled_back = manager.rollback(transaction.operation_id)
+
+    assert completed.phase == "release_managed"
+    assert rolled_back.phase == "rolled_back"
+    assert Path(rolled_back.paths.live_code) == live_code
+    assert (live_code / ".git").is_dir()
+    assert head_commit(live_code) == installed_commit
+    assert (
+        dependency_file.stat().st_dev,
+        dependency_file.stat().st_ino,
+    ) == dependency_identity
+
+
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+def test_migration_cannot_retain_dependencies_when_requirements_differ(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module, tmp_path
+    )
+    transaction, live_code, _installed_commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+            stage_dependencies=False,
+        )
+    )
+    live_requirements = live_code / "requirements.txt"
+    staged_requirements = (
+        Path(transaction.paths.staged_code) / "requirements.txt"
+    )
+    live_requirements.write_text("example-package==1\n", encoding="utf-8")
+    staged_requirements.write_text("example-package==2\n", encoding="utf-8")
+    retained = plugin_core_module.ReleaseDependencySnapshotResult(
+        status="dependencies_staged",
+        installer="none",
+        command=[],
+        requirements_file=str(staged_requirements),
+        compatibility_warnings=[],
+        compatibility_conflicts=[],
+        requires_confirmation=False,
+        compatibility_confirmed=False,
+        strategy="retain_live",
+    )
+
+    assert manager.can_retain_live_dependencies(
+        transaction,
+        str(staged_requirements),
+    ) is False
+    with pytest.raises(ValueError, match="cannot be retained"):
+        manager.mark_dependencies_retained(
+            transaction.operation_id,
+            retained.to_document(),
+            str(staged_requirements),
+        )
+
+    unchanged = manager.load_transaction(transaction.operation_id)
+    assert unchanged.phase == "staged_verified"
+    assert not Path(unchanged.paths.backup_code).exists()
+    assert not Path(unchanged.paths.backup_dependencies).exists()
+
+
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+def test_retained_dependency_change_stops_migration_before_code_activation(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module, tmp_path
+    )
+    transaction, live_code, installed_commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+            retain_dependencies=True,
+        )
+    )
+    write_marker(
+        transaction.paths.live_dependencies,
+        "changed-after-approval",
+        "old-only.py",
+    )
+
+    with pytest.raises(ValueError, match="changed after.*retention"):
+        manager.activate(transaction.operation_id)
+
+    stale = manager.load_transaction(transaction.operation_id)
+    assert stale.phase == "stale_target"
+    assert Path(stale.paths.live_code) == live_code
+    assert (live_code / ".git").is_dir()
+    assert head_commit(live_code) == installed_commit
+    assert not Path(stale.paths.backup_code).exists()
+    assert not Path(stale.paths.backup_dependencies).exists()
+
+
+@pytest.mark.skipif(GIT is None, reason="Git is required")
+@pytest.mark.parametrize(
+    ("crash_phase", "expected_phase", "expected_git"),
+    [
+        ("code_backed_up", "rolled_back", True),
+        ("release_activated", "restart_pending", False),
+    ],
+)
+def test_retained_dependency_migration_recovery_is_idempotent(
+    plugin_core_module,
+    tmp_path,
+    crash_phase,
+    expected_phase,
+    expected_git,
+):
+    manager, plugins_dir, manager_dir = make_manager(
+        plugin_core_module, tmp_path
+    )
+    transaction, _live_code, _installed_commit, _preflight = (
+        prepare_migration_transaction(
+            plugin_core_module,
+            manager,
+            plugins_dir,
+            manager_dir,
+            retain_dependencies=True,
+        )
+    )
+    dependency_file = Path(
+        transaction.paths.live_dependencies,
+        "old-only.py",
+    )
+    dependency_identity = (
+        dependency_file.stat().st_dev,
+        dependency_file.stat().st_ino,
+    )
+
+    def crash_after_phase(phase, _transaction):
+        if phase == crash_phase:
+            raise SimulatedCrash(phase)
+
+    manager.fault_injector = crash_after_phase
+    with pytest.raises(SimulatedCrash):
+        manager.activate(transaction.operation_id)
+
+    recovered_manager = new_manager(plugin_core_module)
+    recovered_manager.recover_pending()
+    recovered = recovered_manager.load_transaction(
+        transaction.operation_id
+    )
+    first_journal = Path(recovered.paths.journal).read_bytes()
+
+    assert recovered.phase == expected_phase
+    assert (Path(recovered.paths.live_code) / ".git").exists() is expected_git
+    assert not Path(recovered.paths.backup_dependencies).exists()
+    assert (
+        dependency_file.stat().st_dev,
+        dependency_file.stat().st_ino,
+    ) == dependency_identity
+
+    recovered_manager.recover_pending()
+
+    assert Path(recovered.paths.journal).read_bytes() == first_journal
+    assert (
+        dependency_file.stat().st_dev,
+        dependency_file.stat().st_ino,
+    ) == dependency_identity
 
 
 @pytest.mark.skipif(GIT is None, reason="Git is required")

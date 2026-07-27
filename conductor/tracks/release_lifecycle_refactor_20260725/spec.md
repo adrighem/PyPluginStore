@@ -29,6 +29,9 @@ generations, and gives the UI one authoritative management model.
   symbolic links and special files.
 - Build dependency generations without stale package files and record their
   requirements, owners, resolved distributions, and tree digest.
+- Retain the verified live dependency generation for a clean Git-to-Release
+  migration only when Git HEAD equals the Release commit and the target
+  requirements are byte-identical. Revalidate that generation at activation.
 - Serialize Git and Release dependency changes through the same workflow lock.
 - Model durable transitions as explicit outcomes with idempotent cancellation,
   recovery, and rollback behavior.
@@ -61,6 +64,8 @@ generations, and gives the UI one authoritative management model.
   devices, cross-filesystem escapes, and mutation races remain blocked.
 - Dependency upgrades, downgrades, and removals leave no stale distribution
   metadata.
+- A same-commit, same-requirements Git-to-Release migration does not invoke an
+  installer or rename the global dependency directory.
 - Conflicting requirements report the owning plugins and do not offer an
   unsafe confirmation override.
 - Git and Release dependency mutations cannot race.
