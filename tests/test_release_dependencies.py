@@ -761,7 +761,8 @@ def test_git_missing_installer_reports_pip_guidance_without_live_mutation(
     assert success is False
     assert "uv was not found" in message
     assert "Python pip cannot be run" in message
-    assert "python3-pip" in message
+    assert "restart Domoticz" in message
+    assert "dependencies must be handled manually" in message
     assert tree_snapshot(live) == live_before
     assert runner.calls == []
 
@@ -994,7 +995,8 @@ def test_unavailable_installer_reports_manual_dependency_state_without_live_muta
     assert transaction.phase == "dependency_blocked"
     assert "uv was not found" in error.message
     assert "Python pip cannot be run" in error.message
-    assert "python3-pip" in error.message
+    assert "restart Domoticz" in error.message
+    assert "dependencies must be handled manually" in error.message
     assert "manual" in transaction.error.lower()
     assert "credential" not in transaction.error.lower()
 
@@ -1002,6 +1004,12 @@ def test_unavailable_installer_reports_manual_dependency_state_without_live_muta
 def test_missing_installer_guidance_is_platform_specific(
     plugin_core_module,
 ):
+    linux_message = (
+        plugin_core_module.dependency_installer_unavailable_message(
+            "auto",
+            "linux",
+        )
+    )
     windows_message = (
         plugin_core_module.dependency_installer_unavailable_message(
             "auto",
@@ -1009,6 +1017,9 @@ def test_missing_installer_guidance_is_platform_specific(
         )
     )
 
+    assert "python3-pip" in linux_message
+    assert "py3-pip" in linux_message
+    assert "enable pip" not in linux_message
     assert "Python pip cannot be run" in windows_message
     assert "Python installation used by Domoticz" in windows_message
     assert "python3-pip" not in windows_message
