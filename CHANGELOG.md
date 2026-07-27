@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.24.2](https://github.com/adrighem/PyPluginStore/compare/v2.24.1...v2.24.2) (2026-07-27)
+
+
+### Bug Fixes
+
+* retain dependencies for exact release migrations ([9b4442d](https://github.com/adrighem/PyPluginStore/commit/9b4442d68a7215543bed09f66f69fb3d2d9618c8)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+
 ## [2.24.1](https://github.com/adrighem/PyPluginStore/compare/v2.24.0...v2.24.1) (2026-07-26)
 
 
