@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.24.3](https://github.com/adrighem/PyPluginStore/compare/v2.24.2...v2.24.3) (2026-07-27)
+
+
+### Bug Fixes
+
+* name verified restore targets ([cbffb6a](https://github.com/adrighem/PyPluginStore/commit/cbffb6a2c41d25b3934c4ae459cb2ca11bc8b3ff)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+
 ## [2.24.2](https://github.com/adrighem/PyPluginStore/compare/v2.24.1...v2.24.2) (2026-07-27)
 
 
