@@ -529,6 +529,53 @@ def test_expected_git_fallback_does_not_expose_missing_release_reason(
     ]
 
 
+@pytest.mark.parametrize(
+    ("rollback_channel", "rollback_version", "expected_label"),
+    [
+        ("git", "", "Return to previous Git version"),
+        ("release", "1.3.0", "Restore v1.3.0"),
+        ("release", "", "Restore previous Release version"),
+    ],
+)
+def test_management_presentation_names_verified_restore_target(
+    plugin_core_module,
+    rollback_channel,
+    rollback_version,
+    expected_label,
+):
+    entry = registry_entry(plugin_core_module)
+    state = {
+        "channel": "release",
+        "status": "current",
+        "updateable": False,
+        "verification_message": "",
+        "migration_message": "",
+        "restart_pending": False,
+        "rollback_available": True,
+        "rollback_channel": rollback_channel,
+        "rollback_version": rollback_version,
+        "migration_action_state": "blocked",
+    }
+
+    presented = plugin_core_module.BasePlugin()._management_presentation(
+        state,
+        entry,
+        is_manager=False,
+    )
+
+    rollback_action = next(
+        action
+        for action in presented["actions"]
+        if action["id"] == "rollback"
+    )
+    assert rollback_action == {
+        "id": "rollback",
+        "label": expected_label,
+        "enabled": True,
+        "reason": "",
+    }
+
+
 def test_higher_release_requires_complete_predecessor_lineage(
     plugin_core_module,
 ):
@@ -1582,6 +1629,7 @@ def test_local_override_on_release_install_requires_git_checkout(
         "plugin_lifecycle_state",
         lambda plugin_key: {
             "rollback_available": True,
+            "rollback_channel": "release",
             "rollback_version": "1.3.0",
             "rollback_revision": 6,
             "restart_pending": False,
@@ -1615,9 +1663,18 @@ def test_local_override_on_release_install_requires_git_checkout(
     assert management["channel"] == "release"
     assert management["status"] == "local_override_requires_git_checkout"
     assert management["updateable"] is False
-    assert "rollback" in management["verification_message"].lower()
+    assert (
+        "return to the previous git version"
+        in management["verification_message"].lower()
+    )
     assert management["rollback_available"] is True
+    assert management["rollback_channel"] == "release"
     assert management["rollback_version"] == "1.3.0"
+    assert next(
+        action
+        for action in management["actions"]
+        if action["id"] == "rollback"
+    )["label"] == "Restore v1.3.0"
     assert update_calls == []
     assert responses[0]["status"] == "error"
     assert responses[0]["action"] == "update"

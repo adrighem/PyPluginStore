@@ -106,6 +106,7 @@ def release_management_state(**overrides):
         "migration_status": "not_applicable",
         "migration_message": "",
         "rollback_available": True,
+        "rollback_channel": "release",
         "rollback_version": "1.3.0",
         "rollback_revision": 3,
         "restart_pending": False,
@@ -174,6 +175,7 @@ def test_list_plugins_adds_release_management_map_without_changing_legacy_data(
             verification_message="",
             migration_status="not_available",
             rollback_available=False,
+            rollback_channel="",
             rollback_version="",
             rollback_revision=None,
             release_available=False,
@@ -851,7 +853,7 @@ def test_release_status_text_surfaces_versions_migration_and_restart():
                 status="local_override_requires_git_checkout",
                 updateable=False,
             ),
-            "fragments": ["Local override requires Rollback or reinstall"],
+            "fragments": ["Restore the previous Git version or reinstall"],
         },
         {
             "state": release_management_state(restart_pending=True),
@@ -867,7 +869,7 @@ def test_release_status_text_surfaces_versions_migration_and_restart():
             "state": release_management_state(
                 status="rollback_available",
             ),
-            "fragments": ["Rollback", "v1.3.0"],
+            "fragments": ["v1.3.0 can be restored"],
         },
         {
             "state": release_management_state(
@@ -875,7 +877,7 @@ def test_release_status_text_surfaces_versions_migration_and_restart():
                 rollback_version="",
                 rollback_revision=99,
             ),
-            "fragments": ["Rollback available"],
+            "fragments": ["Previous Release version can be restored"],
         },
     ]
     run_node(
@@ -1100,6 +1102,50 @@ if (JSON.stringify(releaseActions) !== JSON.stringify([])) {
     )
 
 
+def test_release_action_labels_come_from_backend_descriptors():
+    script = load_inline_script()
+    function_source = extract_js_function(
+        script,
+        "releaseManagementActionLabel",
+    )
+    run_node(
+        function_source
+        + """
+const state = {
+    actions: [
+        {
+            id: 'rollback',
+            label: 'Return to previous Git version',
+            enabled: true,
+        },
+    ],
+};
+if (
+    releaseManagementActionLabel(
+        state,
+        'rollback',
+        'Restore previous version'
+    )
+    !== 'Return to previous Git version'
+) {
+    throw new Error('backend restore label was ignored');
+}
+if (releaseManagementActionLabel(state, 'update', 'Update') !== 'Update') {
+    throw new Error('missing descriptor did not use the safe fallback');
+}
+if (
+    releaseManagementActionLabel(
+        {actions: [{id: 'rollback', label: '   '}]},
+        'rollback',
+        'Restore previous version'
+    ) !== 'Restore previous version'
+) {
+    throw new Error('blank descriptor label did not use the safe fallback');
+}
+"""
+    )
+
+
 def test_ui_renders_explicit_channel_and_rollback_actions():
     html = (REPO_ROOT / "pypluginstore.html").read_text(encoding="utf-8")
     script = load_inline_script()
@@ -1115,7 +1161,8 @@ def test_ui_renders_explicit_channel_and_rollback_actions():
     assert "Use Release channel" in script
     assert "Use the Release channel instead of Git commits" in script
     assert "rollback" in script
-    assert "Rollback" in script
+    assert "releaseManagementActionLabel" in script
+    assert "rollbackButton.textContent = releaseManagementActionLabel" in script
     assert "handleReleaseManagementAction" in script
 
 

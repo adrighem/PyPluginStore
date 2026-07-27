@@ -9754,13 +9754,14 @@ class ReleaseTransactionManager:
                     if restart_pending:
                         break
 
+            rollback_channel = ""
             rollback_version = ""
             rollback_revision = None
-            if (
-                rollback is not None
-                and rollback.expected_current.get("management_mode")
-                == "release"
-            ):
+            if rollback is not None:
+                rollback_channel = str(
+                    rollback.expected_current.get("management_mode") or ""
+                )
+            if rollback_channel == "release":
                 try:
                     metadata = InstallMetadataService(self.plugin).read(
                         rollback.paths.backup_code
@@ -9774,6 +9775,7 @@ class ReleaseTransactionManager:
             return {
                 "rollback": rollback,
                 "rollback_available": rollback is not None,
+                "rollback_channel": rollback_channel,
                 "rollback_version": rollback_version,
                 "rollback_revision": rollback_revision,
                 "restart_pending": restart_pending,
@@ -18522,8 +18524,8 @@ class BasePlugin:
             return ""
         return (
             "This Local registry override requires a Git checkout. "
-            "Restore a verified Git backup with Rollback, or remove and "
-            "reinstall the plugin."
+            "Return to the previous Git version, or remove and reinstall "
+            "the plugin."
         )
 
     def load_update_times_file(self, update_times_file, label):
@@ -19391,6 +19393,7 @@ class BasePlugin:
             "migration_status": "not_available",
             "migration_message": "",
             "rollback_available": False,
+            "rollback_channel": "",
             "rollback_version": "",
             "rollback_revision": None,
             "restart_pending": False,
@@ -19403,6 +19406,21 @@ class BasePlugin:
             entry,
             is_manager=False,
         )
+
+    @staticmethod
+    def _rollback_action_label(state):
+        """Describe the verified restore target without exposing internals."""
+        channel = str(state.get("rollback_channel") or "")
+        version = str(state.get("rollback_version") or "").strip()
+        if channel == "git":
+            return "Return to previous Git version"
+        if version:
+            normalized_version = version.lstrip("vV")
+            if normalized_version:
+                return "Restore v" + normalized_version
+        if channel == "release":
+            return "Restore previous Release version"
+        return "Restore previous version"
 
     def _management_presentation(
         self,
@@ -19425,8 +19443,6 @@ class BasePlugin:
         )
         if state.get("restart_pending"):
             summary = channel + " - restart required"
-            if state.get("rollback_available"):
-                summary += "; rollback is available"
         elif status == "available":
             version = state.get("available_version") or ""
             summary = ""
@@ -19480,7 +19496,11 @@ class BasePlugin:
                 "Restart before another update.",
             )
             if state.get("rollback_available"):
-                action("rollback", "Rollback", True)
+                action(
+                    "rollback",
+                    self._rollback_action_label(state),
+                    True,
+                )
         else:
             migration_route = (
                 state["channel"] == "git"
@@ -19494,7 +19514,11 @@ class BasePlugin:
             )
             if state["channel"] == "release":
                 if state.get("rollback_available"):
-                    action("rollback", "Rollback", True)
+                    action(
+                        "rollback",
+                        self._rollback_action_label(state),
+                        True,
+                    )
             elif (
                 not entry.local
                 and state.get("migration_action_state")
@@ -19502,7 +19526,7 @@ class BasePlugin:
             ):
                 action(
                     "use_release",
-                    "Use Release",
+                    "Use Release channel",
                     True,
                 )
         state["summary"] = summary
@@ -19647,6 +19671,7 @@ class BasePlugin:
                 )
                 lifecycle = {
                     "rollback_available": False,
+                    "rollback_channel": "",
                     "rollback_version": "",
                     "rollback_revision": None,
                     "restart_pending": False,
@@ -19791,6 +19816,7 @@ class BasePlugin:
                 "migration_status": migration_status,
                 "migration_message": reason if migration_status.startswith("migration_") else "",
                 "rollback_available": lifecycle["rollback_available"],
+                "rollback_channel": lifecycle.get("rollback_channel", ""),
                 "rollback_version": lifecycle["rollback_version"],
                 "rollback_revision": lifecycle["rollback_revision"],
                 "restart_pending": lifecycle["restart_pending"],
@@ -20739,11 +20765,17 @@ class BasePlugin:
                 }
                 confirmation, _approved_digest = (
                     self._release_action_confirmation(
-                    kind="rollback",
-                    action=action,
-                    plugin_key=plugin_key,
-                    target=target,
-                    confirmation_token=confirmation_token,
+                        kind="rollback",
+                        action=action,
+                        plugin_key=plugin_key,
+                        target=target,
+                        confirmation_token=confirmation_token,
+                        message=(
+                            self._rollback_action_label(lifecycle)
+                            + " for "
+                            + plugin_key
+                            + "? A Domoticz restart will be required."
+                        ),
                     )
                 )
                 if confirmation is not None:

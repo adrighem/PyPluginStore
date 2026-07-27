@@ -179,9 +179,16 @@ def test_management_status_discovers_latest_verified_rollback_and_restart(
     )[PLUGIN_KEY]
 
     assert state["rollback_available"] is True
+    assert state["rollback_channel"] == "release"
     assert state["rollback_version"] == "2.0.0"
     assert state["rollback_revision"] == 2
     assert state["restart_pending"] is True
+    assert state["summary"].startswith("Release - restart required")
+    assert "rollback" not in state["summary"].lower()
+    rollback_action = next(
+        action for action in state["actions"] if action["id"] == "rollback"
+    )
+    assert rollback_action["label"] == "Restore v2.0.0"
 
 
 def test_rollback_api_uses_latest_verified_backup_and_requires_restart(
@@ -203,6 +210,10 @@ def test_rollback_api_uses_latest_verified_backup_and_requires_restart(
     assert challenge["kind"] == "rollback"
     assert challenge["token"]
     assert transaction.operation_id not in challenge["token"]
+    assert challenge["message"] == (
+        "Restore v1.0.0 for ExamplePlugin? "
+        "A Domoticz restart will be required."
+    )
 
     response = call_action(
         plugin,
@@ -237,7 +248,15 @@ def test_rollback_to_git_preserves_internal_safety_hold(
     plugin = manager.plugin
     configure_registry_entry(plugin_core_module, plugin)
 
+    lifecycle = manager.plugin_lifecycle_state(PLUGIN_KEY)
+    assert lifecycle["rollback_channel"] == "git"
+    assert lifecycle["rollback_version"] == ""
+
     challenge_response = call_action(plugin, monkeypatch, "rollback")
+    assert challenge_response["challenge"]["message"] == (
+        "Return to previous Git version for ExamplePlugin? "
+        "A Domoticz restart will be required."
+    )
     response = call_action(
         plugin,
         monkeypatch,

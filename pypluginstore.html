@@ -3654,7 +3654,7 @@
         } else if (state.status === 'release_metadata_unavailable') {
             details.push('Release metadata unavailable' + (state.verification_message ? ': ' + state.verification_message : ''));
         } else if (state.status === 'local_override_requires_git_checkout') {
-            details.push('Local override requires Rollback or reinstall');
+            details.push('Restore the previous Git version or reinstall');
         } else if (String(state.status || '').indexOf('migration_blocked') === 0) {
             details.push('Cannot use Release channel' +
                 (state.migration_message ? ': ' + state.migration_message : ''));
@@ -3670,7 +3670,21 @@
             details.push('Update available');
         } else if (state.status === 'rollback_available') {
             const rollbackVersion = state.rollback_version ? 'v' + String(state.rollback_version).replace(/^v/i, '') : '';
-            details.push('Rollback available' + (rollbackVersion ? ': ' + rollbackVersion : ''));
+            if (state.rollback_channel === 'git') {
+                details.push('Previous Git version can be restored');
+            } else if (state.rollback_channel === 'release') {
+                details.push(
+                    rollbackVersion
+                        ? rollbackVersion + ' can be restored'
+                        : 'Previous Release version can be restored'
+                );
+            } else {
+                details.push(
+                    rollbackVersion
+                        ? rollbackVersion + ' can be restored'
+                        : 'Previous version can be restored'
+                );
+            }
         } else if (state.status === 'migration_available') {
             const releaseTarget = target ? ' ' + target : '';
             details.push('Use Release channel' + releaseTarget +
@@ -3722,6 +3736,22 @@
             actions.push('use_release');
         }
         return actions;
+    }
+
+    function releaseManagementActionLabel(state, actionId, fallback) {
+        if (state && Array.isArray(state.actions)) {
+            const descriptor = state.actions.find(
+                action => action && action.id === actionId
+            );
+            if (
+                descriptor
+                && typeof descriptor.label === 'string'
+                && descriptor.label.trim()
+            ) {
+                return descriptor.label.trim();
+            }
+        }
+        return fallback;
     }
 
     function buildReleaseConfirmationPayload(action, pluginKey, token) {
@@ -4031,7 +4061,11 @@
                 updateButton.dataset.key = key;
                 updateButton.dataset.action = 'update';
                 updateButton.type = 'button';
-                updateButton.textContent = 'Update';
+                updateButton.textContent = releaseManagementActionLabel(
+                    management,
+                    'update',
+                    'Update'
+                );
                 actions.appendChild(updateButton);
 
                 if (managementActions.includes('use_release')) {
@@ -4040,7 +4074,11 @@
                     useReleaseButton.dataset.key = key;
                     useReleaseButton.dataset.action = 'use_release';
                     useReleaseButton.type = 'button';
-                    useReleaseButton.textContent = 'Use Release channel';
+                    useReleaseButton.textContent = releaseManagementActionLabel(
+                        management,
+                        'use_release',
+                        'Use Release channel'
+                    );
                     useReleaseButton.title = 'Use the Release channel instead of Git commits';
                     if (installedScanError || installationConflict) {
                         useReleaseButton.disabled = true;
@@ -4057,7 +4095,11 @@
                     rollbackButton.dataset.key = key;
                     rollbackButton.dataset.action = 'rollback';
                     rollbackButton.type = 'button';
-                    rollbackButton.textContent = 'Rollback';
+                    rollbackButton.textContent = releaseManagementActionLabel(
+                        management,
+                        'rollback',
+                        'Restore previous version'
+                    );
                     if (installedScanError || installationConflict) {
                         rollbackButton.disabled = true;
                         rollbackButton.title = installedScanError

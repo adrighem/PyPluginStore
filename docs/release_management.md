@@ -178,12 +178,13 @@ branch-based Git updates, add a matching `registry_local.json` override through
 the **Local registry** dialog. The local entry becomes the authoritative source
 and remains Git-managed.
 
-A verified migration backup may still be restored through **Rollback**. Rollback
-records an internal keep-Git safety hold so the same Release is not immediately
-reapplied; it is not the general way to choose Git. Add the local override for
-ongoing Git updates. The override does not recreate `.git` in an existing
-Release installation: restore a verified Git backup first, or remove and
-reinstall the plugin after adding the override.
+A verified migration backup may still be restored through **Return to previous
+Git version**. A retained Release backup instead names its target as **Restore
+vX**. Restoring Git records an internal keep-Git safety hold so the same Release
+is not immediately reapplied; it is not the general way to choose Git. Add the
+local override for ongoing Git updates. The override does not recreate `.git`
+in an existing Release installation: restore a verified Git backup first, or
+remove and reinstall the plugin after adding the override.
 
 Private repositories, forks, local/LAN repositories, and `registry_local.json`
 entries stay Git-managed. See [`registry_local.json` How-To](registry_local.md).
