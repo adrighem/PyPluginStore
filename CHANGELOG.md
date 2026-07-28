@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.24.4](https://github.com/adrighem/PyPluginStore/compare/v2.24.3...v2.24.4) (2026-07-28)
+
+
+### Bug Fixes
+
+* shorten restore action labels ([d3529c2](https://github.com/adrighem/PyPluginStore/commit/d3529c2307a3234c15dca0843e2ca2658abf26e6)), closes [#122](https://github.com/adrighem/PyPluginStore/issues/122)
+
 ## [2.24.3](https://github.com/adrighem/PyPluginStore/compare/v2.24.2...v2.24.3) (2026-07-27)
 
 
