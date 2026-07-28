@@ -530,11 +530,32 @@ def test_expected_git_fallback_does_not_expose_missing_release_reason(
 
 
 @pytest.mark.parametrize(
-    ("rollback_channel", "rollback_version", "expected_label"),
+    (
+        "rollback_channel",
+        "rollback_version",
+        "expected_label",
+        "expected_confirmation",
+    ),
     [
-        ("git", "", "Return to previous Git version"),
-        ("release", "1.3.0", "Restore v1.3.0"),
-        ("release", "", "Restore previous Release version"),
+        (
+            "git",
+            "",
+            "Restore Git",
+            "Return to previous Git version",
+        ),
+        (
+            "release",
+            "1.3.0",
+            "Restore v1.3.0",
+            "Restore v1.3.0",
+        ),
+        (
+            "release",
+            "",
+            "Rollback",
+            "Restore previous Release version",
+        ),
+        ("", "", "Rollback", "Restore previous version"),
     ],
 )
 def test_management_presentation_names_verified_restore_target(
@@ -542,6 +563,7 @@ def test_management_presentation_names_verified_restore_target(
     rollback_channel,
     rollback_version,
     expected_label,
+    expected_confirmation,
 ):
     entry = registry_entry(plugin_core_module)
     state = {
@@ -574,6 +596,13 @@ def test_management_presentation_names_verified_restore_target(
         "enabled": True,
         "reason": "",
     }
+    assert plugin_core_module.BasePlugin._rollback_confirmation_message(
+        state,
+        "ExamplePlugin",
+    ) == (
+        expected_confirmation
+        + " for ExamplePlugin? A Domoticz restart will be required."
+    )
 
 
 def test_higher_release_requires_complete_predecessor_lineage(

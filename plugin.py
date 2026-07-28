@@ -19450,18 +19450,37 @@ class BasePlugin:
 
     @staticmethod
     def _rollback_action_label(state):
-        """Describe the verified restore target without exposing internals."""
+        """Return compact button copy for the verified restore target."""
         channel = str(state.get("rollback_channel") or "")
         version = str(state.get("rollback_version") or "").strip()
         if channel == "git":
-            return "Return to previous Git version"
+            return "Restore Git"
         if version:
             normalized_version = version.lstrip("vV")
             if normalized_version:
                 return "Restore v" + normalized_version
-        if channel == "release":
-            return "Restore previous Release version"
-        return "Restore previous version"
+        return "Rollback"
+
+    @staticmethod
+    def _rollback_confirmation_message(state, plugin_key):
+        """Describe the restore target fully before executing the action."""
+        channel = str(state.get("rollback_channel") or "")
+        version = str(state.get("rollback_version") or "").strip()
+        normalized_version = version.lstrip("vV")
+        if channel == "git":
+            action = "Return to previous Git version"
+        elif normalized_version:
+            action = "Restore v" + normalized_version
+        elif channel == "release":
+            action = "Restore previous Release version"
+        else:
+            action = "Restore previous version"
+        return (
+            action
+            + " for "
+            + plugin_key
+            + "? A Domoticz restart will be required."
+        )
 
     def _management_presentation(
         self,
@@ -20811,11 +20830,9 @@ class BasePlugin:
                         plugin_key=plugin_key,
                         target=target,
                         confirmation_token=confirmation_token,
-                        message=(
-                            self._rollback_action_label(lifecycle)
-                            + " for "
-                            + plugin_key
-                            + "? A Domoticz restart will be required."
+                        message=self._rollback_confirmation_message(
+                            lifecycle,
+                            plugin_key,
                         ),
                     )
                 )

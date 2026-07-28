@@ -1115,7 +1115,7 @@ const state = {
     actions: [
         {
             id: 'rollback',
-            label: 'Return to previous Git version',
+            label: 'Restore Git',
             enabled: true,
         },
     ],
@@ -1124,9 +1124,9 @@ if (
     releaseManagementActionLabel(
         state,
         'rollback',
-        'Restore previous version'
+        'Rollback'
     )
-    !== 'Return to previous Git version'
+    !== 'Restore Git'
 ) {
     throw new Error('backend restore label was ignored');
 }
@@ -1137,8 +1137,8 @@ if (
     releaseManagementActionLabel(
         {actions: [{id: 'rollback', label: '   '}]},
         'rollback',
-        'Restore previous version'
-    ) !== 'Restore previous version'
+        'Rollback'
+    ) !== 'Rollback'
 ) {
     throw new Error('blank descriptor label did not use the safe fallback');
 }
