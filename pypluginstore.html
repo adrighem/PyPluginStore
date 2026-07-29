@@ -3559,6 +3559,22 @@
         return 0;
     }
 
+    function resolveUpdatePresentationStatus(updateStatus, management) {
+        if (!management) {
+            return updateStatus || 'unknown';
+        }
+        const managementStatus = typeof management.status === 'string'
+            ? management.status
+            : '';
+        if (managementStatus === 'available' || managementStatus === 'git_available') {
+            return 'available';
+        }
+        if (managementStatus === 'current' || managementStatus === 'git_current') {
+            return 'current';
+        }
+        return 'unknown';
+    }
+
     function formatVersionStatus(verInfo, updateStatus) {
         const versionParts = [];
         const installedVersion = verInfo && verInfo.installed ? String(verInfo.installed).replace(/^v/i, '') : '';
@@ -3822,6 +3838,10 @@
             );
             const isGit = matchDetails.is_git !== false;
             const management = managementCache[key] || null;
+            const presentationUpdateStatus = resolveUpdatePresentationStatus(
+                updateStatus,
+                management
+            );
             const hasRepoMismatch = Boolean(matchDetails.registry_mismatch || matchDetails.repo_mismatch || matchDetails.branch_mismatch || updateStatus === 'mismatch');
             const isManager = key === managerKey;
 
@@ -4047,14 +4067,20 @@
                     updateButton.title = selfUpdatePhaseLabel(selfUpdateState);
                     updateButton.disabled = true;
                 } else {
-                    const updateClass = updateStatus === 'available' ? 'btn-update btn-update-available' : 'btn-update btn-update-current';
+                    const updateClass = presentationUpdateStatus === 'available' ? 'btn-update btn-update-available' : 'btn-update btn-update-current';
                     const verInfo = versionsCache && versionsCache[key] ? versionsCache[key] : {};
                     const installedVersion = verInfo.installed || '';
                     const remoteVersion = verInfo.available || '';
-                    const installedIsNewer = updateStatus === 'available' && installedVersion && remoteVersion && compareVersions(remoteVersion, installedVersion) < 0;
+                    const installedIsNewer = (
+                        presentationUpdateStatus === 'available'
+                        && (!management || management.channel === 'git')
+                        && installedVersion
+                        && remoteVersion
+                        && compareVersions(remoteVersion, installedVersion) < 0
+                    );
                     const updateTitle = installedIsNewer ? 'Update resets this plugin to the configured branch' :
-                        (updateStatus === 'available' ? 'Update available' :
-                        (updateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown'));
+                        (presentationUpdateStatus === 'available' ? 'Update available' :
+                        (presentationUpdateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown'));
                     updateButton.className = updateClass;
                     updateButton.title = updateTitle;
                 }

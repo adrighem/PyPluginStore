@@ -961,6 +961,81 @@ if (text !== '') {
     )
 
 
+def test_release_update_presentation_uses_channel_aware_status():
+    script = load_inline_script()
+    function_source = extract_js_function(
+        script, "resolveUpdatePresentationStatus"
+    )
+    cases = [
+        {
+            "legacy": "unknown",
+            "management": {"channel": "release", "status": "available"},
+            "expected": "available",
+        },
+        {
+            "legacy": "available",
+            "management": {"channel": "release", "status": "current"},
+            "expected": "current",
+        },
+        {
+            "legacy": "unknown",
+            "management": {"channel": "git", "status": "git_available"},
+            "expected": "available",
+        },
+        {
+            "legacy": "available",
+            "management": {"channel": "git", "status": "git_current"},
+            "expected": "current",
+        },
+        {
+            "legacy": "available",
+            "management": {"channel": "git", "status": "git_unknown"},
+            "expected": "unknown",
+        },
+        {
+            "legacy": "available",
+            "management": None,
+            "expected": "available",
+        },
+    ]
+    run_node(
+        function_source
+        + "\nconst cases = "
+        + json.dumps(cases)
+        + ";\n"
+        + """
+for (const item of cases) {
+    const actual = resolveUpdatePresentationStatus(
+        item.legacy,
+        item.management
+    );
+    if (actual !== item.expected) {
+        throw new Error(
+            `expected ${item.expected}, got ${actual}`
+        );
+    }
+}
+"""
+    )
+
+    render_plugins = extract_js_function(script, "renderPlugins")
+    assert (
+        "resolveUpdatePresentationStatus(\n"
+        "                updateStatus,\n"
+        "                management\n"
+        "            )"
+    ) in render_plugins
+    assert (
+        "presentationUpdateStatus === 'available' ? "
+        "'btn-update btn-update-available'"
+    ) in render_plugins
+    assert (
+        "presentationUpdateStatus === 'available' ? 'Update available'"
+        in render_plugins
+    )
+    assert "&& (!management || management.channel === 'git')" in render_plugins
+
+
 def test_release_action_model_keeps_release_non_git_install_updateable():
     script = load_inline_script()
     function_source = extract_js_function(script, "releaseManagementActions")
