@@ -2758,6 +2758,35 @@
       "source": "legacy_detected"
     },
     {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/adrighem/ha-domoticz-sync@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 2,
+          "windows": 0
+        }
+      },
+      "owner": "adrighem",
+      "package_id": "ha-domoticz-sync",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "ha-domoticz-sync",
+      "reviewed": false,
+      "source": "unknown"
+    },
+    {
       "branch": "master",
       "confidence": "unknown",
       "evidence_class": "legacy",

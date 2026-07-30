@@ -5872,6 +5872,28 @@
       }
     },
     {
+      "package_id": "ha-domoticz-sync",
+      "domoticz_key": "HADomoticzSync",
+      "description": "Synchronizes selected Home Assistant entities to Domoticz over an authenticated connection.",
+      "repository": {
+        "url": "https://github.com/adrighem/ha-domoticz-sync",
+        "branch": "main"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "home-connect",
       "domoticz_key": "HomeConnect",
       "description": "Bosch Home Connect plugin for Domoticz",
