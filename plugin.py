@@ -19504,12 +19504,7 @@ class BasePlugin:
         if state.get("restart_pending"):
             summary = channel + " - restart required"
         elif status == "available":
-            version = state.get("available_version") or ""
-            summary = ""
-            if version:
-                summary = "v" + str(version).lstrip("vV") + " available"
-            else:
-                summary = "Update available"
+            summary = "Release available"
         elif status == "git_available":
             summary = "Git - update available"
         elif status == "migration_available":
@@ -20306,14 +20301,24 @@ class BasePlugin:
             for plugin_key in self.get_managed_installed_plugin_keys(plugins_dir):
                 entry = self.get_registry_entry(plugin_key)
                 if entry is not None:
-                    self.UpdatePythonPlugin(entry.author, entry.repository, plugin_key)
+                    self.UpdatePythonPlugin(
+                        entry.author,
+                        entry.repository,
+                        plugin_key,
+                        trigger="automatic",
+                    )
 
         if Parameters["Mode4"] == 'AllNotify':
             Domoticz.Log("Collecting Updates for All Plugins!!!")
             for plugin_key in self.get_managed_installed_plugin_keys(plugins_dir):
                 entry = self.get_registry_entry(plugin_key)
                 if entry is not None:
-                    self.CheckForUpdatePythonPlugin(entry.author, entry.repository, plugin_key)
+                    self.CheckForUpdatePythonPlugin(
+                        entry.author,
+                        entry.repository,
+                        plugin_key,
+                        trigger="automatic",
+                    )
 
         Domoticz.Log("Plugin Manager Ready. Use the 'Custom' menu to manage plugins.")
         Domoticz.Heartbeat(60)

@@ -139,6 +139,10 @@ const newerRemote = formatVersionStatus({{installed: '1.0.0', available: '2.0.0'
 if (newerRemote !== 'Installed: v1.0.0 | Available: v2.0.0') {{
     throw new Error(`Unexpected newer remote status: ${{newerRemote}}`);
 }}
+const sameRemote = formatVersionStatus({{installed: '2.24.4', available: '2.24.4'}}, 'available');
+if (sameRemote !== 'Installed: v2.24.4 | Available: v2.24.4') {{
+    throw new Error(`Unexpected equal remote status: ${{sameRemote}}`);
+}}
 """
 
     result = run_node_script(node_script)

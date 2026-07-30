@@ -20,7 +20,8 @@ contact or install the repository. Concurrent edits are protected by a content
 revision. Repository URLs containing HTTP credentials are rejected, so use the
 Git credentials or SSH keys available to the Domoticz OS user.
 
-If JSON is malformed, the dialog stays read-only and shows the parse error.
+If JSON is malformed, the dialog stays read-only and shows the parse error. All
+Release management is also paused so invalid local policy cannot be bypassed.
 Correct the file manually, then select **Reload entries**.
 
 ## Automatic upgrade from the old format
@@ -72,12 +73,15 @@ Package IDs must be unique even when case is ignored.
 | `package_id` | Stable PyPluginStore package identity; normally the new-install folder name. |
 | `domoticz_key` | Exact Domoticz `<plugin key="...">`; it may differ from `package_id`. Use `""` only when it cannot yet be certified. |
 | `description` | Text shown on the package card. |
-| `repository.url` | Complete Git clone source: HTTPS, SSH, `file://`, or an approved LAN URL. |
+| `repository.url` | Complete Git clone source: HTTPS, SSH, `file://`, or an HTTP/LAN source you explicitly trust. |
 | `repository.branch` | Branch to clone or update. |
 | `platforms` | `[]`, `["linux"]`, `["windows"]`, or both. Empty means unknown. |
 
 Unlike the public registry, a local record has no `delivery` policy because it
-always stays on Git.
+always stays on Git. A local entry replaces the reviewed public source for that
+installation, so only add repositories you trust. Prefer HTTPS or SSH for
+network sources. Plain HTTP is accepted but has no transport protection;
+`file://` and LAN sources belong to the host's local trust boundary.
 
 ## Common use cases
 

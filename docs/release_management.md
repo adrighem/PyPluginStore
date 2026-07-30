@@ -1,8 +1,8 @@
 # Release and Git Management
 
 PyPluginStore is release-first when a package has a fresh, certified entry in
-`release_index.json`. Once a plugin is Release-managed, an explicit
-**Refresh status** also checks its configured upstream release provider
+`release_index.json`. For eligible Git and Release-managed installations, an
+explicit **Refresh status** also checks the configured upstream release provider
 directly. Git remains a supported channel: it is used while no release is
 indexed, when the package policy selects Git, or when a local registry override
 explicitly selects a different source. Existing keep-Git state remains honored
@@ -28,37 +28,9 @@ identity. Release certification records the observed `domoticz_key` and
 
 Public registry schema v2 is record-based. Package IDs are values, not JSON
 object keys, and the old owner/repository split, positional arrays, and
-`plugin_key` identity field are not part of the schema:
-
-```json
-{
-  "schema_version": 2,
-  "packages": [
-    {
-      "package_id": "ExamplePlugin",
-      "domoticz_key": "EXAMPLE",
-      "description": "Example plugin for Domoticz",
-      "repository": {
-        "url": "https://github.com/example-owner/domoticz-example-plugin",
-        "branch": "main"
-      },
-      "platforms": ["linux", "windows"],
-      "delivery": {
-        "preferred": "release_if_indexed",
-        "git_supported": true,
-        "release": {
-          "provider": "github",
-          "channel": "stable",
-          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
-          "artifact": "source_zip",
-          "source_path": ".",
-          "mutable_paths": []
-        }
-      }
-    }
-  ]
-}
-```
+`plugin_key` identity field are not part of the schema. See
+[Registry maintenance](../CONTRIBUTING.md#registry-maintenance) for the canonical
+schema example and contribution rules.
 
 ## How a Git-only package becomes release-first
 
@@ -72,11 +44,13 @@ After review and merge, no registry identity change is needed: new installs use
 the release, and existing Git installs can choose **Use Release channel**
 instead of continuing with Git commits.
 
-Publishing a ZIP therefore can cause an automatic channel transition on a later
-weekly scan, but it never bypasses certification or pull-request review. The
-reviewed release index is the trust anchor for the first transition. After that
-anchor exists, **Refresh status** may certify a newer provider release directly
-on the host and offer that latest release for the Git-to-Release transition.
+Publishing a ZIP can cause a later weekly scan to propose a certified Release
+target, but the scan itself does not change any installation. After the pull
+request is reviewed and merged, the user can choose the Release channel, or
+automatic-update mode can migrate a fully proven checkout. The reviewed release
+index is the trust anchor for the first transition. After that anchor exists,
+**Refresh status** may certify a newer provider release directly on the host and
+offer that latest release for the Git-to-Release transition.
 
 For eligible Git and Release-managed installations, **Refresh status** uses the
 reviewed provider and artifact policy from the registry to resolve the latest
@@ -110,11 +84,11 @@ Provider policies are explicit in registry v2:
 | Generic HTTPS | A strict, versioned manifest URL, allowed origins, immutable source revision, and ZIP metadata. |
 
 GitHub, GitLab, and Codeberg packages receive an explicit standard stable-release
-policy during registry migration. Self-hosted Forgejo/Gitea and generic HTTPS
+policy in the public registry. Self-hosted Forgejo/Gitea and generic HTTPS
 sources need an explicit reviewed endpoint policy; unknown hosts remain Git-only
 until one is added. The scanner and Domoticz runtime share the same provider
 resolution contracts; the runtime only invokes them for an explicit refresh of
-an existing Release-managed installation.
+an eligible Git or Release-managed installation.
 
 ## Source archives, attached ZIPs, and migration evidence
 
@@ -154,10 +128,15 @@ Automatic migration requires all of the following:
   unknown untracked file;
 - every preserved path is permitted by the reviewed mutable-path policy.
 
-Dirty, ahead, diverged, mismatched, locked, or insufficiently proven checkouts
-stay on Git and show the reason. A matching local registry override keeps the
-package Git-managed, while an existing safety hold prevents an immediate repeat
-of a rolled-back migration.
+Checkout findings that fail automatic preflight are not migrated automatically
+and show the reason.
+Permitted local-data, downgrade, and manual-evidence cases can proceed only
+through an explicit, content-bound confirmation. Repository mismatches, unsafe
+paths, locks, submodules, and contradictory evidence remain hard blockers. A
+matching local registry override keeps the package Git-managed, while an
+existing safety hold prevents an immediate repeat of a rolled-back migration.
+The confirmation is one-use and tied to the exact package, target Release, and
+current local-data inventory; a relevant state change invalidates it.
 Notification-only mode announces that the Release channel is available instead
 of reporting a newer plugin version, and it does not change files.
 Automatic-update mode executes only a fully proven transition; evidence marked
@@ -171,6 +150,11 @@ uses copy mode with `uv`, records `.pypluginstore-environment.json`, and can be
 recovered after interruption. Local executable changes are never silently
 carried into a release.
 
+Dependency installation can execute third-party Python build backends. The
+generated dependency folder isolates package files from the global environment,
+but it is not an execution sandbox. Requirement sources and package indexes
+therefore remain part of the trust boundary.
+
 ## Using Git through a local override
 
 Public registry packages do not offer a Release-to-Git channel switch. To use
@@ -181,12 +165,13 @@ and remains Git-managed.
 A verified migration backup may still be restored through **Restore Git**. A
 retained Release backup instead names its target as **Restore vX**, or falls
 back to **Rollback** when no exact version can be shown. The confirmation
-dialog always describes the full restore target. Restoring Git records an
-internal keep-Git safety hold so the same Release is not immediately reapplied;
-it is not the general way to choose Git. Add the local override for ongoing Git
-updates. The override does not recreate `.git` in an existing Release
-installation: restore a verified Git backup first, or remove and reinstall the
-plugin after adding the override.
+dialog always describes the full restore target. Only the latest verified
+previous state is retained, and a fresh Release installation has no previous
+state to restore. Restoring Git records an internal keep-Git safety hold so the
+same Release is not immediately reapplied; it is not the general way to choose
+Git. Add the local override for ongoing Git updates. The override does not
+recreate `.git` in an existing Release installation: restore a verified Git
+backup first, or remove and reinstall the plugin after adding the override.
 
 Private repositories, forks, local/LAN repositories, and `registry_local.json`
 entries stay Git-managed. See [`registry_local.json` How-To](registry_local.md).
@@ -200,19 +185,17 @@ restart; a Git change outside that bundle does not. Until the loaded backend,
 installed files, deployed custom page, and browser page agree, the Plugin Store
 reports recovery guidance in its main status and keeps mutations read-only.
 
-## Deployment upgrade path
+## Metadata compatibility
 
-The public v2 cutover is staged. First, a manager version that reads both legacy
-metadata and strict v2 records is distributed while the public files remain on
-the old shape. After an upgrade window, the repository publishes v2-only public
-metadata. It does not publish a hybrid document with legacy identity keys.
+The public registry and release index use strict schema v2 and do not publish
+hybrid documents with legacy identity keys. An existing installation can keep
+using its last trusted cached registry/index pair during a temporary metadata
+failure and update PyPluginStore through its independent Git self-update path.
 
-An existing installation can keep using its last trusted cached registry/index
-pair during the transition and use the independent Git self-update path to
-install the v2-capable manager. Host-local v1 install metadata and transaction
-journals are upgraded lazily and atomically when used. A valid legacy
-`registry_local.json` is backed up and rewritten as v2 on its first successful
-load; invalid input is left untouched.
+Approved host-local v1 install metadata and transaction journals are upgraded
+lazily and atomically when used. A valid legacy `registry_local.json` is backed
+up and rewritten as v2 on its first successful load; invalid input is left
+untouched.
 
 ## Metadata security
 
@@ -220,4 +203,7 @@ The runtime accepts the registry and release index as one digest-bound pair. A
 monotonic sequence and expiry prevent stale operational metadata; artifact and
 canonical-tree hashes detect mutation relative to the accepted index. These
 checks do not make third-party plugin code trustworthy or defend against a
-compromised registry distribution channel.
+compromised registry distribution channel. The accepted index is the trust
+anchor for the first Release. Later explicit refreshes trust the configured
+upstream provider and can certify a newer Release on the host without another
+pull-request review.

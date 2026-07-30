@@ -3582,7 +3582,7 @@
         if (installedVersion) versionParts.push('Installed: v' + installedVersion);
         if (remoteVersion && updateStatus === 'available') {
             const comparison = installedVersion ? compareVersions(remoteVersion, installedVersion) : 0;
-            const remoteLabel = comparison > 0 ? 'Available' : 'Remote';
+            const remoteLabel = comparison >= 0 ? 'Available' : 'Remote';
             const remoteText = remoteLabel + ': v' + remoteVersion + (comparison < 0 ? ' (installed is newer)' : '');
             versionParts.push(remoteText);
         }
@@ -3706,7 +3706,7 @@
             details.push('Use Release channel' + releaseTarget +
                 ' instead of Git commits');
         } else if (state.status === 'available') {
-            details.push((target ? target + ' — ' : '') + 'available');
+            details.push((channel || 'Update') + ' available');
         } else if (state.status === 'current') {
             details.push((target ? target + ' — ' : '') + 'current');
         } else if (state.status) {
@@ -3714,7 +3714,18 @@
         }
 
         if (state.restart_pending) details.push('Restart required');
-        return [channel, ...details].filter(Boolean).join(' · ');
+        const channelPrefix = state.status === 'available' ? '' : channel;
+        return [channelPrefix, ...details].filter(Boolean).join(' · ');
+    }
+
+    function formatCardManagementStatus(management, isManager, updateStatus) {
+        if (management) {
+            return formatReleaseManagementStatus(management);
+        }
+        if (isManager && updateStatus === 'available') {
+            return 'Git - update available';
+        }
+        return '';
     }
 
     function releaseManagementActions(state, context) {
@@ -3955,18 +3966,24 @@
                 const verInfo = versionsCache[key];
                 if (verInfo.installed || verInfo.available) {
                     meta.appendChild(document.createElement('br'));
-                    meta.appendChild(document.createTextNode(formatVersionStatus(verInfo, updateStatus)));
+                    meta.appendChild(document.createTextNode(formatVersionStatus(verInfo, presentationUpdateStatus)));
                 }
             }
 
-            if (isInstalled && management) {
-                const managementText = formatReleaseManagementStatus(management);
+            if (isInstalled) {
+                const managementText = formatCardManagementStatus(
+                    management,
+                    isManager,
+                    presentationUpdateStatus
+                );
                 if (managementText) {
                     const managementDetail = document.createElement('span');
-                    const isManagementError = management.status === 'verification_failed' ||
+                    const isManagementError = management && (
+                        management.status === 'verification_failed' ||
                         management.status === 'release_metadata_unavailable' ||
                         management.status === 'local_override_requires_git_checkout' ||
-                        String(management.status || '').indexOf('migration_blocked') === 0;
+                        String(management.status || '').indexOf('migration_blocked') === 0
+                    );
                     managementDetail.className = isManagementError ? 'release-error-detail' : 'release-status-detail';
                     managementDetail.textContent = managementText;
                     meta.appendChild(document.createElement('br'));

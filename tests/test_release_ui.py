@@ -738,7 +738,7 @@ def test_ui_has_release_and_git_channel_badges_with_safe_text_rendering():
     assert "formatReleaseManagementStatus" in script
     assert ".textContent = managementText" in script
     assert "innerHTML = formatReleaseManagementStatus" not in script
-    assert "const managementText = formatReleaseManagementStatus(management);" in render_plugins
+    assert "const managementText = formatCardManagementStatus(" in render_plugins
     assert "if (managementText)" in render_plugins
     assert "installationConflict.management_error" in render_plugins
     assert "installButton.disabled = true" in render_plugins
@@ -776,7 +776,7 @@ def test_release_status_text_surfaces_versions_migration_and_restart():
     cases = [
         {
             "state": release_management_state(),
-            "fragments": ["v2.0.0", "available"],
+            "fragments": ["Release available"],
         },
         {
             "state": release_management_state(
@@ -786,8 +786,7 @@ def test_release_status_text_surfaces_versions_migration_and_restart():
                 ),
             ),
             "fragments": [
-                "v2.0.0",
-                "available",
+                "Release available",
             ],
         },
         {
@@ -902,6 +901,44 @@ for (const item of cases) {
 }
 """
     )
+
+
+def test_card_update_status_aligns_manager_and_release_copy():
+    script = load_inline_script()
+    function_source = "\n".join(
+        [
+            extract_js_function(script, "formatReleaseManagementStatus"),
+            extract_js_function(script, "formatCardManagementStatus"),
+        ]
+    )
+    run_node(
+        function_source
+        + """
+const manager = formatCardManagementStatus(null, true, 'available');
+if (manager !== 'Git - update available') {
+    throw new Error(`manager update rendered as "${manager}"`);
+}
+const release = formatCardManagementStatus({
+    channel: 'release',
+    status: 'available',
+    available_version: '2.8.5'
+}, false, 'available');
+if (release !== 'Release available') {
+    throw new Error(`Release update rendered as "${release}"`);
+}
+const currentManager = formatCardManagementStatus(null, true, 'current');
+if (currentManager !== '') {
+    throw new Error(`current manager rendered as "${currentManager}"`);
+}
+"""
+    )
+
+    render_plugins = extract_js_function(script, "renderPlugins")
+    assert (
+        "formatVersionStatus(verInfo, presentationUpdateStatus)"
+        in render_plugins
+    )
+    assert "formatCardManagementStatus(" in render_plugins
 
 
 def test_git_status_text_is_hidden_unless_an_update_is_available():

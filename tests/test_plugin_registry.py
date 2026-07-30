@@ -130,6 +130,70 @@ def test_on_start_setup_warning_skips_missing_notification_api(plugin_core_modul
     assert any("Notification skipped" in args[0] for args, _ in plugin_core_module.Domoticz.calls["Log"])
 
 
+@pytest.mark.parametrize(
+    ("update_mode", "method_name"),
+    [
+        ("All", "UpdatePythonPlugin"),
+        ("AllNotify", "CheckForUpdatePythonPlugin"),
+    ],
+)
+def test_on_start_marks_configured_update_actions_as_automatic(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+    update_mode,
+    method_name,
+):
+    plugins_dir, manager_dir = configure_home(plugin_core_module, tmp_path)
+    write_manager_identity_bundle(manager_dir)
+    write_plugin_py(
+        plugins_dir / "ExamplePlugin",
+        key="ExamplePlugin",
+        name="Example plugin",
+    )
+    plugin_core_module.Parameters["Mode4"] = update_mode
+    plugin_core_module.Devices = {}
+
+    class FakeDevice:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def Create(self):
+            return None
+
+    plugin = plugin_core_module.BasePlugin()
+    calls = []
+
+    def fetch_registry():
+        plugin.plugin_data = {
+            "ExamplePlugin": [
+                "owner",
+                "example-plugin",
+                "Example plugin",
+                "main",
+                "",
+            ]
+        }
+        plugin.registry_entries = {}
+
+    monkeypatch.setattr(plugin_core_module.Domoticz, "Device", FakeDevice, raising=False)
+    monkeypatch.setattr(plugin, "fetch_registry", fetch_registry)
+    monkeypatch.setattr(
+        plugin,
+        method_name,
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    plugin.onStart()
+
+    assert calls == [
+        (
+            ("owner", "example-plugin", "ExamplePlugin"),
+            {"trigger": "automatic"},
+        )
+    ]
+
+
 def test_load_update_times_falls_back_to_bundled_file(plugin_core_module, tmp_path, monkeypatch):
     _, manager_dir = configure_home(plugin_core_module, tmp_path)
     bundled_file = manager_dir / "update_times.json"

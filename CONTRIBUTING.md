@@ -87,9 +87,10 @@ default; `--apply` removes missing entries from `registry.json`,
 
 ## Release index maintenance
 
-Stable release discovery is provider-neutral at runtime. Separate GitHub,
-GitLab, Codeberg/Forgejo, Gitea, and generic HTTPS adapters emit one reviewed
-`release_index.json` bound to the exact `registry.json` bytes.
+Stable release discovery uses GitHub, GitLab, Codeberg/Forgejo, Gitea, and
+generic HTTPS adapters that emit one provider-neutral `release_index.json`
+bound to the exact `registry.json` bytes. The runtime uses the same provider
+contracts for explicit status refreshes.
 
 Release-index schema v2 likewise uses `releases` and `tombstones` arrays whose
 records contain `package_id`; it does not serialize package IDs as object keys
@@ -147,12 +148,12 @@ holds, notify-only mode, dirty or diverged checkouts, repository mismatches, and
 insufficient migration evidence must all prevent automatic channel changes. New
 intentional Git use for a public package requires a local registry override.
 
-For the v2 deployment cutover, first release a manager that reads both legacy
-and strict v2 metadata while public metadata remains on the old shape. Publish
-v2-only metadata after the upgrade window; never publish a hybrid registry.
-Lagging installations retain their last trusted metadata pair and upgrade the
-manager through its independent Git self-update path. PyPluginStore self-update
-stays Git-based and is intentionally outside the release index.
+The public registry and release index are strict v2. Do not reintroduce a hybrid
+document with legacy identity keys. Approved host-local legacy metadata remains
+limited to explicit upgrade boundaries. Lagging installations retain their last
+trusted metadata pair and update the manager through its independent Git
+self-update path. PyPluginStore self-update stays Git-based and is intentionally
+outside the release index.
 
 ## Generated plugin.py
 

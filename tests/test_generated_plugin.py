@@ -14,6 +14,28 @@ SELF_UPDATE_CANDIDATE_PYTHON_FILES = (
     "release_domain.py",
 )
 
+DOCUMENTATION_FILES = (
+    REPO_ROOT / "README.md",
+    REPO_ROOT / "CONTRIBUTING.md",
+    REPO_ROOT / "docs" / "registry_local.md",
+    REPO_ROOT / "docs" / "release_management.md",
+)
+
+
+def markdown_heading_anchors(markdown):
+    anchors = set()
+    duplicates = {}
+    for heading in re.findall(r"^#{1,6}\s+(.+?)\s*$", markdown, re.MULTILINE):
+        heading = re.sub(r"<[^>]+>", "", heading)
+        heading = re.sub(r"[^\w\s-]", "", heading.casefold())
+        anchor = re.sub(r"\s+", "-", heading.strip())
+        duplicate_index = duplicates.get(anchor, 0)
+        duplicates[anchor] = duplicate_index + 1
+        if duplicate_index:
+            anchor += "-" + str(duplicate_index)
+        anchors.add(anchor)
+    return anchors
+
 
 def test_generated_plugin_py_is_current():
     plugin_file = REPO_ROOT / "plugin.py"
@@ -75,3 +97,28 @@ def test_self_update_candidate_python_sources_remain_ascii_compatible():
                 + " must remain ASCII-decodable so legacy self-updaters can "
                 "bootstrap; use Python Unicode escapes for non-ASCII text."
             ) from error
+
+
+def test_documentation_relative_links_and_anchors_are_valid():
+    markdown_link = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+
+    for document in DOCUMENTATION_FILES:
+        contents = document.read_text(encoding="utf-8")
+        for destination in markdown_link.findall(contents):
+            target, separator, anchor = destination.partition("#")
+            if target.startswith(("http://", "https://", "mailto:")):
+                continue
+
+            target_file = document if not target else document.parent / target
+            assert target_file.is_file(), (
+                str(document.relative_to(REPO_ROOT))
+                + " links to missing file "
+                + destination
+            )
+            if separator and anchor:
+                target_contents = target_file.read_text(encoding="utf-8")
+                assert anchor in markdown_heading_anchors(target_contents), (
+                    str(document.relative_to(REPO_ROOT))
+                    + " links to missing anchor "
+                    + destination
+                )
