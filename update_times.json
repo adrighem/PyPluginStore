@@ -31,7 +31,7 @@
     },
     {
       "package_id": "BeemEnergy",
-      "updated_at": "2026-07-15T11:18:26Z"
+      "updated_at": "2026-07-28T08:09:05Z"
     },
     {
       "package_id": "Broadlink-Domoticz-plugin",
@@ -239,7 +239,7 @@
     },
     {
       "package_id": "Domoticz-Indevolt-plugin",
-      "updated_at": "2026-07-24T17:06:34Z"
+      "updated_at": "2026-08-01T11:19:54Z"
     },
     {
       "package_id": "domoticz-ir-climate-controller",
@@ -691,7 +691,7 @@
     },
     {
       "package_id": "FullyKiosk",
-      "updated_at": "2026-07-19T17:26:32Z"
+      "updated_at": "2026-07-26T11:32:47Z"
     },
     {
       "package_id": "Garbage",
@@ -711,7 +711,7 @@
     },
     {
       "package_id": "ha-domoticz-sync",
-      "updated_at": "2026-07-30T08:30:38Z"
+      "updated_at": "2026-08-01T15:18:01Z"
     },
     {
       "package_id": "Hisense-AirCon-Domoticz",
@@ -907,7 +907,7 @@
     },
     {
       "package_id": "Solaredge_modbustcp",
-      "updated_at": "2026-07-23T16:47:14Z"
+      "updated_at": "2026-07-31T09:26:19Z"
     },
     {
       "package_id": "solarFlow2400AC",
@@ -1015,7 +1015,7 @@
     },
     {
       "package_id": "Zigate",
-      "updated_at": "2026-07-24T17:37:39Z"
+      "updated_at": "2026-08-01T05:45:30Z"
     },
     {
       "package_id": "Zigbee2Mqtt",
@@ -1027,7 +1027,7 @@
     },
     {
       "package_id": "Zonneplan-Domoticz-Plugin",
-      "updated_at": "2026-05-20T17:02:22Z"
+      "updated_at": "2026-07-31T20:01:28Z"
     }
   ]
 }

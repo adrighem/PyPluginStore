@@ -5874,12 +5874,14 @@
     {
       "package_id": "ha-domoticz-sync",
       "domoticz_key": "HADomoticzSync",
-      "description": "Synchronizes selected Home Assistant entities to Domoticz over an authenticated connection.",
+      "description": "helps Home Assistant and Domoticz run side by side",
       "repository": {
         "url": "https://github.com/adrighem/ha-domoticz-sync",
         "branch": "main"
       },
-      "platforms": [],
+      "platforms": [
+        "linux"
+      ],
       "delivery": {
         "preferred": "release_if_indexed",
         "git_supported": true,
