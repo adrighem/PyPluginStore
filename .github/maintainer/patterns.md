@@ -1,5 +1,15 @@
 # Maintainer Patterns
 
+- Keep card button copy compact, but do not shorten destructive or restorative
+  confirmation text. The button selects the action; the confirmation names the
+  verified target and consequence.
+- Backend-owned action descriptors must remain intact through rendering. Do not
+  reduce them to IDs and then recreate labels in the browser, especially when
+  the label depends on verified backend state.
+- Release Please omits default-hidden commit types such as `refactor:` from the
+  generated changelog. Behavior-changing work must use `feat:` or `fix:`, and
+  every release PR must still be audited against the complete tag-to-master
+  commit range before merge.
 - Generated runtime file: edit `plugin_core.py`, then run `python .github/scripts/generate_plugin.py`.
 - Network-backed registry validation must use per-entry timeouts; one slow remote should produce a clear invalid result, not block release checks.
 - Weekly registry discovery must require a non-empty root-level `plugin.py` before adding a repository; Domoticz-adjacent integrations, docs, Home Assistant bridges, MCP servers, scripts, and UI repos are not PyPluginStore plugins without that file.
@@ -11,13 +21,13 @@
   Release preference, attach a public Release target, or render a Release switch
   for that entry.
 - A Local override over a Release-installed folder is intent, not a channel
-  conversion. Block Git updates until verified Rollback or remove/reinstall
-  provides a real Git checkout.
+  conversion. Block Git updates until **Return to previous Git version** or
+  remove/reinstall provides a real Git checkout.
 - Public packages do not expose a Release-to-Git switch. Direct users who want
   ongoing branch-based Git updates to use a local override instead.
-- Preserve legacy and rollback-created `keep_git` values as internal safety
-  holds until a release-ID-scoped replacement exists; otherwise Rollback can be
-  undone by the next automatic migration.
+- Preserve legacy and restore-created `keep_git` values as internal safety
+  holds until a release-ID-scoped replacement exists; otherwise restoring Git
+  can be undone by the next automatic migration.
 - When `registry_local.json` exists but cannot be loaded, fail closed for Release
   management until it is repaired. A genuinely missing local file remains the
   normal public-registry path.

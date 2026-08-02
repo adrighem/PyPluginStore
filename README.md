@@ -379,6 +379,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for registry and Release maintenance,
 generated `plugin.py` requirements, and release commit conventions. Run
 `python -m pytest -q` before submitting a code change.
 
+## License
+
+PyPluginStore is open-source software licensed under the GNU General Public License version 3, or (at your option) any later version. See the [LICENSE](LICENSE) file for the full text of the license.
+
 ## Support and project links
 
 - [Domoticz forum discussion](https://forum.domoticz.com/viewtopic.php?t=44626) for usage questions and community help
@@ -386,4 +390,4 @@ generated `plugin.py` requirements, and release commit conventions. Run
 - [Releases](https://github.com/adrighem/PyPluginStore/releases)
 - [Changelog](CHANGELOG.md)
 - [Contributing guide](CONTRIBUTING.md)
-- [GNU GPL v3 license](LICENSE)
+- [GNU GPL v3 or later license](LICENSE)

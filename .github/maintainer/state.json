@@ -1,26 +1,26 @@
 {
-  "last_run": "2026-07-22",
+  "last_run": "2026-07-28",
   "repository": "adrighem/PyPluginStore",
   "active_items": {
-    "issues": [87, 111],
-    "pull_requests": [118]
+    "issues": [87],
+    "pull_requests": []
   },
   "recently_closed": {
-    "issues": [41, 44, 46, 52, 53, 54, 55, 56, 57, 60, 61, 62, 64, 65, 69, 70, 73, 74, 91, 95, 98, 117],
-    "pull_requests": [42, 43, 45, 47, 49, 51, 58, 59, 63, 66, 68, 71, 72, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 112, 113, 114, 115, 116]
+    "issues": [41, 44, 46, 52, 53, 54, 55, 56, 57, 60, 61, 62, 64, 65, 69, 70, 73, 74, 91, 95, 98, 111, 117, 122],
+    "pull_requests": [42, 43, 45, 47, 49, 51, 58, 59, 63, 66, 68, 71, 72, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 112, 113, 114, 115, 116, 118, 138, 139, 140, 141, 142, 143]
   },
-  "last_shipped_commit": "b378dbd",
-  "last_release": "v2.21.0",
+  "last_shipped_commit": "5814216",
+  "last_release": "v2.24.4",
   "pending_public_actions": {
     "issues": [],
     "pull_requests": [],
-    "summary": "PR:118 is open with the validated ISSUE:111 local-override safeguards and Release-only public channel policy; its checks are running. Reporter follow-up on ISSUE:111 remains pending. ISSUE:117 was resolved by restart/refresh and closed by the reporter."
+    "summary": "v2.24.4 is published and all post-merge workflows are green. Keep ISSUE:87 as a deferred P3 epic pending a safe theme trust/schema design."
   },
   "last_verification": {
-    "pytest": "1315 passed in a sanitized environment; focused Local-override management, lifecycle, API, and UI regressions passed",
-    "generator_parity": "passed; Python compilation passed",
-    "registry_validation": "all 257 registry entries passed live validation",
-    "workflows": "PR:118 started Validate Plugins on Ubuntu and Windows, generated-runtime verification, and CodeQL; the maintainer-record push will restart final head checks",
+    "pytest": "1526 passed in a sanitized environment on exact PR:143 head bacf8f3",
+    "generator_parity": "passed on exact PR:143 head bacf8f3; Python compilation and git diff --check passed",
+    "registry_validation": "all 256 registry entries passed live validation",
+    "workflows": "Release Please, Generate Plugin XML Header, Ubuntu and Windows validation, live registry validation, and CodeQL passed on release commit 5814216",
     "dependabot_alerts": "0",
     "code_scanning_alerts": "0",
     "secret_scanning_alerts": "0"

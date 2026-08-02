@@ -9,6 +9,8 @@
 - Clarified after `ISSUE:46` that local registry entries should override public entries when repository aliases collide.
 - Reported the release-switch transaction failures in `ISSUE:111` and identified
   a public/local registry overlap while validating the released recovery.
+- Reported the repeated channel notifications, stale indexed Release target,
+  and missing latest-version display in `ISSUE:122`.
 
 ## mvveelen
 
@@ -22,6 +24,10 @@
 - Reported Docker volume permissions conflict on restart in `ISSUE:70`.
 - Reported the missing Local registry action after upgrading to `v2.21.0` in
   `ISSUE:117`; the screenshot usefully exposed an older deployed custom page.
+- Reproduced the `ISSUE:122` Somfy Git-to-Release transaction failure and the
+  apparent return to Git after a Domoticz restart.
+- Confirmed the v2.24.2 fix in the field and exposed that the generic
+  `Rollback` label did not identify the retained Git restore target.
 - Provides concise issue reports with screenshots or log excerpts.
 
 ## Rouzax

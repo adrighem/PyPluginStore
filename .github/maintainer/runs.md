@@ -1,5 +1,383 @@
 # Maintainer Runs
 
+## 2026-07-28 - v2.24.4 release
+
+Scope:
+- Reviewed the complete Release Please `PR:143` diff, provenance, version
+  consistency, generated artifact, and checks.
+- Independently reviewed and validated exact head `bacf8f3` in an isolated
+  worktree.
+- Merged only that reviewed head through the existing release pull request.
+- Verified the v2.24.4 tag, release target, publication state, and branding
+  assets.
+- Fast-forwarded local `master` while preserving unrelated maintainer-record
+  edits.
+
+Verification:
+- Exact pull-request head: 1,526 tests passed in a sanitized environment.
+- Generated-runtime parity, Python compilation, and `git diff --check` passed.
+- Post-merge Ubuntu and Windows validation, live registry validation, generated
+  runtime verification, Release Please, and CodeQL passed.
+
+Notes:
+- `PR:143` merged as `5814216`.
+- v2.24.4 is published, non-draft, non-prerelease, and tagged at `5814216`.
+- All three branding assets are present.
+- Cleared one low-risk release notification; the repository inbox is empty.
+- Release:
+  `https://github.com/adrighem/PyPluginStore/releases/tag/v2.24.4`.
+
+## 2026-07-28 - Compact restore button labels
+
+Scope:
+- Shortened the backend-owned restore labels to `Restore Git`, `Restore vX`,
+  and `Rollback`.
+- Separated button copy from confirmation copy so the confirmation remains
+  explicit when the button uses a compact label.
+- Changed the frontend compatibility fallback to `Rollback`.
+- Aligned README and release-management documentation.
+- Regenerated `plugin.py`.
+
+Verification:
+- Focused lifecycle, management, and UI suite: 102 passed.
+- Full sanitized suite: 1,526 passed.
+- Generated-runtime parity, Python compilation, and `git diff --check` passed.
+
+Notes:
+- Pushed approved commit `d3529c2` to `master` with `Refs #122`.
+- All post-push workflows passed.
+- Release Please opened `PR:143` for v2.24.4; it was reviewed and merged after
+  separate explicit release approval.
+- No issue comment was performed.
+
+## 2026-07-27 - v2.24.3 release
+
+Scope:
+- Reviewed the complete Release Please `PR:142` diff, provenance, exact base
+  and head, version consistency, generated artifact, release notes, and checks.
+- Independently reviewed the pull request and validated exact head `3c3b03d` in
+  an isolated worktree.
+- Merged only that reviewed head through the existing release pull request.
+- Verified the v2.24.3 tag, release target, publication state, and branding
+  assets.
+- Fast-forwarded local `master` while preserving unrelated maintainer-record
+  edits.
+
+Verification:
+- Exact pull-request head: 1,525 tests passed in a sanitized environment.
+- Generated-runtime parity, Python compilation, and `git diff --check` passed.
+- Post-merge Ubuntu and Windows validation, live registry validation, generated
+  runtime verification, Release Please, and CodeQL passed.
+
+Notes:
+- `PR:142` merged as `6a926e6`.
+- v2.24.3 is published, non-draft, non-prerelease, and tagged at `6a926e6`.
+- All three branding assets are present.
+- Cleared one low-risk release notification; the repository inbox is empty.
+- Release:
+  `https://github.com/adrighem/PyPluginStore/releases/tag/v2.24.3`.
+
+## 2026-07-27 - ISSUE:122 target-specific restore wording
+
+Scope:
+- Replaced the generic restore presentation with backend-owned labels derived
+  from the verified retained backup.
+- Exposed whether the backup is Git or Release without exposing internal
+  transaction details.
+- Made the UI render action descriptor labels instead of recreating them.
+- Added target-specific confirmation text and aligned user documentation.
+- Regenerated `plugin.py`.
+
+Verification:
+- Focused lifecycle, management, and UI suite: 101 passed.
+- Full sanitized suite: 1,525 passed.
+- Generated-runtime parity, Python compilation, and `git diff --check` passed.
+- Ubuntu, Windows, Generate Plugin XML Header, Release Please, and CodeQL
+  passed on commit `cbffb6a`.
+
+Notes:
+- Pushed approved commit `cbffb6a` to `master` with `Refs #122`.
+- Release Please opened `PR:142` for v2.24.3; it was reviewed and merged after
+  separate explicit release approval.
+- Posted the approved explanation:
+  `https://github.com/adrighem/PyPluginStore/issues/122#issuecomment-5094975084`.
+
+## 2026-07-27 - Post-v2.24.2 maintenance audit
+
+Scope:
+- Reviewed the repository inbox, open issues and pull requests, security
+  alerts, releases, current workflows, branch settings, and recent contributor
+  activity.
+- Reconciled the latest `ISSUE:122` comments with the released implementation.
+- Inspected the rollback presentation path exposed by Eddie-BS's field
+  confirmation.
+
+Assessment:
+- v2.24.2 is consistent across `master`, its tag, the manifest, and the
+  generated runtime. All workflows on release commit `8bb882e` are green.
+- Eddie-BS confirms the original Git-to-Release failure is fixed. The remaining
+  generic `Rollback` label does not explain whether it restores a retained Git
+  checkout or a previous Release.
+- The smallest safe UX follow-up is backend-owned, target-specific wording:
+  `Return to previous Git version` for migration backups and `Restore vX` for
+  Release backups, with matching confirmation text and tests.
+- There are no open pull requests, Dependabot alerts, code-scanning alerts, or
+  secret-scanning alerts. `ISSUE:87` is the only open issue and remains a
+  deferred design item.
+- `master` has no branch protection or repository ruleset. Required Ubuntu,
+  Windows, and CodeQL checks are the highest-value repository guardrail, with
+  an explicit automation path for Release Please.
+- Five inactive remote branches contain no commits absent from `master`.
+  Dependabot updates for GitHub Actions and automatic deletion of merged
+  branches are useful but lower priority.
+
+Notes:
+- One low-risk stale notification was cleared privately; the inbox is empty.
+- No public comment, label, issue state, branch setting, branch deletion,
+  commit, push, merge, or release was performed.
+- The restore wording was approved and delivered in the next run. Repository
+  settings remain approval-gated.
+
+## 2026-07-27 - ISSUE:122 SolarEdge dependency isolation
+
+Scope:
+- Reread Eddie-BS's latest credential-safe dependency result.
+- Confirmed Somfy resolves independently and the installed SolarEdge plugin is
+  the owner that fails under the Domoticz Python 3.7.3 runtime.
+- Verified the current SolarEdge Git pins require Python 3.8 or newer.
+- Added a durable `retain_live` strategy for clean same-commit,
+  same-requirements Git-to-Release migrations.
+- Kept the complete all-plugin dependency rebuild for every real dependency
+  change.
+- Added credential-safe package-to-owner diagnostics and regenerated
+  `plugin.py`.
+
+Verification:
+- Focused dependency and transaction suite: 145 passed.
+- Full sanitized suite: 1,521 passed.
+- Python compilation and `git diff --check` passed.
+
+Notes:
+- No public GitHub action was taken.
+- The local fix is not committed or pushed.
+
+## 2026-07-26 - v2.24.1 release and ISSUE:122 retry request
+
+Scope:
+- Corrected Release Please `PR:140` so its changelog and pull request body
+  reference rather than close `ISSUE:122`.
+- Kept the release pull request as the source of the change and pushed exact
+  corrected head `e1f759d`.
+- Merged the exact head into `master` as `8b316f6`.
+- Verified published, non-draft v2.24.1 points at the merge commit and includes
+  all three expected branding assets.
+- Posted the approved v2.24.1 upgrade and retry request to `Eddie-BS`.
+
+Verification:
+- Full sanitized suite on exact corrected `PR:140` head: 1,509 tests passed.
+- All pull request checks passed before merge.
+- Release Please, Generate Plugin XML Header, CodeQL, and Ubuntu and Windows
+  validation passed on merge commit `8b316f6`.
+
+Notes:
+- `ISSUE:122` remains open pending field confirmation and a safe dependency
+  cause category if Somfy still fails.
+- v2.24.1 release notes reference `ISSUE:122` without closing it.
+- Release: `https://github.com/adrighem/PyPluginStore/releases/tag/v2.24.1`.
+- Follow-up comment:
+  `https://github.com/adrighem/PyPluginStore/issues/122#issuecomment-5085501855`.
+
+## 2026-07-26 - ISSUE:122 post-release regression diagnosis
+
+Scope:
+- Reread the new `MadPatrick` and `Eddie-BS` reports on `ISSUE:122`.
+- Posted the approved request for a full affected-card screenshot after
+  Refresh status.
+- Inspected the live `pietje.vanadrighem.lan` installation through its
+  PyPluginStore API bridge and narrowly scoped SSH reads.
+- Confirmed `release_entry_missing` is expected internal state for a
+  Release-if-indexed plugin with no reviewed Release, but is incorrectly
+  appended to a Git card summary.
+- Confirmed Somfy 5.3.2 only adds `requests` and `urllib3`, while the dependency
+  generation resolves every installed plugin requirement file together.
+- Reproduced the combined dependency resolution in a disposable directory on
+  pietje with its Python 3.13 aarch64-musl runtime and uv; it succeeded.
+- Prepared a local follow-up that suppresses only the expected Git fallback
+  reason, classifies installer failures into safe allowlisted causes, reports
+  the shared requirement-file count, retains no raw output, and aligns uv
+  discovery with the sanitized execution path.
+- Regenerated `plugin.py`.
+
+Verification:
+- Focused dependency, management, UI, and generated-runtime suite: 133 passed.
+- Full sanitized suite: 1,509 passed.
+- `git diff --check` passed.
+- Generate Plugin XML Header, Release Please, CodeQL, and Ubuntu and Windows
+  validation passed on pushed commit `1af52fd`.
+
+Notes:
+- Eddie's exact host-specific installer cause is unrecoverable from v2.24.0
+  because raw stdout and stderr were intentionally discarded.
+- The follow-up was committed as `1af52fd` with `Refs #122` and pushed to
+  `master` after explicit approval.
+- Release Please opened `PR:140` for v2.24.1. Its generated closing reference
+  was corrected before merge so field verification can continue.
+- No issue-state change was made.
+- The disposable live resolver directory was removed after the check.
+
+## 2026-07-26 - v2.24.0 release and ISSUE:122 follow-up
+
+Scope:
+- Rechecked exact `PR:138` head and confirmed its generated release notes still
+  omitted the main user-facing lifecycle work.
+- Added five lifecycle bullets to `CHANGELOG.md` in commit `6c8b358` with
+  `Refs #122`, and updated the PR body to match.
+- Preserved the Release Please pull request as the source of the release.
+- Merged exact final head into `master` as `6007e86`.
+- Verified published, non-draft v2.24.0 points at the merge commit and includes
+  all three branding assets plus the corrected notes.
+- Posted the approved upgrade and restart-verification request on `ISSUE:122`.
+
+Verification:
+- Full sanitized suite before the documentation-only correction: 1,497 tests
+  passed.
+- Focused generated-runtime and manager-identity suite after correction: 39
+  tests passed.
+- Generated runtime parity, Python compilation, `git diff --check`, and live
+  validation of all 256 registry repositories passed.
+- Final PR and post-merge Generate Plugin XML Header, Release Please, Ubuntu and
+  Windows validation, and CodeQL workflows passed.
+
+Notes:
+- `ISSUE:122` was monitored throughout PR and post-merge CI. It remains open,
+  with no external response after the release comment.
+- Approved public actions were the release-note branch push, PR body edit,
+  merge/release, and `ISSUE:122` comment.
+- Marked only the stale v2.23.0 and v2.24.0 release-PR state notifications as
+  read during final maintainer cleanup; the repository inbox is clear.
+- No label or issue-state change was made.
+- Local `master` and `origin/master` now point at `6007e86`.
+
+## 2026-07-26 - Release readiness and active issue triage
+
+Scope:
+- Reviewed all current public items after merging `PR:139`: `ISSUE:87`,
+  `ISSUE:122`, and release `PR:138`.
+- Confirmed there are no open Dependabot, code-scanning, or secret-scanning
+  alerts.
+- Confirmed all workflows on current `master` `00de1dc` are green.
+- Found one stale unread notification for the already merged v2.23.0 release
+  pull request.
+- Reviewed the complete current `PR:138` diff, provenance, commit range, and
+  release notes.
+
+Assessment:
+- `PR:138` is technically clean, directly based on current `master`, and
+  correctly versions v2.24.0, but its generated notes omit nearly all
+  user-facing lifecycle work because those commits use `refactor:` prefixes.
+- `ISSUE:122` is implemented on `master` but must remain open until v2.24.0 is
+  shipped and one reporter confirms the complete Git-to-Release path survives a
+  Domoticz restart.
+- `ISSUE:87` should remain a deferred P3 epic. Its posted implementation plan
+  is unsafe for executable theme JavaScript, web-root cloning, mutable Git
+  updates, path containment, ownership, and recursive deletion. A small
+  trust/schema RFC must come first.
+
+Verification:
+- Exact `PR:138` head: 1,497 tests passed.
+- Generated runtime parity, Python compilation, and `git diff --check` passed.
+- All 256 registry repositories passed live validation.
+- `PR:138` CodeQL is green; its Validate Plugins and Generate Plugin XML Header
+  workflows await explicit approval.
+
+Notes:
+- No comment, label, workflow approval, merge, release, notification mutation,
+  or other public GitHub action was made.
+- The installed maintainer skill contains no referenced guidance, triage
+  script, or `gh-helper`, so this run used the documented manual fallback.
+- The three pre-existing untracked maintainer notes remain untouched.
+
+## 2026-07-26 - PR:139 template exclusion
+
+Scope:
+- Kept `PR:139` as the source of the weekly registry update.
+- Added an exact blocklist entry for
+  `galadril/domoticz-python-plugin-template`.
+- Removed `Domoticz-Python-Plugin-Template` from the registry, update times,
+  platform metadata, migration mapping, and active release index.
+- Preserved sequence 8 directly against published sequence 7 without creating a
+  false tombstone for an entry that was never released.
+- Added regression coverage for exact, case-insensitive, and owner-scoped
+  blocklisting, existing-entry cleanup, rediscovery prevention, sidecar cleanup,
+  and checked-in artifact consistency.
+- Merged current `master` into the pull request branch, pushed head `d5f7b31`,
+  and merged `PR:139` into `master` as `00de1dc`.
+
+Verification:
+- Full sanitized suite: 1,497 tests passed.
+- All 256 registry repositories passed live validation.
+- Generated runtime parity, Python compilation, artifact invariants, release
+  sequence 7 to 8 parsing, and `git diff --check` passed.
+- The initial aggregate CodeQL gate found URL-like prefix stripping in two new
+  test assertions. Replaced it with full canonical identity comparison and
+  added commit `d5f7b31`.
+- Generate Plugin XML Header, Release Please, Ubuntu and Windows validation,
+  and CodeQL are green on merge commit `00de1dc`.
+
+Notes:
+- Authorized public actions were updating the existing `PR:139` branch and
+  merging the approved exact head. No comment, label, or workflow approval was
+  made.
+- `PR:139` is merged and requires no further action.
+- The three pre-existing untracked maintainer notes remain untouched.
+
+## 2026-07-26 - Read-only lifecycle release and registry triage
+
+Scope:
+- Reviewed current repository and GitHub state for `adrighem/PyPluginStore`.
+- Current `master` is `012f20a` and matches `origin/master`.
+- Latest release is `v2.23.0`, published on 2026-07-25.
+- Active public items:
+  - Open issues: `ISSUE:87`, `ISSUE:122`.
+  - Open pull requests: `PR:138`, `PR:139`.
+- Confirmed that `ISSUE:122` has released notification, identity, and
+  Release-refresh fixes, while the direct Git-to-latest-release and durable
+  restart-recovery refactor remains unreleased on `master`.
+- Kept `ISSUE:87` as a design backlog item. Its existing proposal still needs
+  safer path, deletion, update, browser-refresh, and theme trust boundaries
+  before implementation.
+- Reviewed complete provenance and diffs for both bot pull requests.
+- Found `PR:138` mechanically sound but release-blocked by notes that describe
+  only documentation and omit the user-facing lifecycle refactor.
+- Found `PR:139` mechanically sound but policy-blocked because it makes
+  `Domoticz-Python-Plugin-Template` Release-installable with placeholder key
+  `Your-Plugin-Key`.
+- Dependabot, code scanning, and secret scanning have no open alerts.
+
+Verification:
+- Full sanitized suite on each synthetic current-master merge of `PR:138` and
+  `PR:139`: 1,493 tests passed.
+- Generated `plugin.py` parity passed for both synthetic merges.
+- Live validation passed for all 257 registry repositories in both merges.
+- All 11 added or updated `PR:139` release archives independently matched their
+  recorded transport size, archive hash, and root plugin identity.
+- Current `master` workflows are green.
+- Both PRs have green CodeQL checks. Their `Validate Plugins` and `Generate
+  Plugin XML Header` workflows await explicit maintainer approval.
+
+Notes:
+- No comment, label, close, workflow approval, merge, release, push, or other
+  public GitHub action was taken.
+- The installed maintainer skill still lacks its referenced guidance and triage
+  script, and `gh-helper` is unavailable, so this run used the established
+  manual fallback with direct read-only `gh` queries and local analysis.
+- The three pre-existing untracked maintainer notes remain untouched.
+- Next action is to update `PR:138` release notes, decide template eligibility
+  for `PR:139`, update both branches, approve their held workflows, and merge
+  only after all required checks pass.
+- After shipping, ask the `ISSUE:122` reporters to retry and keep the issue open
+  until one confirms the Release choice survives a Domoticz restart.
+
 ## 2026-07-23 - Manager runtime identity and coherence
 
 Scope:

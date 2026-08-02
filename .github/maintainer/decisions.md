@@ -1,5 +1,127 @@
 # Maintainer Decisions
 
+## 2026-07-28 - Keep restore button copy compact
+
+Decision: use short, single-line restore labels while keeping the confirmation
+dialog explicit about the verified target.
+
+Button mapping:
+- Git backup: `Restore Git`.
+- Release backup with a known version: `Restore vX`.
+- Release backup without a known version: `Rollback`.
+- Compatibility fallback without target metadata: `Rollback`.
+
+Rationale:
+- Target-specific labels must still fit alongside the other card actions.
+- `Rollback` is acceptable as a compact fallback when the exact target cannot
+  be named on the button.
+- The confirmation dialog remains the safety boundary and continues to say
+  `previous Git version`, `previous Release version`, or `previous version`.
+
+Verification:
+- Focused lifecycle, management, and UI suite: 102 tests passed.
+- Full sanitized suite: 1,526 tests passed.
+- Generated-runtime parity, Python compilation, and `git diff --check` passed.
+
+Public action:
+- Pushed approved commit `d3529c2` to `master` with `Refs #122`.
+- Release Please opened `PR:143` for v2.24.4; it remains unmerged.
+
+## 2026-07-27 - Name verified restore targets in the UI
+
+Decision: keep the internal `rollback` action ID stable, but have the backend
+name the verified restore target and have the page render that action
+descriptor instead of hardcoding a generic label.
+
+Rationale:
+- A retained Git checkout and a previous Release are materially different
+  restore targets.
+- `Rollback` does not tell a normal user which one will be restored.
+- The backend already verifies the retained backup and is the authoritative
+  place to describe it.
+
+Implementation notes:
+- Migration backups use `Return to previous Git version`.
+- Release backups use `Restore vX`, with a version-independent fallback only
+  when retained Release metadata cannot name the version.
+- Confirmation text names the same target and states that a Domoticz restart
+  will be required.
+- The UI renders backend action labels through `textContent` and retains a safe
+  compatibility fallback for mismatched generations.
+- Generic rollback availability text was removed from the status summary.
+
+Verification:
+- Focused lifecycle, management, and UI suite: 101 tests passed.
+- Full sanitized suite: 1,525 tests passed.
+- Generated-runtime parity, Python compilation, and `git diff --check` passed.
+- Ubuntu, Windows, generated-runtime, Release Please, and CodeQL workflows
+  passed on `cbffb6a`.
+
+Public action:
+- Pushed approved commit `cbffb6a` with `Refs #122`.
+- Posted the approved explanation to `Eddie-BS`:
+  `https://github.com/adrighem/PyPluginStore/issues/122#issuecomment-5094975084`.
+- Merged approved release `PR:142` and published v2.24.3:
+  `https://github.com/adrighem/PyPluginStore/releases/tag/v2.24.3`.
+
+## 2026-07-27 - Retain dependencies for exact channel conversions
+
+Decision: do not rebuild or rename the global shared dependency generation
+when a clean Git checkout switches to a certified Release at the exact same
+commit and its requirements file is byte-identical.
+
+Rationale:
+- Rebuilding all installed requirements can be blocked by an unrelated plugin
+  even though the requested channel conversion changes no executable inputs.
+- Omitting an incompatible plugin from a real rebuild would be unsafe because
+  it could remove that plugin's working dependencies after restart.
+- Explicit `retain_live` state keeps these cases distinct and lets activation,
+  recovery, and rollback revalidate the dependency tree without pretending an
+  installer produced it.
+
+Implementation notes:
+- Retention requires equal Git and Release commits, an `equal` preflight
+  relationship, no tracked or untracked changes, and byte-identical target
+  requirements.
+- Activation rechecks the captured live dependency tree and never creates a
+  staged or backup dependency directory in this mode.
+- Any failed precondition falls back to the normal complete rebuild.
+- Installer failures expose only allowlisted package IDs, sanitized requirement
+  owners, and the Python major/minor version.
+
+Public action:
+- None.
+
+## 2026-07-26 - Exclude repository templates from the plugin registry
+
+Decision: blocklist `galadril/domoticz-python-plugin-template` by exact,
+case-insensitive owner/repository identity and remove it from every active
+registry artifact.
+
+Rationale:
+- The repository is developer scaffolding, not an installable end-user plugin.
+- Its `Your-Plugin-Key` value is a placeholder, not a stable Domoticz package
+  identity.
+- Keeping it Git-only would still expose an unusable install action.
+- Exact owner/repository matching prevents package-ID aliases from bypassing the
+  exclusion without blocking legitimate forks under other owners.
+
+Implementation notes:
+- The weekly scanner removes an existing blocked entry and its update/platform
+  sidecars before network discovery, then prevents rediscovery.
+- Registry, update-time, platform, migration, and active release-index records
+  were removed.
+- No tombstone was added because the template release was never published in an
+  accepted index sequence.
+
+Verification:
+- Full sanitized suite: 1,497 tests passed.
+- All 256 registry repositories and the sequence 7 to 8 transition validated.
+- Pull-request and post-merge GitHub workflows passed.
+
+Public action:
+- Updated and merged `PR:139` with explicit user approval.
+
 ## 2026-07-23 - Verify manager runtime generations before mutations
 
 Decision: identify PyPluginStore with both its semantic version and a
