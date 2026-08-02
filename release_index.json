@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-08-02T06:44:35Z",
-  "generated_at": "2026-07-26T06:44:35Z",
-  "registry_sha256": "607041d9ace3558da8cacc5fd0cb7edbe7d7700bd66c4a690e1a4f828c5188a4",
+  "expires_at": "2026-08-09T06:31:17Z",
+  "generated_at": "2026-08-02T06:31:17Z",
+  "registry_sha256": "3321af5ce9fb77565692e1ad33e41e52cb8dbb8a38da52c2e399767c17dab34c",
   "releases": [
     {
       "artifact": {
@@ -435,27 +435,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_fullykiosk-f3d01c9",
-        "sha256": "580c898893e3ac0f252e6f88ba65a9aa01120eaa8851bd99c2a5bfe442eec566",
-        "size": 12723,
+        "root_prefix": "MadPatrick-domoticz_fullykiosk-7cba8a8",
+        "sha256": "b0952656c3771b2fea8d1600983a385cb41a45a24970db651b1854d18547d873",
+        "size": 16144,
         "source_path": ".",
-        "tree_sha256": "c8b0c01b9fa8e1f9a504cdeb2abcde323eaf3d5040f2357821266d7ce384803d",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_fullykiosk/zipball/f3d01c99d1f36199c078de6e6ae7d4a53c6e4bcb"
+        "tree_sha256": "8c8ce45639091bf2c0cacb2ea9f214dccc5de649b5ce76f6d4aaf29a95ae4121",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_fullykiosk/zipball/7cba8a85566e590a857367c91fda66bf932c7c04"
       },
       "certified_identity": {
         "domoticz_key": "FullyKiosk",
-        "plugin_py_sha256": "249581f6f15fee87fc44a160b53e8edf47221a8087599a747793d0464e7d5ea7"
+        "plugin_py_sha256": "b4cf7e4b80748cdcb208c4b7a405a6e54b2ab7c427e879b910063d5ced7e6698"
       },
-      "commit": "f3d01c99d1f36199c078de6e6ae7d4a53c6e4bcb",
+      "commit": "7cba8a85566e590a857367c91fda66bf932c7c04",
       "package_id": "FullyKiosk",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_fullykiosk:1.0.4",
-      "released_at": "2026-02-22T09:03:18Z",
+      "release_id": "github:madpatrick/domoticz_fullykiosk:1.1.2",
+      "released_at": "2026-07-26T11:32:47Z",
       "repository_identity": "github.com/madpatrick/domoticz_fullykiosk",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "1.0.4",
-      "version": "1.0.4"
+      "revision": 2,
+      "supersedes": [
+        "github:madpatrick/domoticz_fullykiosk:1.0.4"
+      ],
+      "tag": "1.1.2",
+      "version": "1.1.2"
     },
     {
       "artifact": {
@@ -771,27 +773,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-Solaredge_modbustcp-9ae940a",
-        "sha256": "286f9eb3fc017c8fb21bc27e277534092e9b283b2b2783251c45fbd339622c9a",
-        "size": 25088,
+        "root_prefix": "MadPatrick-Solaredge_modbustcp-5925ea0",
+        "sha256": "22213f022971ec9aca33e92fb87a48605d01fde5b6c9ca6e5ed65f4beae003ba",
+        "size": 25147,
         "source_path": ".",
-        "tree_sha256": "4d43cea0b6c99606f2b508ed5e5285d4a7518a498f00003f433a82f5eee25a70",
-        "url": "https://api.github.com/repos/madpatrick/solaredge_modbustcp/zipball/9ae940a09a1a9b6c654126d9170499488b92ab8c"
+        "tree_sha256": "a4903017d9595b2604f3dbbf915b93f629c4a68d3159b89ac900ff302ec5eaaa",
+        "url": "https://api.github.com/repos/madpatrick/solaredge_modbustcp/zipball/5925ea0526e57b6034a7d581275500a669230873"
       },
       "certified_identity": {
         "domoticz_key": "SolarEdge_ModbusTCP",
-        "plugin_py_sha256": "95171b7f62c5c9f6cef57e4f85c0247afc4086c1f775e0843bbe8c802e3dda47"
+        "plugin_py_sha256": "15a9fba1a4b46a33c1c39a8fcfb8b25e240247737c1bfb93ecdc9f8367a48018"
       },
-      "commit": "9ae940a09a1a9b6c654126d9170499488b92ab8c",
+      "commit": "5925ea0526e57b6034a7d581275500a669230873",
       "package_id": "Solaredge_modbustcp",
       "provider": "github",
-      "release_id": "github:madpatrick/solaredge_modbustcp:2.1.1",
-      "released_at": "2026-07-23T16:47:15Z",
+      "release_id": "github:madpatrick/solaredge_modbustcp:2.1.2",
+      "released_at": "2026-07-27T14:41:41Z",
       "repository_identity": "github.com/madpatrick/solaredge_modbustcp",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "2.1.1",
-      "version": "2.1.1"
+      "revision": 2,
+      "supersedes": [
+        "github:madpatrick/solaredge_modbustcp:2.1.1"
+      ],
+      "tag": "2.1.2",
+      "version": "2.1.2"
     },
     {
       "artifact": {
@@ -1317,6 +1321,36 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
+        "root_prefix": "adrighem-ha-domoticz-sync-45e9ec4",
+        "sha256": "f83469e6d5e18cc4cbb38489a72100df343ff2c45eae5e51620c3069afb1041a",
+        "size": 2410918,
+        "source_path": ".",
+        "tree_sha256": "6f539b6f6e57237d2fb298e2d7e5eb2b3877f1b8975d9fa0293429ca680ad3e7",
+        "url": "https://api.github.com/repos/adrighem/ha-domoticz-sync/zipball/45e9ec4c25593f86ab08f6ad309ab15a43137f26"
+      },
+      "certified_identity": {
+        "domoticz_key": "HADomoticzSync",
+        "plugin_py_sha256": "f035e91b97f7537524c4f0377031de7dae0a3bddbaab6eddf19278e0459e6aa3"
+      },
+      "commit": "45e9ec4c25593f86ab08f6ad309ab15a43137f26",
+      "package_id": "ha-domoticz-sync",
+      "provider": "github",
+      "release_id": "github:adrighem/ha-domoticz-sync:v0.6.1",
+      "released_at": "2026-08-01T15:18:01Z",
+      "repository_identity": "github.com/adrighem/ha-domoticz-sync",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v0.6.1",
+      "version": "0.6.1"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
         "root_prefix": "Rouzax-luxtronik-domoticz-plugin-v2-9c8e22c",
         "sha256": "dfe848cadb2e70ec0c29768945b4a6e074c898b41b71aacc4f5926e1dfea80dc",
         "size": 74985,
@@ -1461,7 +1495,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 8,
+  "sequence": 9,
   "tombstones": [
     {
       "last_revision": 1,

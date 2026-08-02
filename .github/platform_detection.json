@@ -116,11 +116,12 @@
           "windows"
         ],
         "reasons": [
-          "generic: no Linux-only or Windows-only evidence found"
+          "README.md: uses shell commands",
+          "CONTRIBUTING.md: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 0,
+          "linux": 4,
           "windows": 0
         }
       },
@@ -2759,32 +2760,36 @@
     },
     {
       "branch": "main",
-      "confidence": "unknown",
-      "evidence_class": "legacy",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
       "identity": "github.com/adrighem/ha-domoticz-sync@main",
       "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
         "platforms": [
-          "linux",
-          "windows"
+          "linux"
         ],
         "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses chmod",
           "README.md: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 2,
+          "linux": 11,
           "windows": 0
         }
       },
       "owner": "adrighem",
       "package_id": "ha-domoticz-sync",
-      "policy_action": "kept_low_confidence_new",
-      "registry_platforms": [],
+      "policy_action": "accepted_new_medium_or_high",
+      "registry_platforms": [
+        "linux"
+      ],
       "repository": "ha-domoticz-sync",
       "reviewed": false,
-      "source": "unknown"
+      "source": "detected"
     },
     {
       "branch": "master",
