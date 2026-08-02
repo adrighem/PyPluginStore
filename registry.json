@@ -5874,7 +5874,7 @@
     {
       "package_id": "ha-domoticz-sync",
       "domoticz_key": "HADomoticzSync",
-      "description": "Home Assistant custom integration that imports device state from Domoticz",
+      "description": "helps Home Assistant and Domoticz run side by side",
       "repository": {
         "url": "https://github.com/adrighem/ha-domoticz-sync",
         "branch": "main"
