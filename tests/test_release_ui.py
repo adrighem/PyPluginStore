@@ -849,6 +849,22 @@ def test_release_status_text_surfaces_versions_migration_and_restart():
         },
         {
             "state": release_management_state(
+                status="index_behind",
+                summary="Release - index behind",
+                updateable=False,
+            ),
+            "fragments": ["Release - index behind"],
+        },
+        {
+            "state": release_management_state(
+                status="provider_status_unknown",
+                summary="Release - provider status unknown",
+                updateable=False,
+            ),
+            "fragments": ["Release - provider status unknown"],
+        },
+        {
+            "state": release_management_state(
                 status="local_override_requires_git_checkout",
                 updateable=False,
             ),
@@ -1154,6 +1170,22 @@ def test_release_action_model_keeps_release_non_git_install_updateable():
             ),
             "context": {"installed": True, "isGit": False, "isManager": False},
             "expected": [],
+        },
+        {
+            "state": release_management_state(
+                status="index_behind",
+                updateable=False,
+            ),
+            "context": {"installed": True, "isGit": False, "isManager": False},
+            "expected": ["rollback"],
+        },
+        {
+            "state": release_management_state(
+                status="provider_status_unknown",
+                updateable=False,
+            ),
+            "context": {"installed": True, "isGit": False, "isManager": False},
+            "expected": ["rollback"],
         },
         {
             "state": None,

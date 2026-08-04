@@ -2590,6 +2590,12 @@ class ReleaseDescriptor:
     certified_identity: object = None
     authority: str = "release_index"
     candidate_fingerprint: str = ""
+    lineage_complete: bool = True
+    anchor_release_id: str = ""
+    anchor_revision: int = 0
+    anchor_authority: str = ""
+    anchor_index_sequence: int = 0
+    index_sequence: int = 0
 
     @classmethod
     def from_document(cls, document):
@@ -2852,6 +2858,15 @@ class ReleaseIndex:
     registry_sha256: str
     plugins: dict
     tombstones: dict
+
+    def __post_init__(self):
+        """Bind indexed descriptors to the generation that authorized them."""
+        for descriptor in self.plugins.values():
+            if (
+                isinstance(descriptor, ReleaseDescriptor)
+                and descriptor.authority == "release_index"
+            ):
+                descriptor.index_sequence = self.sequence
 
     @property
     def releases(self):
@@ -3713,7 +3728,8 @@ class ReleaseMetadataStore:
         return self._selection(generation)
 
 
-INSTALL_METADATA_SCHEMA_VERSION = 3
+INSTALL_METADATA_SCHEMA_VERSION = 4
+AUTHORITY_INSTALL_METADATA_SCHEMA_VERSION = 3
 PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION = 2
 LEGACY_INSTALL_METADATA_SCHEMA_VERSION = 1
 WINDOWS_RESERVED_PATH_NAMES = {
@@ -6003,6 +6019,10 @@ class RuntimeReleaseObservation:
     checked_at: str
     stale: bool = False
     refresh_error: str = ""
+    anchor_release_id: str = ""
+    anchor_revision: int = 0
+    anchor_authority: str = ""
+    anchor_index_sequence: int = 0
 
 
 def _runtime_release_anchor(installed, installed_mode=None):
@@ -6035,6 +6055,11 @@ def _runtime_release_anchor(installed, installed_mode=None):
         "commit": getattr(installed, "commit", ""),
         "source_revision": getattr(installed, "source_revision", ""),
         "supersedes": list(getattr(installed, "supersedes", []) or []),
+        "lineage_complete": bool(
+            getattr(installed, "lineage_complete", False)
+        ),
+        "authority": getattr(installed, "authority", ""),
+        "index_sequence": getattr(installed, "index_sequence", 0),
     }
 
 
@@ -6117,6 +6142,10 @@ class RuntimeReleaseCertificationService:
         document = {
             "anchor_release_id": anchor["release_id"],
             "anchor_revision": anchor["revision"],
+            "anchor_authority": anchor["authority"],
+            "anchor_index_sequence": anchor["index_sequence"],
+            "anchor_supersedes": list(anchor["supersedes"]),
+            "anchor_lineage_complete": anchor["lineage_complete"],
             "provider": candidate.provider,
             "repository_identity": candidate.repository_identity,
             "release_id": candidate.release_id,
@@ -6220,6 +6249,11 @@ class RuntimeReleaseCertificationService:
                     artifact,
                     anchor,
                 ),
+                lineage_complete=anchor["lineage_complete"],
+                anchor_release_id=anchor["release_id"],
+                anchor_revision=anchor["revision"],
+                anchor_authority=anchor["authority"],
+                anchor_index_sequence=anchor["index_sequence"],
             )
         finally:
             shutil.rmtree(temporary_root, ignore_errors=True)
@@ -6341,6 +6375,10 @@ class RuntimeReleaseDiscoveryService:
             "installed_revision": anchor["revision"],
             "installed_commit": anchor["commit"],
             "installed_source_revision": anchor["source_revision"],
+            "installed_authority": anchor["authority"],
+            "installed_index_sequence": anchor["index_sequence"],
+            "installed_supersedes": list(anchor["supersedes"]),
+            "installed_lineage_complete": anchor["lineage_complete"],
         }
         return hashlib.sha256(
             json.dumps(
@@ -6357,9 +6395,11 @@ class RuntimeReleaseDiscoveryService:
         release,
         message,
         now,
+        anchor=None,
         stale=False,
         refresh_error="",
     ):
+        anchor = anchor if isinstance(anchor, dict) else {}
         return RuntimeReleaseObservation(
             state=state,
             release=release,
@@ -6367,6 +6407,18 @@ class RuntimeReleaseDiscoveryService:
             checked_at=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
             stale=stale,
             refresh_error=refresh_error,
+            anchor_release_id=str(anchor.get("release_id") or ""),
+            anchor_revision=(
+                anchor.get("revision")
+                if type(anchor.get("revision")) is int
+                else 0
+            ),
+            anchor_authority=str(anchor.get("authority") or ""),
+            anchor_index_sequence=(
+                anchor.get("index_sequence")
+                if type(anchor.get("index_sequence")) is int
+                else 0
+            ),
         )
 
     def refresh_entry(
@@ -6404,6 +6456,7 @@ class RuntimeReleaseDiscoveryService:
                 None,
                 "Runtime release anchor does not match the registry.",
                 now,
+                anchor=anchor,
             )
 
         policy_document = self._policy_document(policy)
@@ -6415,6 +6468,7 @@ class RuntimeReleaseDiscoveryService:
                 None,
                 "The indexed release is de-certified.",
                 now,
+                anchor=anchor,
             )
         cached = self.cache.get(cache_key)
         if cached is not None:
@@ -6430,6 +6484,7 @@ class RuntimeReleaseDiscoveryService:
                 None,
                 "Direct release provider is unsupported.",
                 now,
+                anchor=anchor,
             )
         else:
             try:
@@ -6454,6 +6509,7 @@ class RuntimeReleaseDiscoveryService:
                             None,
                             "The installed release tag resolved to a changed commit.",
                             now,
+                            anchor=anchor,
                         )
                     else:
                         observation = self._observation(
@@ -6461,7 +6517,16 @@ class RuntimeReleaseDiscoveryService:
                             None,
                             "The installed release is current.",
                             now,
+                            anchor=anchor,
                         )
+                elif candidate.release_id in anchor["supersedes"]:
+                    observation = self._observation(
+                        "blocked",
+                        None,
+                        "The provider returned an already superseded release.",
+                        now,
+                        anchor=anchor,
+                    )
                 elif _parse_utc_timestamp(
                     candidate.released_at,
                     "candidate.released_at",
@@ -6474,6 +6539,7 @@ class RuntimeReleaseDiscoveryService:
                         None,
                         "No newer stable release was published.",
                         now,
+                        anchor=anchor,
                     )
                 else:
                     release = self.certifier.certify(
@@ -6495,6 +6561,7 @@ class RuntimeReleaseDiscoveryService:
                         release,
                         "Verified directly from the release provider.",
                         now,
+                        anchor=anchor,
                     )
             except _release_providers_module.NoReleaseError:
                 observation = self._observation(
@@ -6502,6 +6569,7 @@ class RuntimeReleaseDiscoveryService:
                     None,
                     "No matching stable release was published.",
                     now,
+                    anchor=anchor,
                 )
             except Exception as error:
                 if (
@@ -6514,6 +6582,7 @@ class RuntimeReleaseDiscoveryService:
                         cached[1].release,
                         cached[1].message,
                         now,
+                        anchor=anchor,
                         stale=True,
                         refresh_error=str(error),
                     )
@@ -6523,6 +6592,7 @@ class RuntimeReleaseDiscoveryService:
                         None,
                         str(error),
                         now,
+                        anchor=anchor,
                     )
         self.cache[cache_key] = (now, observation)
         return observation
@@ -6554,15 +6624,33 @@ class InstallMetadata:
     migration_inventory_sha256: str = ""
     authority: str = "release_index"
     candidate_fingerprint: str = ""
+    supersedes: list = field(default_factory=list)
+    lineage_complete: bool = False
+    anchor_release_id: str = ""
+    anchor_revision: int = 0
+    anchor_authority: str = ""
+    anchor_index_sequence: int = 0
 
     @classmethod
     def from_document(cls, document):
-        """Parse strict schema-v3 release-managed install metadata."""
+        """Parse strict schema-v4 release-managed install metadata."""
         return cls._from_document(
             document,
             schema_version=INSTALL_METADATA_SCHEMA_VERSION,
             identity_field="package_id",
             authority_fields=True,
+            lineage_fields=True,
+        )
+
+    @classmethod
+    def from_authority_document(cls, document):
+        """Normalize one explicit schema-v3 install metadata document."""
+        return cls._from_document(
+            document,
+            schema_version=AUTHORITY_INSTALL_METADATA_SCHEMA_VERSION,
+            identity_field="package_id",
+            authority_fields=True,
+            lineage_fields=False,
         )
 
     @classmethod
@@ -6573,6 +6661,7 @@ class InstallMetadata:
             schema_version=PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION,
             identity_field="package_id",
             authority_fields=False,
+            lineage_fields=False,
         )
 
     @classmethod
@@ -6583,6 +6672,7 @@ class InstallMetadata:
             schema_version=LEGACY_INSTALL_METADATA_SCHEMA_VERSION,
             identity_field="plugin_key",
             authority_fields=False,
+            lineage_fields=False,
         )
 
     @classmethod
@@ -6593,10 +6683,23 @@ class InstallMetadata:
         schema_version,
         identity_field,
         authority_fields,
+        lineage_fields,
     ):
         authority_keys = (
             ("authority", "candidate_fingerprint")
             if authority_fields
+            else ()
+        )
+        lineage_keys = (
+            (
+                "supersedes",
+                "lineage_complete",
+                "anchor_release_id",
+                "anchor_revision",
+                "anchor_authority",
+                "anchor_index_sequence",
+            )
+            if lineage_fields
             else ()
         )
         document = _require_document(
@@ -6621,6 +6724,7 @@ class InstallMetadata:
                 "index_sequence",
                 "installed_at",
                 *authority_keys,
+                *lineage_keys,
             ),
             (
                 "source_revision",
@@ -6658,6 +6762,80 @@ class InstallMetadata:
             elif candidate_fingerprint != "":
                 raise ValueError(
                     "Indexed install metadata cannot claim a candidate fingerprint."
+                )
+
+        release_id = _require_nonempty_string(
+            document["release_id"], "release_id"
+        )
+        supersedes = []
+        lineage_complete = False
+        anchor_release_id = ""
+        anchor_revision = 0
+        anchor_authority = ""
+        anchor_index_sequence = 0
+        if lineage_fields:
+            raw_supersedes = document["supersedes"]
+            if not isinstance(raw_supersedes, list):
+                raise ValueError("supersedes must be an array.")
+            for raw_release_id in raw_supersedes:
+                predecessor = _require_nonempty_string(
+                    raw_release_id, "supersedes release_id"
+                )
+                if predecessor == release_id or predecessor in supersedes:
+                    raise ValueError("supersedes lineage is invalid.")
+                supersedes.append(predecessor)
+            lineage_complete = document["lineage_complete"]
+            if type(lineage_complete) is not bool:
+                raise ValueError("lineage_complete must be a boolean.")
+            anchor_release_id = document["anchor_release_id"]
+            anchor_authority = document["anchor_authority"]
+            if not isinstance(anchor_release_id, str):
+                raise ValueError("anchor_release_id must be a string.")
+            if not isinstance(anchor_authority, str):
+                raise ValueError("anchor_authority must be a string.")
+            anchor_revision = document["anchor_revision"]
+            anchor_index_sequence = document["anchor_index_sequence"]
+            if type(anchor_revision) is not int or anchor_revision < 0:
+                raise ValueError("anchor_revision must be a non-negative integer.")
+            if (
+                type(anchor_index_sequence) is not int
+                or anchor_index_sequence < 0
+            ):
+                raise ValueError(
+                    "anchor_index_sequence must be a non-negative integer."
+                )
+            anchor_values_present = bool(
+                anchor_release_id
+                or anchor_revision
+                or anchor_authority
+                or anchor_index_sequence
+            )
+            if authority == "provider_live":
+                if anchor_values_present:
+                    _require_nonempty_string(
+                        anchor_release_id, "anchor_release_id"
+                    )
+                    _require_positive_integer(
+                        anchor_revision, "anchor_revision"
+                    )
+                    if anchor_authority not in {
+                        "release_index",
+                        "provider_live",
+                    }:
+                        raise ValueError(
+                            "anchor_authority is unsupported."
+                        )
+                    if anchor_release_id not in supersedes:
+                        raise ValueError(
+                            "Provider-live lineage must include its anchor."
+                        )
+                elif lineage_complete:
+                    raise ValueError(
+                        "Complete provider-live lineage requires an anchor."
+                    )
+            elif anchor_values_present:
+                raise ValueError(
+                    "Indexed install metadata cannot claim a provider anchor."
                 )
 
         raw_repository_identity = _require_nonempty_string(
@@ -6778,9 +6956,7 @@ class InstallMetadata:
             repository_identity=repository_identity,
             version=_require_nonempty_string(document["version"], "version"),
             tag=tag,
-            release_id=_require_nonempty_string(
-                document["release_id"], "release_id"
-            ),
+            release_id=release_id,
             release_revision=_require_positive_integer(
                 document["release_revision"], "release_revision"
             ),
@@ -6804,6 +6980,12 @@ class InstallMetadata:
             migration_inventory_sha256=migration_inventory_sha256,
             authority=authority,
             candidate_fingerprint=candidate_fingerprint,
+            supersedes=supersedes,
+            lineage_complete=lineage_complete,
+            anchor_release_id=anchor_release_id,
+            anchor_revision=anchor_revision,
+            anchor_authority=anchor_authority,
+            anchor_index_sequence=anchor_index_sequence,
         )
 
     def to_document(self):
@@ -6814,6 +6996,12 @@ class InstallMetadata:
             "management_mode": self.management_mode,
             "authority": self.authority,
             "candidate_fingerprint": self.candidate_fingerprint,
+            "supersedes": list(self.supersedes),
+            "lineage_complete": self.lineage_complete,
+            "anchor_release_id": self.anchor_release_id,
+            "anchor_revision": self.anchor_revision,
+            "anchor_authority": self.anchor_authority,
+            "anchor_index_sequence": self.anchor_index_sequence,
             "repository_identity": self.repository_identity,
             "version": self.version,
             "tag": self.tag,
@@ -6912,6 +7100,9 @@ class InstallMetadataService:
             ),
             PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION: (
                 InstallMetadata.from_previous_document
+            ),
+            AUTHORITY_INSTALL_METADATA_SCHEMA_VERSION: (
+                InstallMetadata.from_authority_document
             ),
             INSTALL_METADATA_SCHEMA_VERSION: InstallMetadata.from_document,
         }
@@ -9894,6 +10085,114 @@ class ReleaseTransactionManager:
             target.get("artifact_tree_sha256"),
             "target.artifact_tree_sha256",
         )
+        lineage_fields = {
+            "supersedes",
+            "lineage_complete",
+            "anchor_release_id",
+            "anchor_revision",
+            "anchor_authority",
+            "anchor_index_sequence",
+        }
+        present_lineage_fields = lineage_fields.intersection(target)
+        if present_lineage_fields and present_lineage_fields != lineage_fields:
+            raise ValueError(
+                "Release transaction target lineage fields must be complete."
+            )
+        authority_present = "authority" in target
+        fingerprint_present = "candidate_fingerprint" in target
+        if authority_present != fingerprint_present:
+            raise ValueError(
+                "Release transaction target authority fields must be complete."
+            )
+        target_authority = "release_index"
+        if authority_present:
+            target_authority = _require_nonempty_string(
+                target["authority"], "target.authority"
+            )
+            if target_authority not in {"release_index", "provider_live"}:
+                raise ValueError(
+                    "Release transaction target authority is unsupported."
+                )
+            if target_authority == "provider_live":
+                _require_sha256(
+                    target["candidate_fingerprint"],
+                    "target.candidate_fingerprint",
+                )
+            elif target["candidate_fingerprint"] != "":
+                raise ValueError(
+                    "Indexed transaction target cannot claim a candidate "
+                    "fingerprint."
+                )
+        if present_lineage_fields:
+            supersedes = target["supersedes"]
+            if not isinstance(supersedes, list):
+                raise ValueError("target.supersedes must be an array.")
+            validated_supersedes = []
+            for release_id in supersedes:
+                release_id = _require_nonempty_string(
+                    release_id, "target.supersedes release_id"
+                )
+                if (
+                    release_id == target.get("release_id")
+                    or release_id in validated_supersedes
+                ):
+                    raise ValueError("target.supersedes lineage is invalid.")
+                validated_supersedes.append(release_id)
+            target["supersedes"] = validated_supersedes
+            if type(target["lineage_complete"]) is not bool:
+                raise ValueError("target.lineage_complete must be a boolean.")
+            for field_name in ("anchor_revision", "anchor_index_sequence"):
+                if (
+                    type(target[field_name]) is not int
+                    or target[field_name] < 0
+                ):
+                    raise ValueError(
+                        "target."
+                        + field_name
+                        + " must be a non-negative integer."
+                    )
+            for field_name in ("anchor_release_id", "anchor_authority"):
+                if not isinstance(target[field_name], str):
+                    raise ValueError(
+                        "target." + field_name + " must be a string."
+                    )
+            anchor_values_present = bool(
+                target["anchor_release_id"]
+                or target["anchor_revision"]
+                or target["anchor_authority"]
+                or target["anchor_index_sequence"]
+            )
+            if target_authority == "provider_live":
+                if anchor_values_present:
+                    _require_nonempty_string(
+                        target["anchor_release_id"],
+                        "target.anchor_release_id",
+                    )
+                    _require_positive_integer(
+                        target["anchor_revision"],
+                        "target.anchor_revision",
+                    )
+                    if target["anchor_authority"] not in {
+                        "release_index",
+                        "provider_live",
+                    }:
+                        raise ValueError(
+                            "target.anchor_authority is unsupported."
+                        )
+                    if target["anchor_release_id"] not in supersedes:
+                        raise ValueError(
+                            "Provider-live transaction lineage must include "
+                            "its anchor."
+                        )
+                elif target["lineage_complete"]:
+                    raise ValueError(
+                        "Complete provider-live transaction lineage requires "
+                        "an anchor."
+                    )
+            elif anchor_values_present:
+                raise ValueError(
+                    "Indexed transaction target cannot claim a provider anchor."
+                )
         if expected_mode == "git":
             _require_git_commit(
                 expected_current.get("commit"),
@@ -10204,15 +10503,31 @@ class ReleaseTransactionManager:
         schema_version=INSTALL_METADATA_SCHEMA_VERSION,
     ):
         document = metadata.to_document()
+        lineage_fields = (
+            "supersedes",
+            "lineage_complete",
+            "anchor_release_id",
+            "anchor_revision",
+            "anchor_authority",
+            "anchor_index_sequence",
+        )
         if schema_version == LEGACY_INSTALL_METADATA_SCHEMA_VERSION:
             document["schema"] = LEGACY_INSTALL_METADATA_SCHEMA_VERSION
             document["plugin_key"] = document.pop("package_id")
             document.pop("authority")
             document.pop("candidate_fingerprint")
+            for field_name in lineage_fields:
+                document.pop(field_name)
         elif schema_version == PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION:
             document["schema"] = PREVIOUS_INSTALL_METADATA_SCHEMA_VERSION
             document.pop("authority")
             document.pop("candidate_fingerprint")
+            for field_name in lineage_fields:
+                document.pop(field_name)
+        elif schema_version == AUTHORITY_INSTALL_METADATA_SCHEMA_VERSION:
+            document["schema"] = AUTHORITY_INSTALL_METADATA_SCHEMA_VERSION
+            for field_name in lineage_fields:
+                document.pop(field_name)
         elif schema_version != INSTALL_METADATA_SCHEMA_VERSION:
             raise ValueError("Install metadata digest schema is unsupported.")
         contents = json.dumps(
@@ -10257,6 +10572,12 @@ class ReleaseTransactionManager:
                 staged_snapshot = _validated_staged_snapshot(staged_snapshot)
                 accepted_metadata_digests = {
                     self._install_metadata_digest(metadata),
+                    self._install_metadata_digest(
+                        metadata,
+                        schema_version=(
+                            AUTHORITY_INSTALL_METADATA_SCHEMA_VERSION
+                        ),
+                    ),
                     self._install_metadata_digest(
                         metadata,
                         schema_version=(
@@ -10716,6 +11037,14 @@ class ReleaseTransactionManager:
             ("artifact_tree_sha256", metadata.artifact_tree_sha256),
             ("release_id", metadata.release_id),
             ("release_revision", metadata.release_revision),
+            ("authority", metadata.authority),
+            ("candidate_fingerprint", metadata.candidate_fingerprint),
+            ("supersedes", metadata.supersedes),
+            ("lineage_complete", metadata.lineage_complete),
+            ("anchor_release_id", metadata.anchor_release_id),
+            ("anchor_revision", metadata.anchor_revision),
+            ("anchor_authority", metadata.anchor_authority),
+            ("anchor_index_sequence", metadata.anchor_index_sequence),
         )
         return all(
             key not in descriptor or descriptor[key] == value
@@ -15215,6 +15544,12 @@ class ReleaseInstallUpdateStrategy:
             "management_mode": "release",
             "authority": release.authority,
             "candidate_fingerprint": release.candidate_fingerprint,
+            "supersedes": list(release.supersedes),
+            "lineage_complete": bool(release.lineage_complete),
+            "anchor_release_id": release.anchor_release_id,
+            "anchor_revision": release.anchor_revision,
+            "anchor_authority": release.anchor_authority,
+            "anchor_index_sequence": release.anchor_index_sequence,
             "release_id": release.release_id,
             "release_revision": release.revision,
             "commit": release.commit,
@@ -15318,6 +15653,14 @@ class ReleaseInstallUpdateStrategy:
         plugin_dir, metadata = self._installed_metadata(entry)
         expected = {
             "management_mode": "release",
+            "authority": metadata.authority,
+            "candidate_fingerprint": metadata.candidate_fingerprint,
+            "supersedes": list(metadata.supersedes),
+            "lineage_complete": metadata.lineage_complete,
+            "anchor_release_id": metadata.anchor_release_id,
+            "anchor_revision": metadata.anchor_revision,
+            "anchor_authority": metadata.anchor_authority,
+            "anchor_index_sequence": metadata.anchor_index_sequence,
             "release_id": metadata.release_id,
             "release_revision": metadata.release_revision,
             "commit": metadata.commit,
@@ -15390,6 +15733,12 @@ class ReleaseInstallUpdateStrategy:
             "management_mode": "release",
             "authority": release.authority,
             "candidate_fingerprint": release.candidate_fingerprint,
+            "supersedes": list(release.supersedes),
+            "lineage_complete": bool(release.lineage_complete),
+            "anchor_release_id": release.anchor_release_id,
+            "anchor_revision": release.anchor_revision,
+            "anchor_authority": release.anchor_authority,
+            "anchor_index_sequence": release.anchor_index_sequence,
             "repository_identity": release.repository_identity,
             "version": release.version,
             "tag": release.tag,
@@ -16118,6 +16467,8 @@ class ReleaseManagementCoordinator:
         installed_release,
         trigger,
         downgrade_confirmed,
+        runtime_observation_state="",
+        runtime_observation_message="",
     ):
         if installed_release is None:
             return self._decision(
@@ -16138,21 +16489,136 @@ class ReleaseManagementCoordinator:
                 trigger=trigger,
             )
 
-        if release.revision > installed_revision:
-            installed_release_id = getattr(
-                installed_release, "release_id", ""
+        installed_release_id = getattr(
+            installed_release, "release_id", ""
+        )
+        installed_authority = getattr(
+            installed_release, "authority", "release_index"
+        )
+        target_authority = getattr(release, "authority", "release_index")
+        same_authority = installed_authority == target_authority
+        runtime_observation_state = str(runtime_observation_state or "")
+
+        if runtime_observation_state == "tag_mutated":
+            return self._decision(
+                "blocked",
+                "verification_failed",
+                reason="tag_mutated",
+                trigger=trigger,
             )
-            if installed_release_id not in release.supersedes:
+        if runtime_observation_state == "blocked":
+            return self._decision(
+                "blocked",
+                "verification_failed",
+                reason="provider_release_blocked",
+                trigger=trigger,
+            )
+
+        same_release_id = release.release_id == installed_release_id
+        immutable_fields_match = (
+            same_release_id
+            and release.commit
+            == getattr(installed_release, "commit", "")
+            and release.source_revision
+            == getattr(installed_release, "source_revision", "")
+            and release.artifact.tree_sha256
+            == getattr(installed_release, "artifact_tree_sha256", "")
+            and release.artifact.provenance
+            == getattr(installed_release, "artifact_provenance", "")
+        )
+        if same_release_id:
+            if not immutable_fields_match:
                 return self._decision(
                     "blocked",
                     "verification_failed",
-                    reason="predecessor_gap",
+                    reason="release_mutation",
+                    trigger=trigger,
+                )
+            installed_artifact_sha256 = getattr(
+                installed_release, "artifact_sha256", ""
+            )
+            if (
+                release.artifact.provenance != "forge_source_archive"
+                and release.artifact.sha256 != installed_artifact_sha256
+            ):
+                return self._decision(
+                    "blocked",
+                    "verification_failed",
+                    reason="release_mutation",
+                    trigger=trigger,
+                )
+            reason = ""
+            if release.artifact.sha256 != installed_artifact_sha256:
+                reason = "equivalent_recompressed_source"
+            return self._decision(
+                "none",
+                "current",
+                reason=reason,
+                release=release,
+                trigger=trigger,
+            )
+
+        target_supersedes_installed = (
+            installed_release_id in list(release.supersedes or [])
+        )
+        installed_supersedes_target = release.release_id in list(
+            getattr(installed_release, "supersedes", []) or []
+        )
+
+        if target_supersedes_installed:
+            if same_authority and release.revision <= installed_revision:
+                return self._decision(
+                    "blocked",
+                    "verification_failed",
+                    reason="release_lineage_revision_conflict",
                     trigger=trigger,
                 )
             return self._decision(
                 "release_update",
                 "available",
                 release=release,
+                trigger=trigger,
+            )
+
+        if (
+            installed_supersedes_target
+            and installed_authority == "provider_live"
+            and target_authority == "release_index"
+        ):
+            if runtime_observation_state == "current":
+                return self._decision("none", "current", trigger=trigger)
+            return self._decision("blocked", "index_behind", trigger=trigger)
+
+        if not same_authority:
+            if (
+                installed_authority == "provider_live"
+                and target_authority == "release_index"
+            ):
+                if runtime_observation_state == "current":
+                    return self._decision("none", "current", trigger=trigger)
+                if not getattr(installed_release, "lineage_complete", False):
+                    return self._decision(
+                        "blocked",
+                        "provider_status_unknown",
+                        reason=(
+                            "provider_refresh_unavailable"
+                            if runtime_observation_state == "unavailable"
+                            else "release_lineage_unresolved"
+                        ),
+                        trigger=trigger,
+                    )
+            return self._decision(
+                "blocked",
+                "verification_failed",
+                reason="release_lineage_unresolved",
+                trigger=trigger,
+            )
+
+        if release.revision > installed_revision:
+            return self._decision(
+                "blocked",
+                "verification_failed",
+                reason="predecessor_gap",
                 trigger=trigger,
             )
 
@@ -16181,44 +16647,11 @@ class ReleaseManagementCoordinator:
                 trigger=trigger,
             )
 
-        immutable_fields_match = (
-            release.release_id
-            == getattr(installed_release, "release_id", "")
-            and release.commit
-            == getattr(installed_release, "commit", "")
-            and release.source_revision
-            == getattr(installed_release, "source_revision", "")
-            and release.artifact.tree_sha256
-            == getattr(installed_release, "artifact_tree_sha256", "")
-            and release.artifact.provenance
-            == getattr(installed_release, "artifact_provenance", "")
-        )
-        if not immutable_fields_match:
-            return self._decision(
-                "blocked",
-                "verification_failed",
-                reason="release_mutation",
-                trigger=trigger,
-            )
-
-        installed_artifact_sha256 = getattr(
-            installed_release, "artifact_sha256", ""
-        )
-        if (
-            release.artifact.provenance != "forge_source_archive"
-            and release.artifact.sha256 != installed_artifact_sha256
-        ):
-            return self._decision(
-                "blocked",
-                "verification_failed",
-                reason="release_mutation",
-                trigger=trigger,
-            )
-        reason = ""
-        if release.artifact.sha256 != installed_artifact_sha256:
-            reason = "equivalent_recompressed_source"
         return self._decision(
-            "none", "current", reason=reason, release=release, trigger=trigger
+            "blocked",
+            "verification_failed",
+            reason="release_mutation",
+            trigger=trigger,
         )
 
     def decide(
@@ -16237,6 +16670,8 @@ class ReleaseManagementCoordinator:
         downgrade_confirmed=False,
         release_was_activated=False,
         git_status="unknown",
+        runtime_observation_state="",
+        runtime_observation_message="",
     ):
         """Return the sole permitted route for the supplied trusted state."""
         if operation not in self.OPERATIONS:
@@ -16340,6 +16775,8 @@ class ReleaseManagementCoordinator:
             installed_release,
             trigger,
             downgrade_confirmed,
+            runtime_observation_state,
+            runtime_observation_message,
         )
 
     def execute(self, entry, decision, queue_on_lock=True):
@@ -17157,13 +17594,13 @@ class BasePlugin:
         self.release_metadata_selection = selection
         return selection
 
-    def getRuntimeReleaseCandidate(
+    def getRuntimeReleaseObservation(
         self,
         entry,
         release_anchor,
         tombstone=None,
     ):
-        """Return one still-applicable host-certified release candidate."""
+        """Return one provider observation bound to the supplied anchor."""
         if (
             entry.local
             or tombstone is not None
@@ -17177,11 +17614,40 @@ class BasePlugin:
         observation = self.runtime_release_observations.get(entry.key)
         if (
             not isinstance(observation, RuntimeReleaseObservation)
+            or observation.anchor_release_id != anchor["release_id"]
+            or observation.anchor_revision != anchor["revision"]
+            or observation.anchor_authority != anchor["authority"]
+            or observation.anchor_index_sequence != anchor["index_sequence"]
+        ):
+            return None
+        return observation
+
+    def getRuntimeReleaseCandidate(
+        self,
+        entry,
+        release_anchor,
+        tombstone=None,
+    ):
+        """Return one still-applicable host-certified release candidate."""
+        observation = self.getRuntimeReleaseObservation(
+            entry,
+            release_anchor,
+            tombstone,
+        )
+        if (
+            observation is None
             or observation.state != "available"
             or not isinstance(observation.release, ReleaseDescriptor)
         ):
             return None
+        anchor = _runtime_release_anchor(release_anchor)
         release = observation.release
+        if not isinstance(release.supersedes, list) or any(
+            not isinstance(release_id, str) or not release_id
+            for release_id in release.supersedes
+        ):
+            return None
+        release_supersedes = list(release.supersedes or [])
         expected_identity = normalize_repository_identity(
             entry.author,
             entry.repository,
@@ -17198,8 +17664,13 @@ class BasePlugin:
             or fingerprint != release.candidate_fingerprint
             or release.repository_identity != expected_identity
             or release.package_id not in {"", entry.key}
-            or anchor["release_id"] not in release.supersedes
-            or release.revision <= anchor["revision"]
+            or release.anchor_release_id != anchor["release_id"]
+            or release.anchor_revision != anchor["revision"]
+            or release.anchor_authority != anchor["authority"]
+            or release.anchor_index_sequence != anchor["index_sequence"]
+            or release.release_id in release_supersedes
+            or len(release_supersedes) != len(set(release_supersedes))
+            or anchor["release_id"] not in release_supersedes
         ):
             return None
         return release
@@ -17351,12 +17822,17 @@ class BasePlugin:
             if installed_mode == "release"
             else release
         )
+        runtime_observation = self.getRuntimeReleaseObservation(
+            entry,
+            release_anchor,
+            tombstone,
+        )
         runtime_release = self.getRuntimeReleaseCandidate(
             entry,
             release_anchor,
             tombstone,
         )
-        if runtime_release is not None:
+        if runtime_release is not None and release is not None:
             release = runtime_release
 
         preference = None
@@ -17386,6 +17862,16 @@ class BasePlugin:
             "downgrade_confirmed": False,
             "release_was_activated": release_was_activated,
             "git_status": self.update_status.get(entry.key, "unknown"),
+            "runtime_observation_state": (
+                runtime_observation.state
+                if runtime_observation is not None
+                else ""
+            ),
+            "runtime_observation_message": (
+                runtime_observation.message
+                if runtime_observation is not None
+                else ""
+            ),
             "index_sequence": selection.sequence,
         }
 
@@ -19396,6 +19882,22 @@ class BasePlugin:
                         installed_version = installed_release.version
                     if release is not None:
                         available_version = release.version
+                    if installed_release is not None and release is not None:
+                        decision_context = dict(context)
+                        decision_context.pop("index_sequence", None)
+                        decision_context.pop("error", None)
+                        decision = self.install_update_strategy.decide(
+                            entry,
+                            operation="status",
+                            trigger="manual",
+                            **decision_context,
+                        )
+                        if decision.status in {
+                            "current",
+                            "index_behind",
+                            "provider_status_unknown",
+                        }:
+                            available_version = installed_release.version
                 except (OSError, RuntimeError, ValueError) as error:
                     Domoticz.Debug(
                         "Could not resolve Release versions for "
@@ -19543,6 +20045,10 @@ class BasePlugin:
             summary = "Git - Release migration needs confirmation"
         elif status == "current" or status == "git_current":
             summary = channel + " - current"
+        elif status == "index_behind":
+            summary = "Release - index behind"
+        elif status == "provider_status_unknown":
+            summary = "Release - provider status unknown"
         elif status == "git_unknown":
             summary = "Git - update status unknown"
         else:
@@ -19556,6 +20062,8 @@ class BasePlugin:
             "git_current",
             "available",
             "git_available",
+            "index_behind",
+            "provider_status_unknown",
         }:
             summary += ": " + reason
         actions = []
@@ -19716,21 +20224,37 @@ class BasePlugin:
             is_release = metadata is not None or bool(metadata_invalid)
             is_git = is_git_checkout(plugin_dir)
             channel = "release" if is_release else "git"
-            runtime_release = self.getRuntimeReleaseCandidate(
+            release_anchor = metadata if is_release else release
+            runtime_observation = self.getRuntimeReleaseObservation(
                 entry,
-                metadata if is_release else release,
+                release_anchor,
                 tombstone,
             )
-            runtime_verified = runtime_release is not None
-            runtime_verification_message = ""
-            if runtime_release is not None:
+            runtime_release = self.getRuntimeReleaseCandidate(
+                entry,
+                release_anchor,
+                tombstone,
+            )
+            runtime_verified = runtime_release is not None or (
+                is_release
+                and runtime_observation is not None
+                and runtime_observation.state == "current"
+            ) or (
+                metadata is not None
+                and metadata.authority == "provider_live"
+            )
+            runtime_observation_state = (
+                runtime_observation.state
+                if runtime_observation is not None
+                else ""
+            )
+            runtime_verification_message = (
+                runtime_observation.message
+                if runtime_observation is not None
+                else ""
+            )
+            if runtime_release is not None and release is not None:
                 release = runtime_release
-                observation = self.runtime_release_observations.get(
-                    plugin_key
-                )
-                runtime_verification_message = str(
-                    getattr(observation, "message", "") or ""
-                )
             local_override_git_error = (
                 self.getLocalOverrideGitCheckoutError(entry, plugin_dir)
             )
@@ -19774,6 +20298,8 @@ class BasePlugin:
                 "downgrade_confirmed": False,
                 "release_was_activated": is_release,
                 "git_status": update_status.get(plugin_key, "unknown"),
+                "runtime_observation_state": runtime_observation_state,
+                "runtime_observation_message": runtime_verification_message,
                 "index_sequence": selection.sequence,
             }
             if metadata_invalid:
@@ -19851,6 +20377,13 @@ class BasePlugin:
             available_revision = (
                 release.revision if release is not None else None
             )
+            if metadata is not None and status in {
+                "current",
+                "index_behind",
+                "provider_status_unknown",
+            }:
+                available_version = metadata.version
+                available_revision = metadata.release_revision
             migration_status = (
                 status
                 if status.startswith("migration_")
@@ -19864,12 +20397,37 @@ class BasePlugin:
                 "migration_blocked_local_files",
                 "migration_waiting_for_release",
                 "migration_confirmation_required",
+                "index_behind",
+                "provider_status_unknown",
             }
+            observation_message_applies = (
+                runtime_observation is not None
+                and (
+                    status in {
+                        "available",
+                        "current",
+                        "index_behind",
+                        "provider_status_unknown",
+                    }
+                    or (
+                        status == "verification_failed"
+                        and runtime_observation.state
+                        in {"blocked", "tag_mutated"}
+                    )
+                )
+            )
             management[plugin_key] = self._management_presentation({
                 "channel": channel,
                 "status": status,
                 "updateable": bool(
-                    (is_release and not release_blocked)
+                    (
+                        is_release
+                        and status in {
+                            "available",
+                            "confirmation_required",
+                        }
+                        and not release_blocked
+                    )
                     or (is_git and not release_blocked)
                 ),
                 "installed_version": installed_version,
@@ -19881,7 +20439,10 @@ class BasePlugin:
                     if status == "verification_failed"
                     else (
                         "unavailable"
-                        if status == "release_metadata_unavailable"
+                        if status in {
+                            "release_metadata_unavailable",
+                            "provider_status_unknown",
+                        }
                         else (
                             (
                                 "verified_on_host"
@@ -19895,7 +20456,7 @@ class BasePlugin:
                 ),
                 "verification_message": (
                     runtime_verification_message
-                    if runtime_verified
+                    if observation_message_applies
                     else reason
                 ),
                 "migration_status": migration_status,

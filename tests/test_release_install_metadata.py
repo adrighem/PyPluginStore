@@ -12,11 +12,17 @@ PLUGIN_SHA256 = "4" * 64
 
 def install_metadata_document(**overrides):
     document = {
-        "schema": 3,
+        "schema": 4,
         "package_id": "ExamplePlugin",
         "management_mode": "release",
         "authority": "release_index",
         "candidate_fingerprint": "",
+        "supersedes": [],
+        "lineage_complete": True,
+        "anchor_release_id": "",
+        "anchor_revision": 0,
+        "anchor_authority": "",
+        "anchor_index_sequence": 0,
         "repository_identity": "github.com/owner/example-plugin",
         "version": "1.4.0",
         "tag": "v1.4.0",
@@ -46,6 +52,12 @@ def legacy_install_metadata_document(**overrides):
     document["plugin_key"] = document.pop("package_id")
     document.pop("authority")
     document.pop("candidate_fingerprint")
+    document.pop("supersedes")
+    document.pop("lineage_complete")
+    document.pop("anchor_release_id")
+    document.pop("anchor_revision")
+    document.pop("anchor_authority")
+    document.pop("anchor_index_sequence")
     document.update(overrides)
     return document
 
@@ -55,6 +67,25 @@ def previous_install_metadata_document(**overrides):
     document["schema"] = 2
     document.pop("authority")
     document.pop("candidate_fingerprint")
+    document.pop("supersedes")
+    document.pop("lineage_complete")
+    document.pop("anchor_release_id")
+    document.pop("anchor_revision")
+    document.pop("anchor_authority")
+    document.pop("anchor_index_sequence")
+    document.update(overrides)
+    return document
+
+
+def authority_install_metadata_document(**overrides):
+    document = install_metadata_document()
+    document["schema"] = 3
+    document.pop("supersedes")
+    document.pop("lineage_complete")
+    document.pop("anchor_release_id")
+    document.pop("anchor_revision")
+    document.pop("anchor_authority")
+    document.pop("anchor_index_sequence")
     document.update(overrides)
     return document
 
@@ -71,9 +102,11 @@ def test_install_metadata_parses_release_identity_and_audit_hashes(
 
     metadata = plugin_core_module.InstallMetadata.from_document(document)
 
-    assert metadata.schema == 3
+    assert metadata.schema == 4
     assert metadata.authority == "release_index"
     assert metadata.candidate_fingerprint == ""
+    assert metadata.supersedes == []
+    assert metadata.lineage_complete is True
     assert metadata.package_id == "ExamplePlugin"
     assert metadata.plugin_key == "ExamplePlugin"
     assert metadata.management_mode == "release"
@@ -110,9 +143,9 @@ def test_install_metadata_v1_requires_explicit_normalization(
         legacy_document
     )
     normalized = metadata.to_document()
-    assert metadata.schema == 3
+    assert metadata.schema == 4
     assert metadata.package_id == "ExamplePlugin"
-    assert normalized["schema"] == 3
+    assert normalized["schema"] == 4
     assert normalized["package_id"] == "ExamplePlugin"
     assert "plugin_key" not in normalized
 
@@ -124,10 +157,28 @@ def test_install_metadata_v2_normalizes_to_index_authority(
         previous_install_metadata_document()
     )
 
-    assert metadata.schema == 3
+    assert metadata.schema == 4
     assert metadata.authority == "release_index"
     assert metadata.candidate_fingerprint == ""
-    assert metadata.to_document() == install_metadata_document()
+    assert metadata.lineage_complete is False
+    assert metadata.to_document() == install_metadata_document(
+        lineage_complete=False
+    )
+
+
+def test_install_metadata_v3_normalizes_to_unknown_lineage(
+    plugin_core_module,
+):
+    metadata = plugin_core_module.InstallMetadata.from_authority_document(
+        authority_install_metadata_document()
+    )
+
+    assert metadata.schema == 4
+    assert metadata.authority == "release_index"
+    assert metadata.lineage_complete is False
+    assert metadata.to_document() == install_metadata_document(
+        lineage_complete=False
+    )
 
 
 def test_provider_live_metadata_requires_candidate_fingerprint(
@@ -136,6 +187,11 @@ def test_provider_live_metadata_requires_candidate_fingerprint(
     document = install_metadata_document(
         authority="provider_live",
         candidate_fingerprint="a" * 64,
+        supersedes=["github:owner/example-plugin:v1.3.0"],
+        anchor_release_id="github:owner/example-plugin:v1.3.0",
+        anchor_revision=6,
+        anchor_authority="release_index",
+        anchor_index_sequence=41,
     )
 
     metadata = plugin_core_module.InstallMetadata.from_document(document)
@@ -239,6 +295,30 @@ def invalid_install_metadata_documents():
         preserved_files={"config/settings.json": "B" * 64},
     )
     add("invalid-index-sequence", index_sequence=0)
+    add(
+        "self-referential-lineage",
+        supersedes=["github:owner/example-plugin:v1.4.0"],
+    )
+    add("invalid-lineage-completeness", lineage_complete=1)
+    add(
+        "indexed-provider-anchor",
+        anchor_release_id="github:owner/example-plugin:v1.3.0",
+        anchor_revision=6,
+        anchor_authority="release_index",
+    )
+    add(
+        "provider-anchor-not-in-lineage",
+        authority="provider_live",
+        candidate_fingerprint="a" * 64,
+        anchor_release_id="github:owner/example-plugin:v1.3.0",
+        anchor_revision=6,
+        anchor_authority="release_index",
+    )
+    add(
+        "complete-provider-lineage-without-anchor",
+        authority="provider_live",
+        candidate_fingerprint="a" * 64,
+    )
     add("invalid-release-timestamp", released_at="not-a-timestamp")
     add("invalid-install-timestamp", installed_at="2026-07-18")
     add(
@@ -269,7 +349,12 @@ def test_install_metadata_rejects_invalid_or_unsafe_documents(
 
 
 def test_install_metadata_rejects_boolean_integer_fields(plugin_core_module):
-    for field in ("release_revision", "index_sequence"):
+    for field in (
+        "release_revision",
+        "index_sequence",
+        "anchor_revision",
+        "anchor_index_sequence",
+    ):
         document = install_metadata_document(**{field: True})
 
         with pytest.raises(ValueError):
@@ -326,9 +411,9 @@ def test_install_metadata_service_atomically_upgrades_v1_on_read(
     loaded = service.read(str(plugin_dir))
 
     upgraded = json.loads(metadata_file.read_text(encoding="utf-8"))
-    assert loaded.schema == 3
+    assert loaded.schema == 4
     assert loaded.package_id == "ExamplePlugin"
-    assert upgraded == install_metadata_document()
+    assert upgraded == install_metadata_document(lineage_complete=False)
     assert "plugin_key" not in upgraded
     assert metadata_file.read_bytes().endswith(b"\n")
     assert not (plugin_dir / ".pypluginstore.json.tmp").exists()

@@ -221,6 +221,10 @@ def test_provider_live_target_preserves_local_authority_in_transaction_and_metad
         descriptor(plugin_core_module),
         authority="provider_live",
         candidate_fingerprint="c" * 64,
+        anchor_release_id="github:owner/example-plugin:v1.0.0",
+        anchor_revision=1,
+        anchor_authority="release_index",
+        anchor_index_sequence=42,
     )
 
     success, _message = strategy.install(entry, release, "manual")
@@ -229,11 +233,22 @@ def test_provider_live_target_preserves_local_authority_in_transaction_and_metad
     target = manager.calls[0][1]["target"]
     assert target["authority"] == "provider_live"
     assert target["candidate_fingerprint"] == "c" * 64
+    assert target["supersedes"] == [
+        "github:owner/example-plugin:v1.0.0"
+    ]
+    assert target["lineage_complete"] is True
+    assert target["anchor_authority"] == "release_index"
     metadata = plugin.install_metadata_service.read(
         manager.transaction.paths.staged_code
     )
     assert metadata.authority == "provider_live"
     assert metadata.candidate_fingerprint == "c" * 64
+    assert metadata.supersedes == [
+        "github:owner/example-plugin:v1.0.0"
+    ]
+    assert metadata.anchor_release_id == (
+        "github:owner/example-plugin:v1.0.0"
+    )
 
 
 @pytest.mark.parametrize(

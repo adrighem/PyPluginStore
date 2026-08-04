@@ -202,7 +202,10 @@ Local registry entries remain Git-managed. They override the reviewed public sou
 
 Release eligibility begins with an accepted public index anchor. A later
 explicit **Refresh status** can extend that release lineage through its
-configured provider.
+configured provider. Provider and index revisions are separate counters;
+PyPluginStore reconciles them by immutable release identity and lineage, so an
+index that trails a provider-certified install is never presented as a
+downgrade.
 
 | Channel | When it is used | Update source | Return path |
 | --- | --- | --- | --- |

@@ -64,8 +64,20 @@ weekly index run.
 
 Installed metadata records whether a release was authorized by
 `release_index` or certified locally as `provider_live`. Provider-live records
-also store a candidate fingerprint. An indexed de-certification tombstone
-always overrides a cached direct-provider result.
+also store a candidate fingerprint, their predecessor lineage, and the exact
+release anchor used for local certification. An indexed de-certification
+tombstone always overrides a cached direct-provider result.
+
+Index revisions and provider-live revisions belong to different authorities,
+so PyPluginStore never compares those numbers to infer an update or downgrade.
+It reconciles them by immutable release identity and predecessor lineage. A
+direct provider refresh that verifies the installed provider-live release shows
+**Release - current**, even while the reviewed index still points at its
+ancestor. Before that refresh, complete lineage is shown as **Release - index
+behind**; older metadata without durable lineage is shown as **Release -
+provider status unknown**. Neither state offers an Update action. A changed tag
+or unresolved complete lineage remains a verification failure. Numeric downgrade
+confirmation is used only within one authority.
 
 If a release was previously de-certified, the scanner keeps its tombstone and
 will not reconsider the same release ID. A later release can reactivate the

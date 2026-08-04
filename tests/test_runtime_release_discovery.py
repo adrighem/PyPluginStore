@@ -1,6 +1,7 @@
 import json
 import hashlib
 import io
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 import zipfile
@@ -153,6 +154,11 @@ def installed_release(**overrides):
         "released_at": "2026-07-20T07:00:00Z",
         "commit": "a" * 40,
         "source_revision": "a" * 40,
+        "authority": "release_index",
+        "candidate_fingerprint": "",
+        "supersedes": [],
+        "lineage_complete": True,
+        "index_sequence": 42,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -315,12 +321,19 @@ def test_runtime_discovery_certifies_and_caches_a_newer_release(
 
     first = service.refresh_entry(entry, installed)
     second = service.refresh_entry(entry, installed)
+    installed.supersedes = ["github:owner/example:v0.9.0"]
+    third = service.refresh_entry(entry, installed)
 
     assert first.state == "available"
     assert first.release is descriptor
     assert second is first
-    assert len(adapter.calls) == 1
-    assert certifier.calls == [(entry, installed, candidate)]
+    assert third.state == "available"
+    assert third is not first
+    assert len(adapter.calls) == 2
+    assert certifier.calls == [
+        (entry, installed, candidate),
+        (entry, installed, candidate),
+    ]
     assert adapter.calls[0][0] == {
         "repository_identity": "github.com/owner/example",
         "owner": "owner",
@@ -403,6 +416,10 @@ def test_runtime_certifier_accepts_reviewed_anchor_for_git_migration(
     ]
     assert descriptor.authority == "provider_live"
     assert len(descriptor.candidate_fingerprint) == 64
+    assert descriptor.lineage_complete is True
+    assert descriptor.anchor_release_id == reviewed.release_id
+    assert descriptor.anchor_revision == reviewed.revision
+    assert descriptor.anchor_authority == "release_index"
 
 
 def test_runtime_discovery_tombstone_blocks_git_provider_refresh(
@@ -501,6 +518,37 @@ def test_runtime_discovery_quarantines_a_mutated_installed_tag(
     assert certifier.calls == []
 
 
+def test_runtime_discovery_blocks_a_republished_superseded_ancestor(
+    plugin_core_module,
+):
+    ancestor_release_id = "github:owner/example:v0.9.0"
+    candidate = provider_candidate(
+        plugin_core_module._release_providers_module,
+        release_id=ancestor_release_id,
+        version="0.9.0",
+        tag="v0.9.0",
+        released_at="2026-07-30T07:00:00Z",
+    )
+    adapter = RecordingProviderAdapter(candidate)
+    certifier = RecordingCertifier(certified_descriptor(plugin_core_module))
+    service = plugin_core_module.RuntimeReleaseDiscoveryService(
+        adapters={"github": adapter},
+        transport=object(),
+        certifier=certifier,
+    )
+
+    observation = service.refresh_entry(
+        release_entry(plugin_core_module),
+        installed_release(supersedes=[ancestor_release_id]),
+    )
+
+    assert observation.state == "blocked"
+    assert observation.release is None
+    assert "superseded" in observation.message
+    assert len(adapter.calls) == 1
+    assert certifier.calls == []
+
+
 def test_index_tombstone_overrides_cached_provider_live_candidate(
     plugin_core_module,
 ):
@@ -526,6 +574,45 @@ def test_index_tombstone_overrides_cached_provider_live_candidate(
         )
         is None
     )
+
+
+def test_runtime_candidate_is_lineage_bound_not_revision_ordered(
+    plugin_core_module,
+):
+    plugin = plugin_core_module.BasePlugin()
+    entry = release_entry(plugin_core_module)
+    anchor = installed_release(release_revision=50)
+    descriptor = certified_descriptor(plugin_core_module)
+    descriptor.revision = 2
+    descriptor.authority = "provider_live"
+    descriptor.candidate_fingerprint = "f" * 64
+    descriptor.anchor_release_id = anchor.release_id
+    descriptor.anchor_revision = anchor.release_revision
+    descriptor.anchor_authority = "release_index"
+    descriptor.anchor_index_sequence = 42
+    observation = plugin_core_module.RuntimeReleaseObservation(
+        state="available",
+        release=descriptor,
+        message="Verified directly from the release provider.",
+        checked_at="2026-07-25T08:00:00Z",
+        anchor_release_id=anchor.release_id,
+        anchor_revision=anchor.release_revision,
+        anchor_authority="release_index",
+        anchor_index_sequence=42,
+    )
+    plugin.runtime_release_observations[entry.key] = observation
+
+    assert plugin.getRuntimeReleaseCandidate(entry, anchor) is descriptor
+
+    plugin.runtime_release_observations[entry.key] = replace(
+        observation,
+        anchor_revision=anchor.release_revision - 1,
+    )
+    assert plugin.getRuntimeReleaseCandidate(entry, anchor) is None
+
+    plugin.runtime_release_observations[entry.key] = observation
+    descriptor.anchor_revision = anchor.release_revision - 1
+    assert plugin.getRuntimeReleaseCandidate(entry, anchor) is None
 
 
 def test_runtime_certifier_derives_checksums_tree_and_plugin_identity(
@@ -572,6 +659,11 @@ def test_runtime_certifier_derives_checksums_tree_and_plugin_identity(
     assert descriptor.artifact.tree_sha256
     assert descriptor.authority == "provider_live"
     assert len(descriptor.candidate_fingerprint) == 64
+    assert descriptor.lineage_complete is True
+    assert descriptor.anchor_release_id == "github:owner/example:v1.0.0"
+    assert descriptor.anchor_revision == 4
+    assert descriptor.anchor_authority == "release_index"
+    assert descriptor.anchor_index_sequence == 42
     assert descriptor.certified_identity.domoticz_key == "EXAMPLE"
     assert descriptor.certified_identity.plugin_py_sha256 == hashlib.sha256(
         plugin_source

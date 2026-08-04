@@ -126,6 +126,14 @@ def installed_release_state(descriptor):
         artifact_tree_sha256=descriptor.artifact.tree_sha256,
         artifact_provenance=descriptor.artifact.provenance,
         index_sequence=42,
+        authority=descriptor.authority,
+        candidate_fingerprint=descriptor.candidate_fingerprint,
+        supersedes=list(descriptor.supersedes),
+        lineage_complete=descriptor.lineage_complete,
+        anchor_release_id=descriptor.anchor_release_id,
+        anchor_revision=descriptor.anchor_revision,
+        anchor_authority=descriptor.anchor_authority,
+        anchor_index_sequence=descriptor.anchor_index_sequence,
     )
 
 
@@ -216,6 +224,8 @@ def decide(
     downgrade_confirmed=False,
     release_was_activated=False,
     git_status="unknown",
+    runtime_observation_state="",
+    runtime_observation_message="",
 ):
     return coordinator.decide(
         entry,
@@ -231,6 +241,8 @@ def decide(
         downgrade_confirmed=downgrade_confirmed,
         release_was_activated=release_was_activated,
         git_status=git_status,
+        runtime_observation_state=runtime_observation_state,
+        runtime_observation_message=runtime_observation_message,
     )
 
 
@@ -815,6 +827,203 @@ def test_release_downgrade_requires_explicit_manual_confirmation(
         assert decision.status == "verification_failed"
 
 
+def test_same_immutable_release_is_current_across_authorities_and_revisions(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    indexed = release_descriptor(plugin_core_module, revision=1)
+    installed = installed_release_state(indexed)
+    installed.release_revision = 2
+    installed.authority = "provider_live"
+    installed.candidate_fingerprint = "e" * 64
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="status",
+        installed_mode="release",
+        release=indexed,
+        installed_release=installed,
+        release_was_activated=True,
+    )
+
+    assert decision.route == "none"
+    assert decision.status == "current"
+
+
+def test_cross_authority_lineage_ignores_unrelated_revision_numbers(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    indexed = release_descriptor(plugin_core_module, revision=20)
+    installed = installed_release_state(indexed)
+    provider = release_descriptor(
+        plugin_core_module,
+        revision=1,
+        release_id="github:owner/example-plugin:v2.0.0",
+        supersedes=[indexed.release_id],
+        version="2.0.0",
+        tag="v2.0.0",
+        commit=COMMIT_2,
+        tree_sha256=TREE_2,
+        artifact_sha256=ARTIFACT_2,
+        root_prefix="example-plugin-v2.0.0",
+    )
+    provider.authority = "provider_live"
+    provider.candidate_fingerprint = "e" * 64
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="status",
+        installed_mode="release",
+        release=provider,
+        installed_release=installed,
+        release_was_activated=True,
+    )
+
+    assert decision.route == "release_update"
+    assert decision.status == "available"
+
+
+def test_index_ancestor_of_provider_install_is_not_a_downgrade(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    indexed = release_descriptor(plugin_core_module, revision=99)
+    provider_release = release_descriptor(
+        plugin_core_module,
+        revision=1,
+        release_id="github:owner/example-plugin:v2.0.0",
+        supersedes=[indexed.release_id],
+        version="2.0.0",
+        tag="v2.0.0",
+        commit=COMMIT_2,
+        tree_sha256=TREE_2,
+        artifact_sha256=ARTIFACT_2,
+        root_prefix="example-plugin-v2.0.0",
+    )
+    provider_release.authority = "provider_live"
+    provider_release.candidate_fingerprint = "e" * 64
+    installed = installed_release_state(provider_release)
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="status",
+        installed_mode="release",
+        release=indexed,
+        installed_release=installed,
+        release_was_activated=True,
+    )
+
+    assert decision.route == "blocked"
+    assert decision.status == "index_behind"
+    assert decision.requires_confirmation is False
+
+
+def test_provider_refresh_confirms_current_despite_stale_index(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    indexed = release_descriptor(plugin_core_module, revision=99)
+    provider_release = release_descriptor(
+        plugin_core_module,
+        revision=1,
+        release_id="github:owner/example-plugin:v2.0.0",
+        supersedes=[indexed.release_id],
+        version="2.0.0",
+        tag="v2.0.0",
+        commit=COMMIT_2,
+        tree_sha256=TREE_2,
+        artifact_sha256=ARTIFACT_2,
+        root_prefix="example-plugin-v2.0.0",
+    )
+    provider_release.authority = "provider_live"
+    provider_release.candidate_fingerprint = "e" * 64
+    installed = installed_release_state(provider_release)
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="status",
+        installed_mode="release",
+        release=indexed,
+        installed_release=installed,
+        release_was_activated=True,
+        runtime_observation_state="current",
+    )
+
+    assert decision.route == "none"
+    assert decision.status == "current"
+
+
+def test_legacy_provider_install_without_observation_has_unknown_status(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    indexed = release_descriptor(plugin_core_module, revision=99)
+    provider_release = release_descriptor(
+        plugin_core_module,
+        revision=1,
+        release_id="github:owner/example-plugin:v2.0.0",
+        version="2.0.0",
+        tag="v2.0.0",
+        commit=COMMIT_2,
+        tree_sha256=TREE_2,
+        artifact_sha256=ARTIFACT_2,
+        root_prefix="example-plugin-v2.0.0",
+    )
+    installed = installed_release_state(provider_release)
+    installed.authority = "provider_live"
+    installed.candidate_fingerprint = "e" * 64
+    installed.lineage_complete = False
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="status",
+        installed_mode="release",
+        release=indexed,
+        installed_release=installed,
+        release_was_activated=True,
+    )
+
+    assert decision.route == "blocked"
+    assert decision.status == "provider_status_unknown"
+
+
+def test_mutated_provider_tag_blocks_cross_authority_reconciliation(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    indexed = release_descriptor(plugin_core_module)
+    installed = installed_release_state(indexed)
+    installed.authority = "provider_live"
+    installed.candidate_fingerprint = "e" * 64
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="status",
+        installed_mode="release",
+        release=indexed,
+        installed_release=installed,
+        release_was_activated=True,
+        runtime_observation_state="tag_mutated",
+    )
+
+    assert decision.route == "blocked"
+    assert decision.status == "verification_failed"
+    assert decision.reason == "tag_mutated"
+
+
 @pytest.mark.parametrize(
     ("git_status", "expected_status"),
     [("current", "git_current"), ("available", "git_available")],
@@ -1373,12 +1582,20 @@ def test_release_install_uses_provider_live_candidate_after_explicit_refresh(
     )
     runtime_release.authority = "provider_live"
     runtime_release.candidate_fingerprint = "e" * 64
+    runtime_release.anchor_release_id = indexed_release.release_id
+    runtime_release.anchor_revision = indexed_release.revision
+    runtime_release.anchor_authority = "release_index"
+    runtime_release.anchor_index_sequence = 42
     plugin.runtime_release_observations[entry.key] = (
         plugin_core_module.RuntimeReleaseObservation(
             state="available",
             release=runtime_release,
             message="Verified directly from the release provider.",
             checked_at="2026-07-24T12:00:00Z",
+            anchor_release_id=indexed_release.release_id,
+            anchor_revision=indexed_release.revision,
+            anchor_authority="release_index",
+            anchor_index_sequence=42,
         )
     )
 
@@ -1432,6 +1649,265 @@ def test_release_install_uses_provider_live_candidate_after_explicit_refresh(
         "available": runtime_release.version,
     }
 
+    plugin.release_metadata_selection.release_index.plugins = {}
+    missing_entry_context = plugin.getReleaseManagementContext(
+        entry,
+        operation="update",
+        trigger="manual",
+    )
+    missing_entry_decision = plugin.install_update_strategy._runtime_decision(
+        entry,
+        "update",
+        "manual",
+    )
+
+    assert missing_entry_context["runtime_observation_state"] == "available"
+    assert missing_entry_context["release"] is None
+    assert missing_entry_decision.route == "blocked"
+    assert missing_entry_decision.status == "release_metadata_unavailable"
+    assert missing_entry_decision.reason == "release_entry_missing"
+
+
+def test_provider_current_observation_hides_stale_index_target(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugin, entry, indexed_release, current_time = (
+        configure_expiring_runtime(
+            plugin_core_module,
+            tmp_path,
+            installed_mode="release",
+            monkeypatch=monkeypatch,
+        )
+    )
+    indexed_release.revision = 1
+    provider_release = release_descriptor(
+        plugin_core_module,
+        revision=2,
+        release_id="github:owner/example-plugin:v2.0.0",
+        supersedes=[indexed_release.release_id],
+        version="2.0.0",
+        tag="v2.0.0",
+        commit=COMMIT_2,
+        tree_sha256=TREE_2,
+        artifact_sha256=ARTIFACT_2,
+        root_prefix="example-plugin-v2.0.0",
+    )
+    provider_release.authority = "provider_live"
+    provider_release.candidate_fingerprint = "e" * 64
+    provider_release.anchor_release_id = indexed_release.release_id
+    provider_release.anchor_revision = indexed_release.revision
+    provider_release.anchor_authority = "release_index"
+    provider_release.anchor_index_sequence = 42
+    metadata_document = install_metadata_document(
+        COMMIT_2,
+        TREE_2,
+        provider_release.revision,
+        provider_release.release_id,
+    )
+    metadata_document.update(
+        {
+            "authority": "provider_live",
+            "candidate_fingerprint": "e" * 64,
+            "supersedes": [indexed_release.release_id],
+            "lineage_complete": True,
+            "anchor_release_id": indexed_release.release_id,
+            "anchor_revision": indexed_release.revision,
+            "anchor_authority": "release_index",
+            "anchor_index_sequence": 42,
+            "artifact_sha256": ARTIFACT_2,
+            "index_sequence": 42,
+        }
+    )
+    plugin_dir = plugin.get_host().plugins_dir()
+    with open(
+        os.path.join(plugin_dir, entry.key, ".pypluginstore.json"),
+        "w",
+        encoding="utf-8",
+    ) as metadata_file:
+        json.dump(metadata_document, metadata_file)
+    plugin.install_metadata_service = plugin_core_module.InstallMetadataService(
+        plugin
+    )
+    index_behind = plugin.getPluginManagementMap(
+        [entry.key],
+        {entry.key: "current"},
+        {},
+        plugin.get_host().plugins_dir(),
+    )[entry.key]
+
+    assert index_behind["status"] == "index_behind"
+    assert index_behind["summary"] == "Release - index behind"
+    assert index_behind["available_version"] == provider_release.version
+    assert index_behind["available_revision"] == provider_release.revision
+    assert index_behind["verification_status"] == "verified_on_host"
+    assert index_behind["updateable"] is False
+    assert not next(
+        action
+        for action in index_behind["actions"]
+        if action["id"] == "update"
+    )["enabled"]
+
+    plugin.runtime_release_observations[entry.key] = (
+        plugin_core_module.RuntimeReleaseObservation(
+            state="current",
+            release=None,
+            message="Installed release is current at the provider.",
+            checked_at="2026-07-24T12:00:00Z",
+            anchor_release_id=provider_release.release_id,
+            anchor_revision=provider_release.revision,
+            anchor_authority="provider_live",
+            anchor_index_sequence=42,
+        )
+    )
+
+    management = plugin.getPluginManagementMap(
+        [entry.key],
+        {entry.key: "current"},
+        {},
+        plugin.get_host().plugins_dir(),
+    )[entry.key]
+    versions = plugin.get_plugin_versions(
+        [entry.key],
+        {entry.key: "current"},
+        plugin.get_host().plugins_dir(),
+    )
+
+    assert management["status"] == "current"
+    assert management["summary"] == "Release - current"
+    assert management["available_version"] == provider_release.version
+    assert management["available_revision"] == provider_release.revision
+    assert management["verification_status"] == "verified_on_host"
+    assert management["updateable"] is False
+    assert not next(
+        action
+        for action in management["actions"]
+        if action["id"] == "update"
+    )["enabled"]
+    assert versions[entry.key] == {
+        "installed": provider_release.version,
+        "available": provider_release.version,
+    }
+
+    monkeypatch.setattr(
+        plugin.release_transaction_manager,
+        "plugin_lifecycle_state",
+        lambda plugin_key: {
+            "rollback_available": True,
+            "rollback_channel": "release",
+            "rollback_version": "1.4.0",
+            "rollback_revision": 1,
+            "restart_pending": False,
+        },
+    )
+    plugin.runtime_release_observations[entry.key] = (
+        plugin_core_module.RuntimeReleaseObservation(
+            state="tag_mutated",
+            release=None,
+            message="The installed release tag resolved to a changed commit.",
+            checked_at="2026-07-24T12:05:00Z",
+            anchor_release_id=provider_release.release_id,
+            anchor_revision=provider_release.revision,
+            anchor_authority="provider_live",
+            anchor_index_sequence=42,
+        )
+    )
+    mutated = plugin.getPluginManagementMap(
+        [entry.key],
+        {entry.key: "current"},
+        {},
+        plugin.get_host().plugins_dir(),
+    )[entry.key]
+
+    assert mutated["status"] == "verification_failed"
+    assert mutated["verification_status"] == "failed"
+    assert "changed commit" in mutated["verification_message"]
+    assert mutated["updateable"] is False
+    assert [
+        action["id"]
+        for action in mutated["actions"]
+        if action["enabled"]
+    ] == ["rollback"]
+
+    current_time[0] = datetime(2026, 7, 26, 12, tzinfo=timezone.utc)
+    expired = plugin.getPluginManagementMap(
+        [entry.key],
+        {entry.key: "current"},
+        {},
+        plugin.get_host().plugins_dir(),
+    )[entry.key]
+
+    assert expired["status"] == "release_metadata_unavailable"
+    assert expired["updateable"] is False
+    assert "expired" in expired["verification_message"].lower()
+
+
+def test_legacy_provider_metadata_reports_unknown_instead_of_downgrade(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
+    plugin, entry, indexed_release, _current_time = (
+        configure_expiring_runtime(
+            plugin_core_module,
+            tmp_path,
+            installed_mode="release",
+            monkeypatch=monkeypatch,
+        )
+    )
+    indexed_release.revision = 1
+    provider_release_id = "github:owner/example-plugin:v2.0.0"
+    document = install_metadata_document(
+        COMMIT_2,
+        TREE_2,
+        2,
+        provider_release_id,
+    )
+    document.update(
+        {
+            "schema": 3,
+            "authority": "provider_live",
+            "candidate_fingerprint": "e" * 64,
+            "artifact_sha256": ARTIFACT_2,
+            "index_sequence": 42,
+        }
+    )
+    for field_name in (
+        "supersedes",
+        "lineage_complete",
+        "anchor_release_id",
+        "anchor_revision",
+        "anchor_authority",
+        "anchor_index_sequence",
+    ):
+        document.pop(field_name)
+    metadata_path = os.path.join(
+        plugin.get_host().plugins_dir(),
+        entry.key,
+        ".pypluginstore.json",
+    )
+    with open(metadata_path, "w", encoding="utf-8") as metadata_file:
+        json.dump(document, metadata_file)
+    plugin.install_metadata_service = plugin_core_module.InstallMetadataService(
+        plugin
+    )
+
+    management = plugin.getPluginManagementMap(
+        [entry.key],
+        {entry.key: "current"},
+        {},
+        plugin.get_host().plugins_dir(),
+    )[entry.key]
+
+    assert management["status"] == "provider_status_unknown"
+    assert management["summary"] == "Release - provider status unknown"
+    assert management["available_version"] == "2.0.0"
+    assert management["available_revision"] == 2
+    assert management["updateable"] is False
+    with open(metadata_path, "r", encoding="utf-8") as metadata_file:
+        assert json.load(metadata_file)["schema"] == 4
+
 
 def test_git_install_selects_host_verified_latest_release_for_direct_migration(
     plugin_core_module,
@@ -1463,12 +1939,20 @@ def test_git_install_selects_host_verified_latest_release_for_direct_migration(
     )
     runtime_release.authority = "provider_live"
     runtime_release.candidate_fingerprint = "e" * 64
+    runtime_release.anchor_release_id = indexed_release.release_id
+    runtime_release.anchor_revision = indexed_release.revision
+    runtime_release.anchor_authority = "release_index"
+    runtime_release.anchor_index_sequence = 42
     plugin.runtime_release_observations[entry.key] = (
         plugin_core_module.RuntimeReleaseObservation(
             state="available",
             release=runtime_release,
             message="Verified directly from the release provider.",
             checked_at="2026-07-24T12:00:00Z",
+            anchor_release_id=indexed_release.release_id,
+            anchor_revision=indexed_release.revision,
+            anchor_authority="release_index",
+            anchor_index_sequence=42,
         )
     )
 
@@ -1488,6 +1972,18 @@ def test_git_install_selects_host_verified_latest_release_for_direct_migration(
     assert decision.route == "release_migration"
     assert decision.release is runtime_release
     assert decision.release.version == "2.0.0"
+
+    plugin.release_metadata_selection.sequence = 43
+    plugin.release_metadata_selection.release_index.sequence = 43
+    indexed_release.index_sequence = 43
+    changed_generation = plugin.getReleaseManagementContext(
+        entry,
+        operation="update",
+        trigger="manual",
+    )
+
+    assert changed_generation["release"] is indexed_release
+    assert changed_generation["runtime_observation_state"] == ""
 
 
 def test_management_map_rechecks_expiry_before_status_decisions(

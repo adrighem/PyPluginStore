@@ -33,11 +33,17 @@ def install_metadata_document(
             "plugin.py": {"sha256": "4" * 64, "size": 4096},
         }
     return {
-        "schema": 3,
+        "schema": 4,
         "package_id": "ExamplePlugin",
         "management_mode": "release",
         "authority": "release_index",
         "candidate_fingerprint": "",
+        "supersedes": [],
+        "lineage_complete": True,
+        "anchor_release_id": "",
+        "anchor_revision": 0,
+        "anchor_authority": "",
+        "anchor_index_sequence": 0,
         "repository_identity": "github.com/owner/example-plugin",
         "version": "1.0.0" if revision == 1 else "2.0.0",
         "tag": "v1.0.0" if revision == 1 else "v2.0.0",
@@ -76,7 +82,25 @@ def legacy_install_metadata_document(document):
     legacy["plugin_key"] = legacy.pop("package_id")
     legacy.pop("authority", None)
     legacy.pop("candidate_fingerprint", None)
+    legacy.pop("supersedes", None)
+    legacy.pop("lineage_complete", None)
+    legacy.pop("anchor_release_id", None)
+    legacy.pop("anchor_revision", None)
+    legacy.pop("anchor_authority", None)
+    legacy.pop("anchor_index_sequence", None)
     return legacy
+
+
+def authority_install_metadata_document(document):
+    authority = copy.deepcopy(document)
+    authority["schema"] = 3
+    authority.pop("supersedes", None)
+    authority.pop("lineage_complete", None)
+    authority.pop("anchor_release_id", None)
+    authority.pop("anchor_revision", None)
+    authority.pop("anchor_authority", None)
+    authority.pop("anchor_index_sequence", None)
+    return authority
 
 
 def expected_current():
@@ -2176,6 +2200,59 @@ def test_release_transaction_revalidates_loaded_journal_descriptors(
         manager.load_transaction(transaction.operation_id)
 
 
+def test_release_transaction_requires_complete_lineage_descriptor(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, _plugins_dir, _manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    target = target_release()
+    target["supersedes"] = ["github:owner/example-plugin:v1.0.0"]
+
+    with pytest.raises(ValueError, match="lineage fields must be complete"):
+        manager.create_transaction(
+            plugin_key="ExamplePlugin",
+            operation_id="operation-001",
+            operation="release_install",
+            expected_current={"management_mode": "absent"},
+            target=target,
+        )
+
+
+def test_release_transaction_rejects_provider_anchor_outside_lineage(
+    plugin_core_module,
+    tmp_path,
+):
+    manager, _plugins_dir, _manager_dir = make_manager(
+        plugin_core_module,
+        tmp_path,
+    )
+    target = target_release()
+    target.update(
+        {
+            "authority": "provider_live",
+            "candidate_fingerprint": "a" * 64,
+            "supersedes": ["github:owner/example-plugin:v1.0.0"],
+            "lineage_complete": True,
+            "anchor_release_id": "github:owner/example-plugin:v1.1.0",
+            "anchor_revision": 1,
+            "anchor_authority": "release_index",
+            "anchor_index_sequence": 1,
+        }
+    )
+
+    with pytest.raises(ValueError, match="must include its anchor"):
+        manager.create_transaction(
+            plugin_key="ExamplePlugin",
+            operation_id="operation-001",
+            operation="release_install",
+            expected_current={"management_mode": "absent"},
+            target=target,
+        )
+
+
 def test_release_transaction_rejects_live_folder_changed_without_paths(
     plugin_core_module,
     tmp_path,
@@ -2436,8 +2513,9 @@ def test_release_transaction_startup_recovery_is_idempotent_at_each_boundary(
     assert read_marker(recovered.paths.live_dependencies) == first_dependencies
 
 
-def test_forward_recovery_accepts_and_upgrades_v1_metadata_digest(
-    plugin_core_module, tmp_path
+@pytest.mark.parametrize("metadata_schema", [1, 3])
+def test_forward_recovery_accepts_and_upgrades_old_metadata_digest(
+    plugin_core_module, tmp_path, metadata_schema
 ):
     manager, plugins_dir, manager_dir = make_manager(
         plugin_core_module, tmp_path
@@ -2453,9 +2531,13 @@ def test_forward_recovery_accepts_and_upgrades_v1_metadata_digest(
         manager.activate(transaction.operation_id)
 
     metadata_path = Path(transaction.paths.live_code) / ".pypluginstore.json"
-    legacy_metadata = legacy_install_metadata_document(
-        json.loads(metadata_path.read_text(encoding="utf-8"))
-    )
+    active_metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if metadata_schema == 1:
+        legacy_metadata = legacy_install_metadata_document(active_metadata)
+    else:
+        active_metadata["authority"] = "provider_live"
+        active_metadata["candidate_fingerprint"] = "a" * 64
+        legacy_metadata = authority_install_metadata_document(active_metadata)
     metadata_path.write_text(json.dumps(legacy_metadata), encoding="utf-8")
     legacy_digest = hashlib.sha256(
         json.dumps(
@@ -2467,6 +2549,9 @@ def test_forward_recovery_accepts_and_upgrades_v1_metadata_digest(
     ).hexdigest()
     journal_path = Path(transaction.paths.journal)
     journal = json.loads(journal_path.read_text(encoding="utf-8"))
+    if metadata_schema == 3:
+        journal["target"]["authority"] = "provider_live"
+        journal["target"]["candidate_fingerprint"] = "a" * 64
     journal["staged_snapshot"]["install_metadata_sha256"] = legacy_digest
     journal_path.write_text(
         json.dumps(legacy_transaction_document(journal)), encoding="utf-8"
@@ -2480,8 +2565,12 @@ def test_forward_recovery_accepts_and_upgrades_v1_metadata_digest(
 
     assert recovered.phase == "restart_pending"
     assert_new_live(recovered)
-    assert upgraded_metadata["schema"] == 3
+    assert upgraded_metadata["schema"] == 4
     assert upgraded_metadata["package_id"] == "ExamplePlugin"
+    if metadata_schema == 3:
+        assert upgraded_metadata["authority"] == "provider_live"
+        assert upgraded_metadata["candidate_fingerprint"] == "a" * 64
+        assert upgraded_metadata["lineage_complete"] is False
     assert "plugin_key" not in upgraded_metadata
     assert upgraded_journal["schema_version"] == 3
     assert upgraded_journal["package_id"] == "ExamplePlugin"
