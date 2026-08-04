@@ -422,6 +422,28 @@ def test_runtime_certifier_accepts_reviewed_anchor_for_git_migration(
     assert descriptor.anchor_authority == "release_index"
 
 
+def test_runtime_certifier_rejects_candidate_from_unreviewed_provider(
+    plugin_core_module,
+):
+    http_client = ArchiveHttpClient(b"")
+    certifier = plugin_core_module.RuntimeReleaseCertificationService(
+        plugin_core_module.BasePlugin(),
+        http_client=http_client,
+    )
+
+    with pytest.raises(ValueError, match="reviewed release provider"):
+        certifier.certify(
+            release_entry(plugin_core_module),
+            reviewed_descriptor(plugin_core_module),
+            provider_candidate(
+                plugin_core_module._release_providers_module,
+                provider="gitlab",
+            ),
+        )
+
+    assert http_client.calls == []
+
+
 def test_runtime_discovery_tombstone_blocks_git_provider_refresh(
     plugin_core_module,
 ):
@@ -515,6 +537,132 @@ def test_runtime_discovery_quarantines_a_mutated_installed_tag(
     assert observation.state == "tag_mutated"
     assert observation.release is None
     assert "changed commit" in observation.message
+    assert certifier.calls == []
+
+
+def test_runtime_discovery_accepts_legacy_forge_anchor_without_source_revision(
+    plugin_core_module,
+):
+    commit = "a" * 40
+    candidate = provider_candidate(
+        plugin_core_module._release_providers_module,
+        release_id="github:owner/example:v1.0.0",
+        version="1.0.0",
+        tag="v1.0.0",
+        commit=commit,
+        source_revision=commit,
+        released_at="2026-07-20T07:00:00Z",
+    )
+    adapter = RecordingProviderAdapter(candidate)
+    certifier = RecordingCertifier(certified_descriptor(plugin_core_module))
+    service = plugin_core_module.RuntimeReleaseDiscoveryService(
+        adapters={"github": adapter},
+        transport=object(),
+        certifier=certifier,
+    )
+
+    observation = service.refresh_entry(
+        release_entry(plugin_core_module),
+        installed_release(source_revision=""),
+    )
+
+    assert observation.state == "current"
+    assert observation.release is None
+    assert certifier.calls == []
+
+
+def test_runtime_release_anchor_does_not_backfill_generic_source_revision(
+    plugin_core_module,
+):
+    anchor = plugin_core_module._runtime_release_anchor(
+        installed_release(source_revision=""),
+        provider="generic",
+    )
+
+    assert anchor["source_revision"] == ""
+
+
+def test_runtime_discovery_blocks_changed_generic_source_revision(
+    plugin_core_module,
+):
+    commit = "a" * 40
+    release_id = "generic:downloads.example.test/example:v1.0.0"
+    candidate = provider_candidate(
+        plugin_core_module._release_providers_module,
+        provider="generic",
+        release_id=release_id,
+        version="1.0.0",
+        tag="",
+        commit=commit,
+        source_revision="new-source-revision",
+        released_at="2026-07-20T07:00:00Z",
+        artifact_kind="generic_zip",
+        artifact_provenance="generic_manifest",
+    )
+    adapter = RecordingProviderAdapter(candidate)
+    certifier = RecordingCertifier(certified_descriptor(plugin_core_module))
+    service = plugin_core_module.RuntimeReleaseDiscoveryService(
+        adapters={"generic": adapter},
+        transport=object(),
+        certifier=certifier,
+    )
+    entry = release_entry(plugin_core_module)
+    entry.delivery.release.provider = "generic"
+    entry.delivery.release.manifest_url = (
+        "https://downloads.example.test/example/release.json"
+    )
+
+    observation = service.refresh_entry(
+        entry,
+        installed_release(
+            release_id=release_id,
+            commit=commit,
+            source_revision="installed-source-revision",
+        ),
+    )
+
+    assert observation.state == "tag_mutated"
+    assert observation.release is None
+    assert certifier.calls == []
+
+
+@pytest.mark.parametrize(
+    "candidate_overrides",
+    (
+        {"provider": "gitlab"},
+        {"repository_identity": "github.com/other/example"},
+    ),
+)
+def test_runtime_discovery_blocks_mismatched_candidate_identity(
+    plugin_core_module,
+    candidate_overrides,
+):
+    commit = "a" * 40
+    candidate = provider_candidate(
+        plugin_core_module._release_providers_module,
+        release_id="github:owner/example:v1.0.0",
+        version="1.0.0",
+        tag="v1.0.0",
+        commit=commit,
+        source_revision=commit,
+        released_at="2026-07-20T07:00:00Z",
+        **candidate_overrides,
+    )
+    adapter = RecordingProviderAdapter(candidate)
+    certifier = RecordingCertifier(certified_descriptor(plugin_core_module))
+    service = plugin_core_module.RuntimeReleaseDiscoveryService(
+        adapters={"github": adapter},
+        transport=object(),
+        certifier=certifier,
+    )
+
+    observation = service.refresh_entry(
+        release_entry(plugin_core_module),
+        installed_release(source_revision=""),
+    )
+
+    assert observation.state == "blocked"
+    assert observation.release is None
     assert certifier.calls == []
 
 

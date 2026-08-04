@@ -5969,7 +5969,7 @@ class RuntimeReleaseObservation:
     anchor_index_sequence: int = 0
 
 
-def _runtime_release_anchor(installed, installed_mode=None):
+def _runtime_release_anchor(installed, installed_mode=None, *, provider=""):
     """Normalize reviewed and installed release state for host evaluation."""
     mode = str(installed_mode or "").strip().lower()
     if not mode:
@@ -5988,6 +5988,19 @@ def _runtime_release_anchor(installed, installed_mode=None):
         revision = getattr(installed, "revision", 0)
     else:
         raise ValueError("Runtime release anchor is invalid.")
+    commit = getattr(installed, "commit", "")
+    source_revision = getattr(installed, "source_revision", "")
+    normalized_provider = str(provider or "").strip().lower()
+    if not source_revision and normalized_provider in {
+        "codeberg",
+        "forgejo",
+        "gitea",
+        "github",
+        "gitlab",
+    }:
+        # Older reviewed forge releases recorded only the commit. Current forge
+        # adapters expose that same immutable Git object as source_revision too.
+        source_revision = commit
     return {
         "mode": mode,
         "repository_identity": getattr(
@@ -5996,8 +6009,8 @@ def _runtime_release_anchor(installed, installed_mode=None):
         "release_id": getattr(installed, "release_id", ""),
         "revision": revision,
         "released_at": getattr(installed, "released_at", ""),
-        "commit": getattr(installed, "commit", ""),
-        "source_revision": getattr(installed, "source_revision", ""),
+        "commit": commit,
+        "source_revision": source_revision,
         "supersedes": list(getattr(installed, "supersedes", []) or []),
         "lineage_complete": bool(
             getattr(installed, "lineage_complete", False)
@@ -6116,7 +6129,16 @@ class RuntimeReleaseCertificationService:
 
     def certify(self, entry, installed, candidate):
         """Download and validate a candidate without changing plugin files."""
-        anchor = _runtime_release_anchor(installed)
+        policy = getattr(entry.delivery, "release", None)
+        expected_provider = str(getattr(policy, "provider", "") or "")
+        if candidate.provider != expected_provider:
+            raise ValueError(
+                "Provider candidate does not match the reviewed release provider."
+            )
+        anchor = _runtime_release_anchor(
+            installed,
+            provider=expected_provider,
+        )
         expected_identity = normalize_repository_identity(
             entry.author, entry.repository
         )
@@ -6386,7 +6408,11 @@ class RuntimeReleaseDiscoveryService:
             entry.author, entry.repository
         )
         try:
-            anchor = _runtime_release_anchor(installed, installed_mode)
+            anchor = _runtime_release_anchor(
+                installed,
+                installed_mode,
+                provider=policy.provider,
+            )
         except ValueError as error:
             return self._observation(
                 "unavailable",
@@ -6441,6 +6467,22 @@ class RuntimeReleaseDiscoveryService:
                     self.transport,
                     now=now,
                 )
+                if (
+                    candidate.provider != provider
+                    or candidate.repository_identity != identity
+                ):
+                    observation = self._observation(
+                        "blocked",
+                        None,
+                        (
+                            "Provider candidate does not match the reviewed "
+                            "release repository."
+                        ),
+                        now,
+                        anchor=anchor,
+                    )
+                    self.cache[cache_key] = (now, observation)
+                    return observation
                 installed_release_id = anchor["release_id"]
                 if candidate.release_id == installed_release_id:
                     if (
