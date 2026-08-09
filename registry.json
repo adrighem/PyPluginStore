@@ -493,6 +493,30 @@
       }
     },
     {
+      "package_id": "Domoticz-Broadlink-Daikin-Plugin",
+      "domoticz_key": "BroadlinkDaikin",
+      "description": "Local Domoticz control of a Daikin air conditioner through a Broadlink RM4 Mini, with IR learning and HTS2 sensors",
+      "repository": {
+        "url": "https://github.com/lemassykoi/Domoticz-Broadlink-Daikin-Plugin",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-DLinkSmartPlug-plugin",
       "domoticz_key": "DSP-W215",
       "description": "A Domoticz plugin that manage DLink DSP W215 Smart Plug",

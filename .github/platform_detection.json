@@ -474,6 +474,41 @@
       "source": "legacy_detected"
     },
     {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/lemassykoi/domoticz-broadlink-daikin-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses apt package installation",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands",
+          "plugin.py: uses Unix system paths"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 19,
+          "windows": 0
+        }
+      },
+      "owner": "lemassykoi",
+      "package_id": "Domoticz-Broadlink-Daikin-Plugin",
+      "policy_action": "accepted_new_medium_or_high",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-Broadlink-Daikin-Plugin",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "master",
       "confidence": "unknown",
       "evidence_class": "legacy",

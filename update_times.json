@@ -118,6 +118,10 @@
       "updated_at": "2023-11-19T16:37:55Z"
     },
     {
+      "package_id": "Domoticz-Broadlink-Daikin-Plugin",
+      "updated_at": "2026-08-04T23:22:19Z"
+    },
+    {
       "package_id": "domoticz-BSR",
       "updated_at": "2026-01-08T21:45:17Z"
     },
@@ -203,7 +207,7 @@
     },
     {
       "package_id": "Domoticz-GPSD-plugin",
-      "updated_at": "2026-07-10T15:05:16Z"
+      "updated_at": "2026-08-03T15:30:47Z"
     },
     {
       "package_id": "Domoticz-GPSLogger-Plugin",
@@ -239,7 +243,7 @@
     },
     {
       "package_id": "Domoticz-Indevolt-plugin",
-      "updated_at": "2026-08-01T11:19:54Z"
+      "updated_at": "2026-08-03T20:24:25Z"
     },
     {
       "package_id": "domoticz-ir-climate-controller",
@@ -251,7 +255,7 @@
     },
     {
       "package_id": "domoticz-kpn-experia-v10",
-      "updated_at": "2026-07-22T11:00:27Z"
+      "updated_at": "2026-08-02T13:07:52Z"
     },
     {
       "package_id": "Domoticz-LGTV-WebOS-Plugin",
@@ -711,7 +715,7 @@
     },
     {
       "package_id": "ha-domoticz-sync",
-      "updated_at": "2026-08-01T15:18:01Z"
+      "updated_at": "2026-08-07T15:12:35Z"
     },
     {
       "package_id": "Hisense-AirCon-Domoticz",
@@ -759,7 +763,7 @@
     },
     {
       "package_id": "hoog-domoticz-shelly-plugin",
-      "updated_at": "2026-07-02T17:18:35Z"
+      "updated_at": "2026-08-08T12:00:42Z"
     },
     {
       "package_id": "HP_iLo",
@@ -907,7 +911,7 @@
     },
     {
       "package_id": "Solaredge_modbustcp",
-      "updated_at": "2026-07-31T09:26:19Z"
+      "updated_at": "2026-08-08T08:21:03Z"
     },
     {
       "package_id": "solarFlow2400AC",
@@ -1015,7 +1019,7 @@
     },
     {
       "package_id": "Zigate",
-      "updated_at": "2026-08-01T05:45:30Z"
+      "updated_at": "2026-08-07T08:52:56Z"
     },
     {
       "package_id": "Zigbee2Mqtt",
