@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.25.0](https://github.com/adrighem/PyPluginStore/compare/v2.24.4...v2.25.0) (2026-08-09)
+
+
+### Features
+
+* **registry:** add ha-domoticz-sync ([12c8e70](https://github.com/adrighem/PyPluginStore/commit/12c8e701246c9ea06e8a3466541da313bf01bf54))
+* update Domoticz Python plugin registry ([decf01f](https://github.com/adrighem/PyPluginStore/commit/decf01f524d8cbc7247215530022fc425107d49a))
+* update Domoticz Python plugin registry ([25f8d7f](https://github.com/adrighem/PyPluginStore/commit/25f8d7f2f7330808ec550fe8ca9413eed4f30d08))
+
+
+### Bug Fixes
+
+* advance corrected release metadata ([20f74d9](https://github.com/adrighem/PyPluginStore/commit/20f74d94b00f5676f779b14fa4f168803962ed2f))
+* align plugin update status handling ([eb9e34d](https://github.com/adrighem/PyPluginStore/commit/eb9e34d1348662c90ba26ab27f8cd513144169f7))
+* align release index registry binding ([a733bc9](https://github.com/adrighem/PyPluginStore/commit/a733bc9f791aa58bbcf524cf3c1ccf07356976b7))
+* normalize legacy forge source revisions ([0a469a6](https://github.com/adrighem/PyPluginStore/commit/0a469a673019108111adfed37d98b5c612870fbb))
+* reconcile release authorities by lineage ([6d116ce](https://github.com/adrighem/PyPluginStore/commit/6d116ceb2f764b9aee3508cb5b71f5eaa8f7faec))
+* **ui:** highlight release updates ([8374b34](https://github.com/adrighem/PyPluginStore/commit/8374b34af72e3b155fe071c61de47eed36fe60c7))
+
+
+### Documentation
+
+* add GNU GPLv3 or later license to project ([9d6eda3](https://github.com/adrighem/PyPluginStore/commit/9d6eda33ea173c0f37cabd8d54687279cf583af5))
+
 ## [2.24.4](https://github.com/adrighem/PyPluginStore/compare/v2.24.3...v2.24.4) (2026-07-28)
 
 
