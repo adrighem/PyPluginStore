@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-08-10T14:23:06Z",
-  "generated_at": "2026-08-03T14:23:06Z",
-  "registry_sha256": "cc32468b4c3ced9e447cea6b63f9cd655996c2c5a1a6779981a639b05d252d51",
+  "expires_at": "2026-08-16T05:06:56Z",
+  "generated_at": "2026-08-09T05:06:56Z",
+  "registry_sha256": "1f54f4bc2430be413089881d0104ea94679063a90f57d1b5307e92ecafdd0a1d",
   "releases": [
     {
       "artifact": {
@@ -773,29 +773,30 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-Solaredge_modbustcp-5925ea0",
-        "sha256": "22213f022971ec9aca33e92fb87a48605d01fde5b6c9ca6e5ed65f4beae003ba",
-        "size": 25147,
+        "root_prefix": "MadPatrick-Solaredge_modbustcp-67ee36f",
+        "sha256": "9d1bf59d113423f70ecc2a3bedde14df1c02361ce6c27bc3b9a236adffc2b254",
+        "size": 56478,
         "source_path": ".",
-        "tree_sha256": "a4903017d9595b2604f3dbbf915b93f629c4a68d3159b89ac900ff302ec5eaaa",
-        "url": "https://api.github.com/repos/madpatrick/solaredge_modbustcp/zipball/5925ea0526e57b6034a7d581275500a669230873"
+        "tree_sha256": "63971c429ea8aacd3aea5612fe0bc3598eede48ca08e90353a5e3881cecce5d4",
+        "url": "https://api.github.com/repos/madpatrick/solaredge_modbustcp/zipball/67ee36f0635140d0a2695275c285407caf511462"
       },
       "certified_identity": {
         "domoticz_key": "SolarEdge_ModbusTCP",
-        "plugin_py_sha256": "15a9fba1a4b46a33c1c39a8fcfb8b25e240247737c1bfb93ecdc9f8367a48018"
+        "plugin_py_sha256": "e10a985a8a8f8f2b68e468b45c6c066d1134e0f2ae1e097ae4ea09f201455fa3"
       },
-      "commit": "5925ea0526e57b6034a7d581275500a669230873",
+      "commit": "67ee36f0635140d0a2695275c285407caf511462",
       "package_id": "Solaredge_modbustcp",
       "provider": "github",
-      "release_id": "github:madpatrick/solaredge_modbustcp:2.1.2",
-      "released_at": "2026-07-27T14:41:41Z",
+      "release_id": "github:madpatrick/solaredge_modbustcp:2.1.5",
+      "released_at": "2026-08-08T08:21:03Z",
       "repository_identity": "github.com/madpatrick/solaredge_modbustcp",
-      "revision": 2,
+      "revision": 3,
       "supersedes": [
-        "github:madpatrick/solaredge_modbustcp:2.1.1"
+        "github:madpatrick/solaredge_modbustcp:2.1.1",
+        "github:madpatrick/solaredge_modbustcp:2.1.2"
       ],
-      "tag": "2.1.2",
-      "version": "2.1.2"
+      "tag": "2.1.5",
+      "version": "2.1.5"
     },
     {
       "artifact": {
@@ -1111,27 +1112,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "adrighem-domoticz-kpn-experia-v10-730f295",
-        "sha256": "6e125b22e8a400fa9c772b3467386b0f85673667e875492e509f914a36e2e810",
-        "size": 94404,
+        "root_prefix": "adrighem-domoticz-kpn-experia-v10-9c3f4cd",
+        "sha256": "6ca0084d7c08a785568a661c53d13e891e81af7aa2f0b686a39e583d1b4a715a",
+        "size": 96771,
         "source_path": ".",
-        "tree_sha256": "d418f66081339e0b608b29fde84b829a696264983d4ebb5caddb11aad805f033",
-        "url": "https://api.github.com/repos/adrighem/domoticz-kpn-experia-v10/zipball/730f29519c84ba28348c03330b28ebdb5c5c3baa"
+        "tree_sha256": "71083d524b0bd286cd503c9260f1b061f2980ffda6f26bb3b8bd7c78a07f9ab6",
+        "url": "https://api.github.com/repos/adrighem/domoticz-kpn-experia-v10/zipball/9c3f4cdf514d1f010adf5aa7a514b9259d4ddef2"
       },
       "certified_identity": {
         "domoticz_key": "ExperiaV10",
-        "plugin_py_sha256": "ad7c4fbb45560efecfb4e11a9e5e259633d0b1fd90027639fed69c3a1bc5b7c4"
+        "plugin_py_sha256": "37fa1c1dab20d61b86b434272c2d4e4c3a4c226c9e4123af7f34ebcaec272af1"
       },
-      "commit": "730f29519c84ba28348c03330b28ebdb5c5c3baa",
+      "commit": "9c3f4cdf514d1f010adf5aa7a514b9259d4ddef2",
       "package_id": "domoticz-kpn-experia-v10",
       "provider": "github",
-      "release_id": "github:adrighem/domoticz-kpn-experia-v10:v1.1.1",
-      "released_at": "2026-07-21T17:21:48Z",
+      "release_id": "github:adrighem/domoticz-kpn-experia-v10:v1.1.2",
+      "released_at": "2026-08-02T13:08:13Z",
       "repository_identity": "github.com/adrighem/domoticz-kpn-experia-v10",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v1.1.1",
-      "version": "1.1.1"
+      "revision": 2,
+      "supersedes": [
+        "github:adrighem/domoticz-kpn-experia-v10:v1.1.1"
+      ],
+      "tag": "v1.1.2",
+      "version": "1.1.2"
     },
     {
       "artifact": {
@@ -1321,27 +1324,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "adrighem-ha-domoticz-sync-45e9ec4",
-        "sha256": "f83469e6d5e18cc4cbb38489a72100df343ff2c45eae5e51620c3069afb1041a",
-        "size": 2410918,
+        "root_prefix": "adrighem-ha-domoticz-sync-4c99608",
+        "sha256": "1c2d6eef934370cbec789220625bbc2ba1751d3119ba44db497b85212cad5870",
+        "size": 2411458,
         "source_path": ".",
-        "tree_sha256": "6f539b6f6e57237d2fb298e2d7e5eb2b3877f1b8975d9fa0293429ca680ad3e7",
-        "url": "https://api.github.com/repos/adrighem/ha-domoticz-sync/zipball/45e9ec4c25593f86ab08f6ad309ab15a43137f26"
+        "tree_sha256": "5e7865882a2d8f20f2c113a6e589e66e16fe589b83df5a4791812f93d3d3c741",
+        "url": "https://api.github.com/repos/adrighem/ha-domoticz-sync/zipball/4c9960805a0da43db5f38d31462d7ab1c49d682a"
       },
       "certified_identity": {
         "domoticz_key": "HADomoticzSync",
-        "plugin_py_sha256": "f035e91b97f7537524c4f0377031de7dae0a3bddbaab6eddf19278e0459e6aa3"
+        "plugin_py_sha256": "1b300579f8a77b56be37cd1ad8ee50a98face9f74814df05fc23b4d2caafa767"
       },
-      "commit": "45e9ec4c25593f86ab08f6ad309ab15a43137f26",
+      "commit": "4c9960805a0da43db5f38d31462d7ab1c49d682a",
       "package_id": "ha-domoticz-sync",
       "provider": "github",
-      "release_id": "github:adrighem/ha-domoticz-sync:v0.6.1",
-      "released_at": "2026-08-01T15:18:01Z",
+      "release_id": "github:adrighem/ha-domoticz-sync:v0.6.2",
+      "released_at": "2026-08-02T06:53:41Z",
       "repository_identity": "github.com/adrighem/ha-domoticz-sync",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v0.6.1",
-      "version": "0.6.1"
+      "revision": 2,
+      "supersedes": [
+        "github:adrighem/ha-domoticz-sync:v0.6.1"
+      ],
+      "tag": "v0.6.2",
+      "version": "0.6.2"
     },
     {
       "artifact": {
@@ -1495,7 +1500,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 10,
+  "sequence": 11,
   "tombstones": [
     {
       "last_revision": 1,
