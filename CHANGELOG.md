@@ -6,8 +6,8 @@
 ### Features
 
 * **registry:** add ha-domoticz-sync ([12c8e70](https://github.com/adrighem/PyPluginStore/commit/12c8e701246c9ea06e8a3466541da313bf01bf54))
-* update Domoticz Python plugin registry ([decf01f](https://github.com/adrighem/PyPluginStore/commit/decf01f524d8cbc7247215530022fc425107d49a))
-* update Domoticz Python plugin registry ([25f8d7f](https://github.com/adrighem/PyPluginStore/commit/25f8d7f2f7330808ec550fe8ca9413eed4f30d08))
+* **registry:** add Domoticz-Broadlink-Daikin-Plugin; update Solaredge_modbustcp to 2.1.5, domoticz-kpn-experia-v10 to 1.1.2, and ha-domoticz-sync to 0.6.2 ([decf01f](https://github.com/adrighem/PyPluginStore/commit/decf01f524d8cbc7247215530022fc425107d49a))
+* **registry:** update FullyKiosk to 1.1.2 and Solaredge_modbustcp to 2.1.2; update ha-domoticz-sync metadata and add its 0.6.1 release ([25f8d7f](https://github.com/adrighem/PyPluginStore/commit/25f8d7f2f7330808ec550fe8ca9413eed4f30d08))
 
 
 ### Bug Fixes
