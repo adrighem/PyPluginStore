@@ -143,6 +143,10 @@ def main():
     # 5. Generate Markdown Output
     print("This automated PR updates the Domoticz Python plugin registry with newly discovered plugins, refreshed repository metadata, and inferred platform badges from supported Git forges.")
     print()
+    print("Newly discovered plugins use explicit package records with a certified Domoticz runtime key, a provider-neutral repository URL, and a reviewed release-first delivery policy. Git delivery remains available.")
+    print()
+    print("The platform badge inference checks repository metadata, README and install text, selected source files, platform-specific imports, scripts, and OS-specific paths or commands.")
+    print()
     print("## Data Changes")
     print()
 

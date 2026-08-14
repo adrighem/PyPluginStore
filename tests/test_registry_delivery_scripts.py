@@ -892,8 +892,10 @@ def test_weekly_workflow_generates_report_and_index_after_registry_mutation():
     assert scanner_position <= final_mutation_position < report_position
     assert report_position < update_position < pull_request_position
     assert "release_index.json" in workflow[pull_request_position:]
-    assert "certified Domoticz runtime key" in workflow
-    assert "provider-neutral repository URL" in workflow
+    summarizer_path = REPO_ROOT / ".github" / "scripts" / "summarize_registry_changes.py"
+    summarizer = summarizer_path.read_text(encoding="utf-8")
+    assert "certified Domoticz runtime key" in summarizer
+    assert "provider-neutral repository URL" in summarizer
     assert "Existing positional records remain unchanged" not in workflow
 
 
