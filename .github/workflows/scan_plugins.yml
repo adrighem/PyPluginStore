@@ -72,18 +72,18 @@ jobs:
       - name: Validate registry and release-index binding
         run: python .github/scripts/validate_plugins.py
 
+      - name: Summarize registry changes
+        run: |
+          python .github/scripts/summarize_registry_changes.py > "${{ runner.temp }}/pr-body.md"
+          cat "${{ runner.temp }}/pr-body.md" >> $GITHUB_STEP_SUMMARY
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "feat: update Domoticz Python plugin registry"
           title: "Update Domoticz Python plugin registry from weekly scan"
-          body: |
-            This automated PR updates the Domoticz Python plugin registry with newly discovered plugins, refreshed repository metadata, and inferred platform badges from supported Git forges.
-
-            Newly discovered plugins use explicit package records with a certified Domoticz runtime key, a provider-neutral repository URL, and a reviewed release-first delivery policy. Git delivery remains available.
-
-            The platform badge inference checks repository metadata, README and install text, selected source files, platform-specific imports, scripts, and OS-specific paths or commands.
+          body-path: "${{ runner.temp }}/pr-body.md"
           branch: "auto-add-plugins"
           delete-branch: true
           labels: "automated pr, enhancement"
