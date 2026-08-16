@@ -2038,6 +2038,38 @@
     },
     {
       "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/lemassykoi/domoticz-waveshare-8ch-relay-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses shell commands",
+          "plugin.py: uses Unix system paths"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 9,
+          "windows": 0
+        }
+      },
+      "owner": "lemassykoi",
+      "package_id": "Domoticz-Waveshare-8CH-Relay-Plugin",
+      "policy_action": "accepted_new_medium_or_high",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-Waveshare-8CH-Relay-Plugin",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "main",
       "confidence": "unknown",
       "evidence_class": "legacy",
       "identity": "github.com/cth35/domoticz-wazetimetravel-plugin@main",
@@ -3513,6 +3545,40 @@
       "repository": "Roomba",
       "reviewed": false,
       "source": "legacy_detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/philip-s/sdm630-mct-modbus-v2-domoticz-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses apt package installation",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses Unix system paths",
+          "README.md: uses Linux device paths"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 20,
+          "windows": 0
+        }
+      },
+      "owner": "philip-s",
+      "package_id": "SDM630-MCT-Modbus-v2-Domoticz-plugin",
+      "policy_action": "accepted_new_medium_or_high",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "SDM630-MCT-Modbus-v2-Domoticz-plugin",
+      "reviewed": false,
+      "source": "detected"
     },
     {
       "branch": "main",

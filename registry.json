@@ -1666,6 +1666,30 @@
       }
     },
     {
+      "package_id": "Domoticz-Waveshare-8CH-Relay-Plugin",
+      "domoticz_key": "Waveshare8CHRelay",
+      "description": "Domoticz plugin for the Waveshare Modbus POE ETH 8-channel relay",
+      "repository": {
+        "url": "https://github.com/lemassykoi/Domoticz-Waveshare-8CH-Relay-Plugin",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-WazeTimeTravel-Plugin",
       "domoticz_key": "WazeRouteTime",
       "description": "Waze time travel plugin for Domoticz",
@@ -3227,6 +3251,30 @@
       "description": "Domoticz iRobot Roomba Plugin",
       "repository": {
         "url": "https://github.com/neutrino85/Roomba",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "SDM630-MCT-Modbus-v2-Domoticz-plugin",
+      "domoticz_key": "SDM630-MCT_M_V2",
+      "description": "SDM630-MCT-Modbus-v2-Domoticz-plugin plugin for Domoticz",
+      "repository": {
+        "url": "https://github.com/philip-s/SDM630-MCT-Modbus-v2-Domoticz-plugin",
         "branch": "main"
       },
       "platforms": [
