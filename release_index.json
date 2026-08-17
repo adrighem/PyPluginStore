@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-08-16T05:06:56Z",
-  "generated_at": "2026-08-09T05:06:56Z",
-  "registry_sha256": "1f54f4bc2430be413089881d0104ea94679063a90f57d1b5307e92ecafdd0a1d",
+  "expires_at": "2026-08-23T04:29:18Z",
+  "generated_at": "2026-08-16T04:29:18Z",
+  "registry_sha256": "cdc386bf3971105b7886581c8d76c891761cc156ba0134b785c5238d71ebe0a9",
   "releases": [
     {
       "artifact": {
@@ -1294,27 +1294,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "rleunk-easee-domoticz-10065c8",
-        "sha256": "a9a40f3349d59efe21f81f0a62aa615a93982f54df1cb9640b5f42f50467c442",
-        "size": 649160,
+        "root_prefix": "rleunk-easee-domoticz-53acb43",
+        "sha256": "d9e6f88e61ebbd4068826e2fd694b9285d14325ada4cec9fe018e8313d08f6f6",
+        "size": 652141,
         "source_path": ".",
-        "tree_sha256": "f931e4b50f5d1b05fde9eeb3c2ec21da1024d6cdb9520172ec29c9da0925afe4",
-        "url": "https://api.github.com/repos/rleunk/easee-domoticz/zipball/10065c86f13730de7b2778903ebeaf751ad566cf"
+        "tree_sha256": "740c65f713b109185daf52f71b9a43be7404f5e5f08dd22f4d0d0eb19da119de",
+        "url": "https://api.github.com/repos/rleunk/easee-domoticz/zipball/53acb437f0dd5f41ca7f6420edd25ba700b72fe3"
       },
       "certified_identity": {
         "domoticz_key": "EaseeCloudAutoDiscoveryV1000",
-        "plugin_py_sha256": "932ef5c7e44b97da6984bfafff185a72008d23380e0d5a89d88532ccb30c3843"
+        "plugin_py_sha256": "6a0abd3fea4c8175d3178040fb227c3aad564b59eebd64ea224dcaa4049989e5"
       },
-      "commit": "10065c86f13730de7b2778903ebeaf751ad566cf",
+      "commit": "53acb437f0dd5f41ca7f6420edd25ba700b72fe3",
       "package_id": "easee-domoticz",
       "provider": "github",
-      "release_id": "github:rleunk/easee-domoticz:v1.1.5",
-      "released_at": "2026-07-16T20:40:47Z",
+      "release_id": "github:rleunk/easee-domoticz:v1.1.6",
+      "released_at": "2026-08-09T20:38:58Z",
       "repository_identity": "github.com/rleunk/easee-domoticz",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v1.1.5",
-      "version": "1.1.5"
+      "revision": 2,
+      "supersedes": [
+        "github:rleunk/easee-domoticz:v1.1.5"
+      ],
+      "tag": "v1.1.6",
+      "version": "1.1.6"
     },
     {
       "artifact": {
@@ -1500,7 +1502,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 11,
+  "sequence": 12,
   "tombstones": [
     {
       "last_revision": 1,
