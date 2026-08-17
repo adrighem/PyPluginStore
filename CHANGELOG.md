@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.26.0](https://github.com/adrighem/PyPluginStore/compare/v2.25.0...v2.26.0) (2026-08-17)
+
+
+### Features
+
+* include changed plugin names in weekly registry updates (closes [#147](https://github.com/adrighem/PyPluginStore/issues/147)) ([5a4484b](https://github.com/adrighem/PyPluginStore/commit/5a4484b895d20dbb5cbf8fb6da1dec20ba53585e))
+* increase release index validity to 16 days to prevent premature metadata expiration (fixes [#150](https://github.com/adrighem/PyPluginStore/issues/150)) ([9ff35e5](https://github.com/adrighem/PyPluginStore/commit/9ff35e5b08115b13452447b26caecd66c5900de6))
+* update Domoticz Python plugin registry ([3404a2d](https://github.com/adrighem/PyPluginStore/commit/3404a2d9913a846ca7f819fa911c6d63fc6e64f2))
+
 ## [2.25.0](https://github.com/adrighem/PyPluginStore/compare/v2.24.4...v2.25.0) (2026-08-09)
 
 
