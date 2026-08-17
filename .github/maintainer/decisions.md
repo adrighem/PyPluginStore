@@ -1,5 +1,22 @@
 # Maintainer Decisions
 
+## 2026-08-17 - Prevent premature release index expiration with 16-day validity
+
+Decision: Set `DEFAULT_VALIDITY_SECONDS` to 16 days (instead of 7 days) to provide a comfortable grace period for weekly automated registry updates.
+
+Rationale:
+- The previous 7-day expiration left virtually zero margin for human delay in reviewing and merging the automated weekly registry update pull requests.
+- Since the weekly cron runs Sunday mornings and the previous index expires Sunday mornings (exactly 7 days after generation), any merge delay past a 35-minute window immediately triggered expiration errors ("Release metadata is expired; release changes are paused") across all client installations using Release-managed plugins.
+- Increasing the index validity to 16 days ensures that the index remains functional for over two weeks, preventing client disruptions even if a weekly update PR is delayed or merged late.
+
+Implementation notes:
+- Changed `DEFAULT_VALIDITY_SECONDS` to `16 * 24 * 60 * 60` in `.github/scripts/generate_release_index.py`.
+
+Verification:
+- Local test suite passed (1557 passed).
+- Pushed commit `9ff35e5` with `fixes #150` to `master` branch.
+- Commented on issue #150.
+
 ## 2026-07-28 - Keep restore button copy compact
 
 Decision: use short, single-line restore labels while keeping the confirmation
