@@ -741,6 +741,30 @@ def test_recompressed_source_zip_with_same_commit_and_tree_is_already_current(
     assert decision.reason == "equivalent_recompressed_source"
 
 
+def test_equal_revision_accepts_omitted_vs_explicit_commit_source_revision(
+    plugin_core_module,
+):
+    coordinator, _, _ = make_coordinator(plugin_core_module)
+    entry = registry_entry(plugin_core_module)
+    current = release_descriptor(plugin_core_module)
+    current.source_revision = ""
+    installed = installed_release_state(current)
+    installed.source_revision = current.commit
+
+    decision = decide(
+        coordinator,
+        entry,
+        operation="update",
+        installed_mode="release",
+        release=current,
+        installed_release=installed,
+        release_was_activated=True,
+    )
+
+    assert decision.route == "none"
+    assert decision.status == "current"
+
+
 def test_equal_revision_attached_asset_digest_change_is_a_mutation(
     plugin_core_module,
 ):

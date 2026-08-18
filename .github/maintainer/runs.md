@@ -1,5 +1,19 @@
 # Maintainer Runs
 
+## 2026-08-18 - Resolve FullyKiosk release_mutation block (Issue #150 follow-up)
+
+Scope:
+- Investigated the "release_mutation" verification failure on the FullyKiosk plugin reported by MadPatrick in issue #150.
+- Identified that when a plugin is installed from GitHub directly, its metadata writes `source_revision` equal to its commit SHA. However, once indexed, the index generator omits `source_revision` since it matches the commit.
+- On client load, the manager compared the local explicit SHA with the empty string default, triggering a false `release_mutation` block.
+- Normalizing empty/omitted source_revision to the commit SHA for forge-based providers inside `decide()` resolves the comparison mismatch.
+- Updated `plugin_core.py` and regenerated `plugin.py`.
+- Added unit test in `tests/test_release_management.py` to prevent regressions.
+
+Verification:
+- All 1558 tests passed successfully (including the new test case).
+- Commit staged and verified locally.
+
 ## 2026-08-17 - Resolve premature release index expiration (Issue #150)
 
 Scope:

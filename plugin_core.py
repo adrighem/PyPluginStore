@@ -16500,13 +16500,20 @@ class ReleaseManagementCoordinator:
                 trigger=trigger,
             )
 
+        installed_commit = getattr(installed_release, "commit", "")
+        installed_source_revision = getattr(installed_release, "source_revision", "")
+        if not installed_source_revision and installed_commit:
+            installed_source_revision = installed_commit
+
+        release_source_revision = getattr(release, "source_revision", "")
+        if not release_source_revision and getattr(release, "commit", ""):
+            release_source_revision = getattr(release, "commit", "")
+
         same_release_id = release.release_id == installed_release_id
         immutable_fields_match = (
             same_release_id
-            and release.commit
-            == getattr(installed_release, "commit", "")
-            and release.source_revision
-            == getattr(installed_release, "source_revision", "")
+            and release.commit == installed_commit
+            and release_source_revision == installed_source_revision
             and release.artifact.tree_sha256
             == getattr(installed_release, "artifact_tree_sha256", "")
             and release.artifact.provenance

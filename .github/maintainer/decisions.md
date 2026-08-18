@@ -1,5 +1,24 @@
 # Maintainer Decisions
 
+## 2026-08-18 - Allow omitted source_revision for forge-based providers to prevent false release_mutation blocks
+
+Decision: Normalize empty or omitted `source_revision` to the `commit` SHA inside `decide()` when evaluating the immutable fields comparison.
+
+Rationale:
+- When a user installs a plugin directly from GitHub/GitLab (in `provider_live` mode), the metadata is created with an explicit `source_revision` equal to the commit SHA.
+- However, when the weekly update scan indexes that same release, it omits the `source_revision` in `release_index.json` to keep the file size minimal, since for forge-based providers `source_revision` is always identical to `commit`.
+- When the client's manager compared the local install metadata (having the explicit SHA) with the indexed descriptor (having an empty `source_revision` default), it triggered a false `release_mutation` block, showing "Verification failed: release_mutation".
+- Resolving the blank/explicit mismatch by treating empty forge `source_revision` as equal to its `commit` during verification keeps client installations verified and functional.
+
+Implementation notes:
+- Updated the comparison logic in `plugin_core.py` (specifically `decide()` in `ReleaseInstallUpdateStrategy`) to normalize empty/omitted `source_revision` to `commit` for comparison purposes.
+- Regenerated `plugin.py` from `plugin_core.py`.
+- Added unit test coverage to `tests/test_release_management.py`.
+
+Verification:
+- Local test suite passed fully (1558 passed).
+- Related Issue: #150
+
 ## 2026-08-17 - Prevent premature release index expiration with 16-day validity
 
 Decision: Set `DEFAULT_VALIDITY_SECONDS` to 16 days (instead of 7 days) to provide a comfortable grace period for weekly automated registry updates.
