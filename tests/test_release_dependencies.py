@@ -447,6 +447,7 @@ def test_pip_and_uv_always_target_staging_never_live(
         "LANG",
         "LC_ALL",
         "PYTHONUTF8",
+        "PIP_BREAK_SYSTEM_PACKAGES",
         "PIP_CACHE_DIR",
         "UV_CACHE_DIR",
     }
@@ -490,6 +491,7 @@ def test_pip_discovery_runs_the_domoticz_python_with_sanitized_environment(
         "LANG": "C.UTF-8",
         "LC_ALL": "C.UTF-8",
         "PYTHONUTF8": "1",
+        "PIP_BREAK_SYSTEM_PACKAGES": "1",
         "PIP_CACHE_DIR": "/safe/pip-cache",
         "UV_CACHE_DIR": "/safe/uv-cache",
     }

@@ -12544,6 +12544,10 @@ class _ReleaseDependencyCommandRunner:
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
                 "PYTHONUTF8": "1",
+                # Bypass PEP 668 restrictions. This is completely safe because
+                # PyPluginStore only installs packages inside an isolated, local
+                # target directory (.shared_deps) and never mutates system site-packages.
+                "PIP_BREAK_SYSTEM_PACKAGES": "1",
             }
         )
         installer_path = str(
@@ -12948,6 +12952,10 @@ class ReleaseDependencySnapshotService:
             "LANG": "C.UTF-8",
             "LC_ALL": "C.UTF-8",
             "PYTHONUTF8": "1",
+            # Bypass PEP 668 restrictions. This is completely safe because
+            # PyPluginStore only installs packages inside an isolated, local
+            # target directory (.shared_deps) and never mutates system site-packages.
+            "PIP_BREAK_SYSTEM_PACKAGES": "1",
             "PIP_CACHE_DIR": os.path.join(cache_root, "pip"),
             "UV_CACHE_DIR": os.path.join(cache_root, "uv"),
         }
