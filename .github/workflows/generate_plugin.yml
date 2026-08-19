@@ -15,6 +15,7 @@ on:
       - 'update_times.json'
       - 'plugin_core.py'
       - 'plugin.py'
+      - 'release_index.json'
       - '.github/scripts/generate_plugin.py'
       - '.github/workflows/generate_plugin.yml'
 
@@ -41,8 +42,27 @@ jobs:
       - name: Generate plugin.py
         run: python .github/scripts/generate_plugin.py
 
-      - name: Verify plugin.py is current
-        run: git diff --exit-code -- plugin.py
+      - name: Update release_index.json registry SHA-256 binding
+        run: |
+          python -c '
+          import os, json, hashlib
+          reg_path = "registry.json"
+          idx_path = "release_index.json"
+          if os.path.isfile(reg_path) and os.path.isfile(idx_path):
+              with open(reg_path, "rb") as f:
+                  sha = hashlib.sha256(f.read()).hexdigest()
+              with open(idx_path, "r", encoding="utf-8") as f:
+                  index = json.load(f)
+              if index.get("registry_sha256") != sha:
+                  index["registry_sha256"] = sha
+                  with open(idx_path, "w", encoding="utf-8", newline="\n") as f:
+                      json.dump(index, f, indent=2)
+                      f.write("\n")
+                  print(f"Updated release_index.json with SHA: {sha}")
+          '
+
+      - name: Verify files are current
+        run: git diff --exit-code -- plugin.py release_index.json
 
   generate:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -61,13 +81,32 @@ jobs:
       - name: Generate plugin.py
         run: python .github/scripts/generate_plugin.py
 
+      - name: Update release_index.json registry SHA-256 binding
+        run: |
+          python -c '
+          import os, json, hashlib
+          reg_path = "registry.json"
+          idx_path = "release_index.json"
+          if os.path.isfile(reg_path) and os.path.isfile(idx_path):
+              with open(reg_path, "rb") as f:
+                  sha = hashlib.sha256(f.read()).hexdigest()
+              with open(idx_path, "r", encoding="utf-8") as f:
+                  index = json.load(f)
+              if index.get("registry_sha256") != sha:
+                  index["registry_sha256"] = sha
+                  with open(idx_path, "w", encoding="utf-8", newline="\n") as f:
+                      json.dump(index, f, indent=2)
+                      f.write("\n")
+                  print(f"Updated release_index.json with SHA: {sha}")
+          '
+
       - name: Commit and push changes
         run: |
-          if git diff --quiet -- plugin.py; then
+          if git diff --quiet -- plugin.py release_index.json; then
             exit 0
           fi
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add plugin.py
-          git commit -m "Auto-generate plugin.py from registry.json"
+          git add plugin.py release_index.json
+          git commit -m "Auto-generate plugin.py and update registry hash binding"
           git push
