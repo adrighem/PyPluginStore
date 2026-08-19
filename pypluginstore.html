@@ -3971,7 +3971,11 @@
             details.push('Release channel is not ready for this Git checkout' +
                 (state.migration_message ? ': ' + state.migration_message : ''));
         } else if (state.status === 'git_available') {
-            details.push('Update available');
+            if (state.installed_version && state.available_version && state.installed_version === state.available_version) {
+                details.push('new commits available');
+            } else {
+                details.push('Update available');
+            }
         } else if (state.status === 'rollback_available') {
             const rollbackVersion = state.rollback_version ? 'v' + String(state.rollback_version).replace(/^v/i, '') : '';
             if (state.rollback_channel === 'git') {
@@ -4383,9 +4387,17 @@
                         && remoteVersion
                         && compareVersions(remoteVersion, installedVersion) < 0
                     );
+                    const hasNewCommitsOnly = (
+                        presentationUpdateStatus === 'available'
+                        && (!management || management.channel === 'git')
+                        && installedVersion
+                        && remoteVersion
+                        && installedVersion === remoteVersion
+                    );
                     const updateTitle = installedIsNewer ? 'Update resets this plugin to the configured branch' :
+                        (hasNewCommitsOnly ? 'Update to latest commits' :
                         (presentationUpdateStatus === 'available' ? 'Update available' :
-                        (presentationUpdateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown'));
+                        (presentationUpdateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown')));
                     updateButton.className = updateClass;
                     updateButton.title = updateTitle;
                 }
