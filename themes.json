@@ -1,0 +1,38 @@
+{
+  "nightglass": {
+    "display_name": "Nightglass",
+    "author": "galadril",
+    "repository": "Domoticz-Nightglass-Theme",
+    "branch": "main",
+    "description": "Modern dark Domoticz theme with presets and UI enhancements.",
+    "target_dir": "nightglass",
+    "source_path": ".",
+    "entry_files": ["custom.css"],
+    "contains_javascript": true,
+    "requires_restart": "first_install"
+  },
+  "osi-dark": {
+    "display_name": "OsiDark",
+    "author": "basvdijk",
+    "repository": "domoticz-osidark-theme",
+    "branch": "master",
+    "description": "Responsive Domoticz theme for phone, tablet, and desktop.",
+    "target_dir": "osi-dark",
+    "source_path": "dist/OsiDark",
+    "entry_files": ["custom.css"],
+    "contains_javascript": false,
+    "requires_restart": "first_install"
+  },
+  "machinon": {
+    "display_name": "Machinon",
+    "author": "domoticz",
+    "repository": "Machinon",
+    "branch": "master",
+    "description": "Machinon Domoticz Theme",
+    "target_dir": "machinon",
+    "source_path": ".",
+    "entry_files": ["custom.css"],
+    "contains_javascript": true,
+    "requires_restart": "first_install"
+  }
+}

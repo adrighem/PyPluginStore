@@ -800,6 +800,29 @@ class HostRuntime:
             raise ValueError("Invalid plugin path")
         return plugin_dir
 
+    def themes_dir(self):
+        return os.path.abspath(os.path.join(self.domoticz_dir(), "www", "styles"))
+
+    def theme_sources_dir(self):
+        return os.path.abspath(os.path.join(self.plugin_home_folder(), ".theme_sources"))
+
+    def validate_theme_key(self, theme_key):
+        theme_key = str(theme_key or "").strip()
+        if not theme_key or theme_key in (".", ".."):
+            raise ValueError("Invalid theme key")
+        if theme_key.startswith(".") or "/" in theme_key or "\\" in theme_key:
+            raise ValueError("Invalid theme key")
+        if os.path.basename(theme_key) != theme_key:
+            raise ValueError("Invalid theme key")
+        return theme_key
+
+    def resolve_theme_dir(self, theme_key_or_target_dir):
+        target_dir = self.validate_theme_key(theme_key_or_target_dir)
+        theme_dir = os.path.abspath(os.path.join(self.themes_dir(), target_dir))
+        if not self.is_path_inside(theme_dir, self.themes_dir()):
+            raise ValueError("Invalid theme path")
+        return theme_dir
+
     def restart_command_groups(self):
         return []
 
@@ -1769,6 +1792,15 @@ RELEASE_INDEX_SCHEMA_VERSION = 2
 LEGACY_RELEASE_INDEX_SCHEMA_VERSION = 1
 RELEASE_METADATA_STATE_SCHEMA_VERSION = 1
 DELIVERY_POLICY_SCHEMA_VERSION = 1
+PROTECTED_THEMES = {
+    "default",
+    "dark-th3me",
+    "element-dark",
+    "element-light",
+    "elemental",
+    "simple-blue",
+    "simple-gray",
+}
 RELEASE_PROVIDERS = {
     "codeberg",
     "forgejo",
@@ -13817,6 +13849,313 @@ class LocalRegistryError(Exception):
         self.read_only = read_only
 
 
+class ThemeRegistryEntry:
+    def __init__(
+        self,
+        key,
+        display_name,
+        author,
+        repository,
+        branch,
+        description,
+        target_dir,
+        source_path=".",
+        entry_files=None,
+        contains_javascript=False,
+        requires_restart="first_install",
+        updated_at="",
+        local=False,
+    ):
+        self.key = str(key or "")
+        self.display_name = str(display_name or self.key)
+        self.author = str(author or "")
+        self.repository = str(repository or "")
+        self.branch = str(branch or "master")
+        self.description = str(description or "")
+        self.target_dir = str(target_dir or self.key)
+        self.source_path = str(source_path or ".")
+        self.entry_files = list(entry_files or ["custom.css"])
+        self.contains_javascript = bool(contains_javascript)
+        self.requires_restart = str(requires_restart or "first_install")
+        self.updated_at = str(updated_at or "")
+        self.local = bool(local)
+
+    def to_dict(self):
+        return {
+            "key": self.key,
+            "display_name": self.display_name,
+            "author": self.author,
+            "repository": self.repository,
+            "branch": self.branch,
+            "description": self.description,
+            "target_dir": self.target_dir,
+            "source_path": self.source_path,
+            "entry_files": self.entry_files,
+            "contains_javascript": self.contains_javascript,
+            "requires_restart": self.requires_restart,
+            "updated_at": self.updated_at,
+            "local": self.local,
+        }
+
+
+class ThemeRegistryService:
+    def __init__(self, plugin):
+        self.plugin = plugin
+        self.themes = {}
+
+    def load_registry(self):
+        themes = {}
+        root_dir = self.plugin.get_plugin_home_folder()
+        
+        # Load themes.json
+        bundled_path = os.path.join(root_dir, "themes.json")
+        if os.path.isfile(bundled_path):
+            try:
+                with open(bundled_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        for k, v in data.items():
+                            themes[k] = self.parse_entry(k, v, local=False)
+            except Exception as e:
+                Domoticz.Error("Failed to load themes.json: " + str(e))
+
+        # Load themes_local.json
+        local_path = os.path.join(root_dir, "themes_local.json")
+        if os.path.isfile(local_path):
+            try:
+                with open(local_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    if isinstance(data, dict):
+                        for k, v in data.items():
+                            themes[k] = self.parse_entry(k, v, local=True)
+            except Exception as e:
+                Domoticz.Error("Failed to load themes_local.json: " + str(e))
+
+        self.themes = themes
+        return themes
+
+    def parse_entry(self, key, data, local=False):
+        if not isinstance(data, dict):
+            return None
+        return ThemeRegistryEntry(
+            key=key,
+            display_name=data.get("display_name", key),
+            author=data.get("author", ""),
+            repository=data.get("repository", ""),
+            branch=data.get("branch", "master"),
+            description=data.get("description", ""),
+            target_dir=data.get("target_dir", key),
+            source_path=data.get("source_path", "."),
+            entry_files=data.get("entry_files", ["custom.css"]),
+            contains_javascript=data.get("contains_javascript", False),
+            requires_restart=data.get("requires_restart", "first_install"),
+            updated_at=data.get("updated_at", ""),
+            local=local,
+        )
+
+
+class ThemeDiscoveryService:
+    def __init__(self, plugin):
+        self.plugin = plugin
+
+    def list_themes(self):
+        host = self.plugin.get_host()
+        themes_dir = host.themes_dir()
+        registry = self.plugin.theme_registry_service.load_registry()
+
+        installed = []
+        managed = []
+        local_themes = []
+        installed_match_details = {}
+        update_status = {}
+
+        if os.path.isdir(themes_dir):
+            for name in sorted(os.listdir(themes_dir)):
+                theme_path = os.path.join(themes_dir, name)
+                if not os.path.isdir(theme_path):
+                    continue
+
+                if name in PROTECTED_THEMES:
+                    continue
+
+                # Check if managed (has .pypluginstore-theme.json)
+                marker_path = os.path.join(theme_path, ".pypluginstore-theme.json")
+                is_managed = False
+                marker_data = {}
+                if os.path.isfile(marker_path):
+                    try:
+                        with open(marker_path, "r", encoding="utf-8") as f:
+                            marker_data = json.load(f)
+                            is_managed = True
+                    except Exception:
+                        pass
+
+                is_git = os.path.isdir(os.path.join(theme_path, ".git"))
+
+                theme_key = name
+                status_val = "unknown"
+                if is_managed:
+                    theme_key = marker_data.get("theme_key", name)
+                    managed.append(theme_key)
+                    installed.append(theme_key)
+                    status_val = "current"
+                else:
+                    local_themes.append(name)
+                    installed.append(name)
+
+                # Match with registry
+                match_entry = registry.get(theme_key)
+                if match_entry:
+                    installed_match_details[theme_key] = {
+                        "is_git": is_git or is_managed,
+                        "is_managed": is_managed,
+                        "target_dir": name,
+                    }
+                    if is_managed:
+                        # Fetch Git status from .theme_sources
+                        status_val = self.get_theme_update_status(theme_key, match_entry)
+                        update_status[theme_key] = status_val
+
+        # Find any non-installed registry themes to populate themes list with update_status="available"
+        for key in registry:
+            if key not in installed:
+                update_status[key] = "available"
+
+        return {
+            "installed": installed,
+            "managed": managed,
+            "local_themes": local_themes,
+            "protected_themes": sorted(list(PROTECTED_THEMES)),
+            "installed_match_details": installed_match_details,
+            "update_status": update_status,
+        }
+
+    def get_theme_update_status(self, theme_key, entry):
+        host = self.plugin.get_host()
+        source_dir = os.path.join(host.theme_sources_dir(), theme_key)
+        if not os.path.isdir(source_dir):
+            return "unknown"
+        # Check git status
+        try:
+            # Check ahead/behind
+            self.plugin.run_git_command(source_dir, ["git", "fetch", "--quiet"])
+            result = self.plugin.run_git_command(source_dir, ["git", "rev-list", "--count", "HEAD...origin/" + entry.branch])
+            if result is not None and result.returncode == 0:
+                count = int(result.stdout.strip() or "0")
+                if count > 0:
+                    return "available"
+                return "current"
+        except Exception:
+            pass
+        return "current"
+
+    def install_theme(self, theme_key):
+        host = self.plugin.get_host()
+        registry = self.plugin.theme_registry_service.load_registry()
+        entry = registry.get(theme_key)
+        if not entry:
+            return False, "Theme not found in registry"
+
+        target_dir = entry.target_dir
+        themes_dir = host.themes_dir()
+        source_dir = os.path.join(host.theme_sources_dir(), theme_key)
+        dest_dir = host.resolve_theme_dir(target_dir)
+
+        # 1. Clone source repo
+        os.makedirs(host.theme_sources_dir(), exist_ok=True)
+        repo_url = "https://github.com/" + entry.author + "/" + entry.repository
+        if os.path.isdir(source_dir):
+            # Already cloned, clean and update
+            self.plugin.run_git_command(source_dir, ["git", "clean", "-fdx"])
+            self.plugin.run_git_command(source_dir, ["git", "fetch", "--all"])
+            self.plugin.run_git_command(source_dir, ["git", "checkout", "-B", entry.branch, "origin/" + entry.branch])
+            self.plugin.run_git_command(source_dir, ["git", "reset", "--hard", "origin/" + entry.branch])
+        else:
+            # Fresh clone
+            cmd = ["git", "clone", "--branch", entry.branch, repo_url, source_dir]
+            result = host.run_git(cmd, host.theme_sources_dir())
+            if not result or result.returncode != 0:
+                return False, "Failed to clone theme repository"
+
+        # 2. Get checkout commit hash
+        commit_res = self.plugin.run_git_command(source_dir, ["git", "rev-parse", "HEAD"])
+        commit_hash = commit_res.stdout.strip() if commit_res and commit_res.returncode == 0 else "unknown"
+
+        # 3. Resolve source path
+        resolved_src = os.path.abspath(os.path.join(source_dir, entry.source_path))
+        if not os.path.isdir(resolved_src):
+            return False, f"Source path {entry.source_path} not found in checkout"
+
+        # 4. Validate custom.css
+        custom_css = os.path.join(resolved_src, "custom.css")
+        if not os.path.isfile(custom_css):
+            return False, "Theme is invalid: missing custom.css"
+
+        # Check for javascript
+        contains_js = False
+        for root, _, files in os.walk(resolved_src):
+            if any(f.endswith(".js") for f in files):
+                contains_js = True
+                break
+
+        # 5. Mirror to target folder under www/styles/
+        if os.path.isdir(dest_dir):
+            shutil.rmtree(dest_dir)
+        os.makedirs(os.path.dirname(dest_dir), exist_ok=True)
+        shutil.copytree(resolved_src, dest_dir, symlinks=False, ignore=shutil.ignore_patterns(".git"))
+
+        # 6. Write marker file
+        marker_path = os.path.join(dest_dir, ".pypluginstore-theme.json")
+        marker_data = {
+            "theme_key": theme_key,
+            "target_dir": target_dir,
+            "repository": repo_url,
+            "branch": entry.branch,
+            "source_path": entry.source_path,
+            "installed_commit": commit_hash,
+            "contains_javascript": contains_js,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        with open(marker_path, "w", encoding="utf-8") as f:
+            json.dump(marker_data, f, indent=2)
+
+        return True, "Theme installed successfully"
+
+    def remove_theme(self, theme_key):
+        host = self.plugin.get_host()
+        registry = self.plugin.theme_registry_service.load_registry()
+        entry = registry.get(theme_key)
+        
+        target_dir = entry.target_dir if entry else theme_key
+        if target_dir in PROTECTED_THEMES:
+            return False, "Cannot delete built-in protected themes"
+
+        dest_dir = host.resolve_theme_dir(target_dir)
+        if not os.path.isdir(dest_dir):
+            return False, f"Theme directory {target_dir} not found"
+
+        # Must be managed
+        marker_path = os.path.join(dest_dir, ".pypluginstore-theme.json")
+        if not os.path.isfile(marker_path):
+            return False, "Refused to remove unmanaged local theme"
+
+        # Delete target
+        try:
+            shutil.rmtree(dest_dir)
+        except Exception as e:
+            return False, f"Failed to delete theme directory: {str(e)}"
+
+        # Delete source checkout
+        source_dir = os.path.join(host.theme_sources_dir(), theme_key)
+        if os.path.isdir(source_dir):
+            try:
+                shutil.rmtree(source_dir)
+            except Exception:
+                pass
+
+        return True, "Theme removed successfully"
+
+
 class LocalRegistryService:
     """Read, validate, and atomically mutate registry_local.json."""
 
@@ -17436,6 +17775,8 @@ class BasePlugin:
         self.release_metadata_store = None
         self.release_metadata_store_root = ""
         self.registry_service = RegistryService(self)
+        self.theme_registry_service = ThemeRegistryService(self)
+        self.theme_discovery_service = ThemeDiscoveryService(self)
         self.local_registry_service = LocalRegistryService(self)
         self.update_status_service = UpdateStatusService(self)
         self.channel_preference_service = ChannelPreferenceService(self)
@@ -21828,6 +22169,50 @@ class BasePlugin:
                     "reload_required": error.reload_required,
                     "read_only": error.read_only,
                 })
+        elif action == "list_themes":
+            discovery = self.theme_discovery_service.list_themes()
+            registry = self.theme_registry_service.load_registry()
+            registry_data = {k: v.to_dict() for k, v in registry.items()}
+            self.sendApiResponse({
+                "status": "success",
+                "action": action,
+                "data": registry_data,
+                "installed": discovery["installed"],
+                "managed": discovery["managed"],
+                "local_themes": discovery["local_themes"],
+                "protected_themes": discovery["protected_themes"],
+                "installed_match_details": discovery["installed_match_details"],
+                "update_status": discovery["update_status"],
+            })
+        elif action == "refresh_theme_update_status":
+            discovery = self.theme_discovery_service.list_themes()
+            registry = self.theme_registry_service.load_registry()
+            registry_data = {k: v.to_dict() for k, v in registry.items()}
+            self.sendApiResponse({
+                "status": "success",
+                "action": action,
+                "data": registry_data,
+                "installed": discovery["installed"],
+                "managed": discovery["managed"],
+                "local_themes": discovery["local_themes"],
+                "protected_themes": discovery["protected_themes"],
+                "installed_match_details": discovery["installed_match_details"],
+                "update_status": discovery["update_status"],
+            })
+        elif action in ("install_theme", "update_theme"):
+            theme_key = payload.get("theme_key")
+            success, message = self.theme_discovery_service.install_theme(theme_key)
+            if success:
+                self.sendApiResponse({"status": "success", "action": action, "theme_key": theme_key})
+            else:
+                self.sendApiResponse({"status": "error", "action": action, "theme_key": theme_key, "message": message or "Theme operation failed"})
+        elif action == "remove_theme":
+            theme_key = payload.get("theme_key")
+            success, message = self.theme_discovery_service.remove_theme(theme_key)
+            if success:
+                self.sendApiResponse({"status": "success", "action": action, "theme_key": theme_key})
+            else:
+                self.sendApiResponse({"status": "error", "action": action, "theme_key": theme_key, "message": message or "Theme removal failed"})
         elif action == "list_plugins":
             installed_plugins = self.getInstalledPlugins(plugins_dir)
             cached_update_status = self.getCachedUpdateStatuses(installed_plugins)

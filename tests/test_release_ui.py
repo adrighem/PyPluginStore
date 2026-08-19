@@ -595,6 +595,7 @@ def test_ui_hides_physical_aliases_and_bundled_plugin_folders():
     run_node(
         filter_plugins
         + """
+const currentTab = 'plugins';
 const pluginCache = {
     Somfy: ['MadPatrick', 'domoticz_somfy', 'Somfy plugin', 'master', '']
 };
@@ -670,6 +671,7 @@ def test_ui_keeps_actionable_orphan_release_diagnostics_visible():
     run_node(
         filter_plugins
         + """
+const currentTab = 'plugins';
 const pluginCache = {
     Somfy: ['MadPatrick', 'domoticz_somfy', 'Somfy plugin', 'master', '']
 };

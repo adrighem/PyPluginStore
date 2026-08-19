@@ -1113,13 +1113,45 @@
         opacity: 0.55;
         cursor: not-allowed;
     }
+
+    #pypluginstore-container .pps-tabs {
+        display: flex;
+        gap: 10px;
+        margin: 20px 0;
+        border-bottom: 2px solid var(--pps-badge-muted-border);
+        padding-bottom: 0px;
+    }
+
+    #pypluginstore-container .pps-tab {
+        background: none;
+        border: none;
+        border-bottom: 3px solid transparent;
+        color: var(--pps-text-heading);
+        padding: 10px 20px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: color 0.2s, border-color 0.2s;
+        outline: none;
+        opacity: 0.8;
+    }
+
+    #pypluginstore-container .pps-tab:hover {
+        color: var(--pps-text-color);
+        opacity: 1;
+    }
+
+    #pypluginstore-container .pps-tab.active {
+        color: var(--pps-primary);
+        border-bottom-color: var(--pps-primary);
+    }
 </style>
 
 <div id="pypluginstore-container" data-layout="theme">
     <div class="header">
         <div class="header-title">
             <img class="app-icon" src="images/pypluginstore-icon.png" alt="" aria-hidden="true" onerror="if (!this.dataset.fallbackSrcApplied) { this.dataset.fallbackSrcApplied = 'true'; this.src = '/images/pypluginstore-icon.png'; } else { this.style.display = 'none'; }">
-            <h1>PyPluginStore: Plugin Store</h1>
+            <h1 id="pps-main-title">PyPluginStore: Plugin Store</h1>
         </div>
         <div class="header-actions">
             <button id="manage-local-registry" class="btn-local-registry" type="button">Local registry</button>
@@ -1127,6 +1159,11 @@
             <button id="restart-domoticz" class="btn-restart" type="button">Restart Domoticz</button>
             <div id="pypluginstore-status" role="status" aria-live="polite" aria-atomic="true">Initializing...</div>
         </div>
+    </div>
+
+    <div class="pps-tabs">
+        <button id="tab-plugins" class="pps-tab active" type="button">Plugins</button>
+        <button id="tab-themes" class="pps-tab" type="button">Themes</button>
     </div>
 
     <div class="filters">
@@ -1223,6 +1260,10 @@
     <div id="plugins-list" class="grid">
         <!-- Plugins will be rendered here -->
     </div>
+
+    <div id="themes-list" class="grid" style="display: none;">
+        <!-- Themes will be rendered here -->
+    </div>
 </div>
 
 <script>
@@ -1249,6 +1290,16 @@
     let localRegistryEntries = [];
     let localRegistryRevision = '';
     let localRegistryPath = '';
+
+    // Themes variables
+    let currentTab = 'plugins';
+    let themeCache = null;
+    let installedThemesCache = [];
+    let managedThemesCache = [];
+    let localThemesCache = [];
+    let protectedThemesCache = [];
+    let themeInstalledMatchDetailsCache = {};
+    let themeUpdateStatusCache = {};
     let localRegistryReadOnly = false;
     let localRegistryOriginalKey = '';
     let localRegistryFormDirty = false;
@@ -2670,6 +2721,32 @@
             filterAndRender();
         };
 
+        document.getElementById('tab-plugins').onclick = function() {
+            if (currentTab === 'plugins') return;
+            currentTab = 'plugins';
+            document.getElementById('pps-main-title').textContent = 'PyPluginStore: Plugin Store';
+            document.getElementById('tab-plugins').classList.add('active');
+            document.getElementById('tab-themes').classList.remove('active');
+            document.getElementById('plugins-list').style.display = '';
+            document.getElementById('themes-list').style.display = 'none';
+            filterAndRender();
+        };
+
+        document.getElementById('tab-themes').onclick = function() {
+            if (currentTab === 'themes') return;
+            currentTab = 'themes';
+            document.getElementById('pps-main-title').textContent = 'PyPluginStore: Theme Store';
+            document.getElementById('tab-plugins').classList.remove('active');
+            document.getElementById('tab-themes').classList.add('active');
+            document.getElementById('plugins-list').style.display = 'none';
+            document.getElementById('themes-list').style.display = '';
+            if (!themeCache) {
+                loadThemes();
+            } else {
+                filterAndRender();
+            }
+        };
+
         setManagerActivity("Connecting to PyPluginStore...");
         try {
             await findApiBridgeDevices();
@@ -3364,6 +3441,10 @@
     }
 
     function filterAndRender() {
+        if (currentTab === 'themes') {
+            filterAndRenderThemes();
+            return;
+        }
         if (!pluginCache) return;
 
         const searchQuery = document.getElementById('search-box').value.toLowerCase();
@@ -3406,6 +3487,213 @@
         filteredKeys.forEach(key => filteredData[key] = renderData[key]);
 
         renderPlugins(filteredData, installedCache);
+    }
+
+    async function loadThemes() {
+        setManagerActivity("Loading themes...");
+        try {
+            const response = await sendCommand('list_themes', {});
+            if (response && response.status === 'success') {
+                themeCache = response.data;
+                installedThemesCache = response.installed || [];
+                managedThemesCache = response.managed || [];
+                localThemesCache = response.local_themes || [];
+                protectedThemesCache = response.protected_themes || [];
+                themeInstalledMatchDetailsCache = response.installed_match_details || {};
+                themeUpdateStatusCache = response.update_status || {};
+                clearManagerActivity();
+                filterAndRenderThemes();
+            } else {
+                clearManagerActivity();
+            }
+        } catch (e) {
+            clearManagerActivity();
+        }
+    }
+
+    function filterAndRenderThemes() {
+        if (!themeCache) return;
+
+        const searchQuery = document.getElementById('search-box').value.toLowerCase();
+        const showInstalledOnly = document.getElementById('installed-toggle').checked;
+        const renderData = Object.assign({}, themeCache);
+
+        const filteredKeys = Object.keys(renderData).filter(key => {
+            const info = renderData[key] || {};
+            const description = String(info.description || '').toLowerCase();
+            const displayName = String(info.display_name || key).toLowerCase();
+            const matchesSearch = description.includes(searchQuery) ||
+                key.toLowerCase().includes(searchQuery) ||
+                displayName.includes(searchQuery);
+            const isInstalled = installedThemesCache.indexOf(key) !== -1;
+
+            if (showInstalledOnly && !isInstalled) return false;
+            return matchesSearch;
+        });
+
+        const filteredData = {};
+        filteredKeys.forEach(key => filteredData[key] = renderData[key]);
+
+        renderThemes(filteredData);
+    }
+
+    function renderThemes(themeData) {
+        const container = document.getElementById('themes-list');
+        if (!container) return;
+        container.innerHTML = '';
+
+        const keys = Object.keys(themeData).sort();
+
+        if (keys.length === 0) {
+            const empty = document.createElement('div');
+            empty.style.gridColumn = '1/-1';
+            empty.style.textAlign = 'center';
+            empty.style.padding = '40px';
+            empty.style.color = 'var(--pps-text-muted)';
+            empty.textContent = 'No themes match your filters.';
+            container.appendChild(empty);
+            return;
+        }
+
+        for (const key of keys) {
+            const info = themeData[key] || {};
+            const displayName = info.display_name || key;
+            const author = info.author || '';
+            const repo = info.repository || '';
+            const description = info.description || '';
+            const isInstalled = installedThemesCache.indexOf(key) !== -1;
+            const isManaged = managedThemesCache.indexOf(key) !== -1;
+            const isProtected = protectedThemesCache.indexOf(key) !== -1;
+            const updateStatus = themeUpdateStatusCache[key] || 'unknown';
+            const containsJs = info.contains_javascript || false;
+
+            const card = document.createElement('div');
+            card.className = 'pps-card';
+
+            const header = document.createElement('div');
+            header.className = 'pps-card-header';
+
+            const headerMain = document.createElement('div');
+            headerMain.className = 'pps-card-header-main';
+
+            const themeTitle = document.createElement('span');
+            themeTitle.className = 'pps-plugin-title';
+            themeTitle.textContent = displayName;
+            headerMain.appendChild(themeTitle);
+
+            const statusBadges = document.createElement('div');
+            statusBadges.className = 'pps-card-header-status';
+
+            if (isInstalled) {
+                const badge = document.createElement('span');
+                badge.className = 'installed-badge';
+                badge.textContent = isProtected ? 'Built-in' : (isManaged ? 'Installed' : 'Local');
+                headerMain.appendChild(badge);
+            }
+
+            if (containsJs) {
+                const jsBadge = document.createElement('span');
+                jsBadge.className = 'non-git-badge';
+                jsBadge.style.background = 'rgba(235, 175, 53, 0.15)';
+                jsBadge.style.color = '#ebaf35';
+                jsBadge.style.borderColor = 'rgba(235, 175, 53, 0.3)';
+                jsBadge.textContent = 'JS';
+                jsBadge.title = 'This theme includes custom JavaScript. Treat it as trusted/executable code.';
+                statusBadges.appendChild(jsBadge);
+            }
+
+            header.appendChild(headerMain);
+
+            if (statusBadges.childNodes.length > 0) {
+                header.appendChild(statusBadges);
+            }
+
+            const desc = document.createElement('div');
+            desc.className = 'pps-card-desc';
+            desc.textContent = description || 'No description provided.';
+
+            const footer = document.createElement('div');
+            footer.className = 'pps-card-footer';
+
+            const repoLink = document.createElement('div');
+            repoLink.className = 'pps-card-repo';
+            if (repo) {
+                const link = document.createElement('a');
+                link.href = 'https://github.com/' + author + '/' + repo;
+                link.target = '_blank';
+                link.textContent = author + '/' + repo;
+                repoLink.appendChild(link);
+            } else {
+                repoLink.textContent = 'Local Theme';
+            }
+
+            const actions = document.createElement('div');
+            actions.className = 'pps-card-actions';
+
+            if (isInstalled) {
+                if (isManaged) {
+                    if (updateStatus === 'available') {
+                        const btnUpdate = document.createElement('button');
+                        btnUpdate.className = 'btn-action btn-action-update';
+                        btnUpdate.type = 'button';
+                        btnUpdate.textContent = 'Update';
+                        btnUpdate.onclick = async () => {
+                            setManagerActivity('Updating theme ' + displayName + '...');
+                            const res = await sendCommand('update_theme', { theme_key: key });
+                            clearManagerActivity();
+                            if (res && res.status === 'success') {
+                                loadThemes();
+                            } else {
+                                alert(res ? res.message : 'Theme update failed');
+                            }
+                        };
+                        actions.appendChild(btnUpdate);
+                    }
+
+                    const btnRemove = document.createElement('button');
+                    btnRemove.className = 'btn-action btn-action-remove';
+                    btnRemove.type = 'button';
+                    btnRemove.textContent = 'Remove';
+                    btnRemove.onclick = async () => {
+                        if (!confirm('Are you sure you want to remove theme ' + displayName + '?')) return;
+                        setManagerActivity('Removing theme ' + displayName + '...');
+                        const res = await sendCommand('remove_theme', { theme_key: key });
+                        clearManagerActivity();
+                        if (res && res.status === 'success') {
+                            loadThemes();
+                        } else {
+                            alert(res ? res.message : 'Theme removal failed');
+                        }
+                    };
+                    actions.appendChild(btnRemove);
+                }
+            } else {
+                const btnInstall = document.createElement('button');
+                btnInstall.className = 'btn-action btn-action-install';
+                btnInstall.type = 'button';
+                btnInstall.textContent = 'Install';
+                btnInstall.onclick = async () => {
+                    setManagerActivity('Installing theme ' + displayName + '...');
+                    const res = await sendCommand('install_theme', { theme_key: key });
+                    clearManagerActivity();
+                    if (res && res.status === 'success') {
+                        loadThemes();
+                    } else {
+                        alert(res ? res.message : 'Theme installation failed');
+                    }
+                };
+                actions.appendChild(btnInstall);
+            }
+
+            footer.appendChild(repoLink);
+            footer.appendChild(actions);
+
+            card.appendChild(header);
+            card.appendChild(desc);
+            card.appendChild(footer);
+
+            container.appendChild(card);
+        }
     }
 
     function sortPlugins(pluginData, sortBy) {

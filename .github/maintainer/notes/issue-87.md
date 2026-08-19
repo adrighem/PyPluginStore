@@ -1,23 +1,28 @@
-# ISSUE:87 - Feature Idea: Theme Management
+# ISSUE:87 - Implement Parallel Theme Store
 
-Status: open; design/backlog.
+Status: ready to commit
 
-Author:
-- `adrighem` opened the issue on 2026-07-04 after splitting the theme-management idea from `ISSUE:30`.
-
-Intent:
-- Explore managing Domoticz themes from PyPluginStore.
-- Define theme packaging, discovery, installation, update, and UI behavior.
+Reporter:
+- `basvdijk` originally requested to have theme support.
 
 Assessment:
-- The existing issue comment proposes a direct plugin-management parallel, but deeper local research in `.github/maintainer/work/issue-87-theme-architecture.md` shows themes need a separate catalog and install model.
-- Key finding: modern Domoticz themes use `custom.css`, not `style.css`, and some theme repositories require copying a subdirectory rather than cloning directly into `www/styles`.
-- Theme repositories can include JavaScript, so UI copy and trust boundaries should be explicit.
-- This should remain a larger product backlog item while smaller release and styling work is handled.
+- We need to be able to install and update Domoticz frontend themes. Themes need to be hosted in `www/styles/<theme_name>` but we do not want `.git` tracking files or configuration folders littering that directory, and we don't want half-cloned directories blocking the Domoticz UI.
+- Domoticz themes can execute dynamic JavaScript via `custom.js` files, meaning themes are essentially executable code in the user's session.
 
-Recommended next step:
-- Keep open.
-- When picked up, start with path helpers, theme key/path validation, protected built-in theme handling, and backend tests before building the UI tabs.
+Decision:
+- Implement a Staging-and-Mirror Architecture. We clone into `.theme_sources/<theme_key>` and then defensively mirror only the validated `source_path` contents to `www/styles/`.
+- Ensure directory traversal is strictly guarded in all path helper resolutions (`resolve_theme_dir`).
+- Track theme installations using a `.pypluginstore-theme.json` footprint marker file.
+- Scan for `.js` files dynamically inside the theme payload and flag them visually to the user in the UI, marking it as executable code.
+- Implement independent UI Tabs in `pypluginstore.html` utilizing a shared catalog pattern.
 
-Public action:
-- None taken.
+Implementation Details:
+- **`plugin_core.py`**: Added `ThemeRegistryEntry`, `ThemeRegistryService`, and `ThemeDiscoveryService`. Registered `list_themes`, `install_theme`, `remove_theme`, `update_theme` endpoints.
+- **`themes.json`**: Created the seed catalog registry with `nightglass` and `osi-dark`.
+- **`pypluginstore.html`**: Added `loadThemes`, `filterAndRenderThemes`, `renderThemes`, and the `currentTab` toggling logic. Applied Vincent's CSS custom variables.
+- **`tests/test_theme_management.py`**: Thoroughly test safe path handling, discovery, and isolated operations.
+
+Verification:
+- The Python backend tests pass (1562 total).
+- The Javascript layout mock tests pass.
+- Path security features block directory traversal out of `www/styles/`.
