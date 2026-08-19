@@ -4059,6 +4059,31 @@
       }
     },
     {
+      "package_id": "dell-idrac",
+      "domoticz_key": "dellidrac",
+      "description": "Dell PowerEdge monitoring via the iDRAC Redfish API: temperatures, fans, power, utilization, storage and health, with opt-in power control.",
+      "repository": {
+        "url": "https://github.com/Rouzax/dell-idrac-domoticz-plugin",
+        "branch": "dist"
+      },
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "domoticz-AirHumidifier",
       "domoticz_key": "AirHumidifier",
       "description": "Domoticz plugin for Xiaomi Humidifier 1",
