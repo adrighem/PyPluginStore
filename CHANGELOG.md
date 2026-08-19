@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.27.0](https://github.com/adrighem/PyPluginStore/compare/v2.26.0...v2.27.0) (2026-08-19)
+
+
+### Features
+
+* implement parallel theme store architecture (closes [#87](https://github.com/adrighem/PyPluginStore/issues/87)) ([6b188ae](https://github.com/adrighem/PyPluginStore/commit/6b188aeb047244e335fe92b003321210083ae119))
+
+
+### Bug Fixes
+
+* allow omitted source_revision in release verification (fixes [#150](https://github.com/adrighem/PyPluginStore/issues/150)) ([673b852](https://github.com/adrighem/PyPluginStore/commit/673b8524e18efb88cf63735a44f5a6b026b6a318))
+* bypass PEP 668 restrictions to allow isolated dependency installation (fixes [#151](https://github.com/adrighem/PyPluginStore/issues/151)) ([1549a9d](https://github.com/adrighem/PyPluginStore/commit/1549a9d6d676eaf2d58efeebacfb5589c714a43b))
+* show revision commits available instead of false positive update for matching Git versions (fixes [#154](https://github.com/adrighem/PyPluginStore/issues/154)) ([ea5c92b](https://github.com/adrighem/PyPluginStore/commit/ea5c92b3803e05d7cf3b7afcc12f75f17f00cb84))
+
+
+### Documentation
+
+* refactor README to include parallel theme store architecture ([cf07841](https://github.com/adrighem/PyPluginStore/commit/cf0784140e6732bebeeeb0e434ecc556dd3e5809))
+* use pypluginstore-social-preview.jpg as full-width banner in README ([023b94d](https://github.com/adrighem/PyPluginStore/commit/023b94d72c850fecd305a130015e02541ff85c35))
+
 ## [2.26.0](https://github.com/adrighem/PyPluginStore/compare/v2.25.0...v2.26.0) (2026-08-17)
 
 
