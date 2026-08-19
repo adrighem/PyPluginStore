@@ -2,7 +2,7 @@
 
 Install, update, remove, and manage Domoticz Python plugins and frontend themes from one intuitive web interface. PyPluginStore supports verified Release packages and Git repositories on Linux, including Raspberry Pi, and Windows.
 
-<img src="pypluginstore.png" alt="PyPluginStore logo" width="180" height="180">
+<img src="pypluginstore-social-preview.jpg" alt="PyPluginStore Banner" width="100%">
 
 > This project is based on the original [ycahome/pp-manager](https://github.com/ycahome/pp-manager). Thanks to the original maintainers and contributors for their hard work.
 
