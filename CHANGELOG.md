@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.27.1](https://github.com/adrighem/PyPluginStore/compare/v2.27.0...v2.27.1) (2026-08-19)
+
+
+### Bug Fixes
+
+* skip compiling non-Domoticz custom_components, tests, and venv folders ([ff71bb5](https://github.com/adrighem/PyPluginStore/commit/ff71bb542bea4bdcf53db40ad6a4991a48a27e59))
+* update release index registry SHA-256 binding ([dc95267](https://github.com/adrighem/PyPluginStore/commit/dc952670876f3ff079fb41835354f64bee3e594e))
+
 ## [2.27.0](https://github.com/adrighem/PyPluginStore/compare/v2.26.0...v2.27.0) (2026-08-19)
 
 
