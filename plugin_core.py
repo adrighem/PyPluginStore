@@ -5592,6 +5592,15 @@ class ReleaseArtifactValidationService:
         for installed_path, file_record in selected_files:
             if not installed_path.casefold().endswith(".py"):
                 continue
+
+            # Skip compiling files inside non-Domoticz, framework-specific or development folders
+            segments = [seg.lower() for seg in installed_path.replace("\\", "/").split("/")]
+            if any(
+                seg in {"custom_components", "tests", "test", "venv", ".venv", ".git", ".github"}
+                for seg in segments
+            ):
+                continue
+
             contents = self._read_verified_contents(file_record)
             try:
                 compile(

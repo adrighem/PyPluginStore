@@ -999,3 +999,24 @@ def test_invalid_nested_python_source_blocks_certification(
     )
 
     assert "package/broken.py" in str(error)
+
+
+def test_compile_skips_non_domoticz_folders(plugin_core_module, tmp_path):
+    source_files = {
+        "plugin.py": plugin_source(),
+        "custom_components/broken.py": b"def broken(:\n    pass\n",
+        "tests/invalid_syntax.py": b"class {):\n",
+    }
+    extraction_dir, _wrapper, _source, _files, all_files = extracted_tree(
+        tmp_path,
+        source_files=source_files,
+    )
+
+    # This should validate successfully because the compilation check skips those paths
+    result = validate(
+        make_service(plugin_core_module),
+        extraction_dir,
+        expected_tree_sha256=canonical_tree_sha256(all_files),
+    )
+
+    assert result.artifact_files == artifact_manifest(source_files)
