@@ -1,42 +1,22 @@
 # PyPluginStore for Domoticz
 
-Install, update, remove, and manage Domoticz Python plugins from one web interface. PyPluginStore supports verified Release packages and Git repositories on Linux, including Raspberry Pi, and Windows.
-
-Individual third-party plugins may still be Linux-only or Windows-only depending on their dependencies and OS integrations.
+Install, update, remove, and manage Domoticz Python plugins and frontend themes from one intuitive web interface. PyPluginStore supports verified Release packages and Git repositories on Linux, including Raspberry Pi, and Windows.
 
 <img src="pypluginstore.png" alt="PyPluginStore logo" width="180" height="180">
 
 > This project is based on the original [ycahome/pp-manager](https://github.com/ycahome/pp-manager). Thanks to the original maintainers and contributors for their hard work.
 
-## Start here
+## Key Features
 
-- **Installing PyPluginStore?** Follow [Install and first run](#install-and-first-run).
-- **Learning the dashboard?** See [Use the dashboard](#use-the-dashboard).
-- **Recovering from a problem?** Start with [Troubleshooting](#troubleshooting).
-- **Using Releases, Git, or a private source?** See [Advanced operation](#advanced-operation).
-- **Registering a plugin?** See [Plugin authors and contributors](#plugin-authors-and-contributors).
-- **Need help or want to report a bug?** See [Support and project links](#support-and-project-links).
+- **Unified Store UI:** A tabbed interface separating Plugins and Themes. Search, sort, filter, install, update, remove, and restore items directly from the Domoticz **Custom** menu.
+- **Dependency Isolation (Plugins):** Resolves all installed plugin requirements into an isolated, recoverable `.shared_deps` generation using `uv` or the Domoticz Python interpreter's `pip`. Bypasses PEP 668 restrictions safely since installations remain strictly localized without polluting global system packages.
+- **Staging-and-Mirror Architecture (Themes):** Protects your Domoticz `www/styles/` path by cloning theme repositories into an isolated staging `.theme_sources` folder, discarding `.git` metadata and only mirroring the necessary frontend CSS/JS files.
+- **Javascript Scanning (Themes):** Staged themes are statically scanned for `custom.js` files; the UI automatically badges them with a warning, making you aware of dynamic execution footprints.
+- **Release-first delivery:** Utilizes checksum-pinned stable Release archives when certified, with fallback support for direct Git checkouts.
+- **Safe channel migration:** Migrates existing Git checkouts to Release versions automatically after verifying repository continuity and rolling-back capabilities.
+- **Self-update:** PyPluginStore manages its own updates seamlessly while preserving browser, backend, and on-disk runtime cohesion.
 
-## Key features
-
-- **Plugin Store UI:** Search, sort, filter, install, update, remove, and restore plugins from the Domoticz **Custom** menu. Choose the Domoticz-themed or compact PyPlugin layout.
-- **Release-first delivery:** Use checksum-pinned stable Release archives when certified, with Git retained as a supported channel.
-- **Safe channel migration:** Move an existing Git checkout to Release only after repository, history, local-file, dependency, and rollback checks.
-- **Self-update:** Manage PyPluginStore from its own card while preserving a coherent browser, backend, and on-disk runtime.
-- **Update status:** See the active channel, installed and available versions, verification failures, migration blockers, and rollback availability.
-- **Scheduled operation:** Apply eligible updates automatically or use the default notification-only mode.
-- **Dependency isolation:** Resolve all installed plugin requirements into an isolated, recoverable `.shared_deps` generation with `uv` or the Domoticz Python interpreter's `pip`.
-- **Remote and local registries:** Use the public registry with bundled fallback, or add private and local Git sources through [`registry_local.json`](docs/registry_local.md).
-
-## Release integrity and trust
-
-Before activating a Release package, PyPluginStore verifies its size, SHA-256, file layout, Python syntax, package identity, Domoticz key, and complete dependency generation. These integrity checks detect changes relative to the accepted or locally certified release. They do not determine whether third-party code is trustworthy.
-
-Installing or auto-updating a plugin means trusting its publisher and the PyPluginStore registry distribution channel. After an indexed release establishes the policy anchor, direct refresh also trusts the configured upstream provider. A local registry entry replaces the reviewed public source with one you explicitly select and trust. Review source code when that trust is not appropriate.
-
-Dependency installation can execute third-party Python build backends. The generated dependency folder isolates package files from the global Python environment, but it is not an execution sandbox. Trust the requirement sources and package indexes used by each plugin.
-
-## Install and first run
+## Install and First Run
 
 ### Requirements
 
@@ -44,159 +24,68 @@ Dependency installation can execute third-party Python build backends. The gener
 | --- | --- |
 | Domoticz | Python plugin support is enabled in the Domoticz about box. |
 | Operating system | Linux, including Raspberry Pi, or Windows. |
-| Python | PyPluginStore uses the Python 3 runtime that runs Domoticz. CI tests the current Python 3 release on Ubuntu and Windows; older Python runtimes are not guaranteed. |
+| Python | PyPluginStore uses the Python 3 runtime that runs Domoticz. CI tests the current Python 3 release on Ubuntu and Windows. |
 | Git | `git --version` works for the Domoticz service account. |
-| Write access | The Domoticz service account can write to `domoticz/plugins`, `domoticz/www/templates`, and `domoticz/www/images`. In Docker, persist the plugins folder and make all three locations writable inside the container. |
-| Dependency installer | Needed only for plugins with requirements. `uv` is preferred and must be in `/usr/local/bin` or the OS default executable path used by PyPluginStore. Otherwise, the Python interpreter running Domoticz must support `python -m pip`. Standalone `pip3` and `pip` commands are not used. |
-| Network | Remote registry refreshes, Git operations, and direct Release checks need outbound Git and HTTPS access. Startup can use bundled or cached registry data during a temporary outage. |
+| Write access | The Domoticz service account can write to `domoticz/plugins`, `domoticz/www/templates`, `domoticz/www/styles`, and `domoticz/www/images`. |
 
-On Linux, clone as the OS account that runs Domoticz. Avoid leaving a root-owned checkout that the service cannot update. On a systemd host, identify the configured account with:
+### Installation
 
-```bash
-systemctl show -p User --value domoticz.service
-ps -o user= -C domoticz
-```
+1. Open a shell on the Domoticz host and navigate to the Domoticz `plugins` folder.
+   ```bash
+   cd /path/to/domoticz/plugins
+   ```
 
-If needed, verify access without changing files. Replace `domoticz` and the paths for your installation:
+2. Clone PyPluginStore as `00-PyPluginStore`. (The `00-` prefix is mandatory to ensure PyPluginStore's dependency isolation engine runs *before* other plugins load).
+   ```bash
+   git clone https://github.com/adrighem/PyPluginStore.git 00-PyPluginStore
+   ```
 
-```bash
-DOMOTICZ_USER=domoticz
-sudo -u "$DOMOTICZ_USER" test -w /path/to/domoticz/plugins
-sudo -u "$DOMOTICZ_USER" test -w /path/to/domoticz/www/templates
-sudo -u "$DOMOTICZ_USER" test -w /path/to/domoticz/www/images
-```
+3. Restart Domoticz.
+   ```bash
+   sudo systemctl restart domoticz.service
+   ```
 
-No output and a zero exit status mean the location is writable. If a web
-subdirectory does not exist yet, verify write access to its nearest existing
-parent instead.
+4. In Domoticz, go to **Setup -> Hardware** and add a new hardware type of **PyPluginStore**. Ensure it is enabled.
 
-### Install
+5. Go to **Setup -> Users**, edit your user, and ensure the **Custom** menu is checked.
 
-1.  Open a shell on the Domoticz host and go to the Domoticz `plugins` folder.
+6. Open **Custom -> pypluginstore**. The plugin store should appear and immediately connect.
 
-Linux:
+## Using the Dashboard
 
-```bash
-cd /path/to/domoticz/plugins
-```
+The dashboard provides two main tabs:
 
-Windows PowerShell:
+### 🧩 Plugins Tab
+Plugin cards display their target platform, source, currently active channel (Git or Release), installed version, and any available version updates. Dependency installations for Python plugins are handled natively in the background.
 
-```powershell
-cd C:\path\to\domoticz\plugins
-```
+### 🎨 Themes Tab
+Theme cards list responsive Domoticz skins. PyPluginStore shields the web directory by staging downloads. Themes utilizing Javascript (`custom.js`) will display a yellow **JS** badge warning. Note that `default`, `elemental`, and other built-in Domoticz themes are heavily protected from accidental deletion or overwriting by the manager.
 
-2.  Clone PyPluginStore as `00-PyPluginStore`.
-
-Linux:
-
-```bash
-git clone https://github.com/adrighem/PyPluginStore.git 00-PyPluginStore
-```
-
-Windows PowerShell:
-
-```powershell
-git clone https://github.com/adrighem/PyPluginStore.git 00-PyPluginStore
-```
-
-Clone the complete repository. The runtime identity message after restart is the authoritative check that the required files are present and agree.
-
-3.  Restart Domoticz.
-
-Linux example:
-
-```bash
-sudo systemctl restart domoticz.service
-```
-
-Windows service example:
-
-```powershell
-Restart-Service -Name Domoticz
-```
-
-Docker Compose example, run on the container host:
-
-```bash
-docker compose restart domoticz
-```
-
-4.  In Domoticz, go to **Setup -> Hardware** and add enabled hardware of type **PyPluginStore**.
-
-5.  Go to **Setup -> Users**, edit your user, and enable the **Custom** menu.
-
-6.  Open **Custom -> pypluginstore**.
-
-Success means the dashboard shows the plugin registry and its controls are available. The Domoticz log should also contain:
-
-```text
-PyPluginStore: Initialized version ...
-PyPluginStore: PyPluginStore runtime identity: v... build ...
-PyPluginStore: Plugin Manager Ready. Use the 'Custom' menu to manage plugins.
-```
-
-If **PyPluginStore** is not available as a hardware type, restart Domoticz and re-check Python plugin support. If the log says `Custom UI autoinstall failed`, check the web-folder permissions.
-
-### Why `00-PyPluginStore`?
-
-Domoticz loads Python plugins alphabetically by folder name. Prefixing with `00-` makes the manager load first, so it can add the shared dependency environment before other plugins import their libraries.
-
-## Use the dashboard
-
-Plugin cards show their platform, source, active Git or Release channel, installed version, and available version. Use **Refresh status** to check upstream state explicitly, then use the card's **Install**, **Update**, **Remove**, channel, or restore action. A completed code or dependency change may require a Domoticz restart before the new plugin version is loaded.
-
-The header includes a persistent layout switch between the Domoticz theme and the compact PyPlugin view. Search, sorting, and installed-only filtering work in either layout.
-
-### Manager version and recovery status
-
-The status in the Plugin Store header is the authoritative manager-version
-check. A healthy, matching installation keeps this status quiet. The build ID
-covers `plugin.py`, `package_registry.py`, `package_identity.py`,
-`release_providers.py`, `release_domain.py`, and `pypluginstore.html`, so
-same-version Git updates are detected as well as normal release version
-changes.
-
-PyPluginStore compares the page running in the browser, the page deployed under
-`domoticz/www/templates`, the backend loaded by Domoticz, and the files currently
-installed on disk. If they differ, install, update, remove, rollback, channel,
-and Local registry changes become read-only. Status checks and **Restart
-Domoticz** remain available for recovery:
-
-* **Restart required:** restart Domoticz, then reopen the Plugin Store.
-* **Browser page differs:** hard-refresh the page. If the header separately says
-  a restart is required, restart first and then reload it.
-* **Custom page not synchronized:** check write access to
-  `domoticz/www/templates`, restart Domoticz, and reload the page.
-* **Identity could not be verified:** repair or reinstall the fixed runtime
-  files before making changes.
-
-Self-update progress and recovery instructions also appear in this header
-status. A documentation-only Git update can keep the same build ID and does not
-require a restart. The build ID detects local generation mismatches; it is not a
-cryptographic signature or proof that the upstream source is trustworthy.
-
-### Settings on the hardware page
+### Settings on the Hardware Page
 
 | Setting | Behavior |
 | --- | --- |
-| **Auto Update: All** | Checks registry-managed installed plugins at startup and once per day after 12:00 local time. It applies eligible Git or Release updates and only performs a Git-to-Release migration automatically when source continuity is fully proven. |
-| **Auto Update: All (NotifyOnly)** | The default. Runs the same scheduled checks and reports newer versions or available Release choices without applying updates. Native notifications are sent when the Domoticz runtime exposes its notification service. |
-| **Auto Update: None** | Disables scheduled update and notification-only actions. Manual refresh and update controls remain available. |
-| **Debug** | Set to **True** for detailed logging. |
-| **Git Ownership Repair** | Leave **Disabled** unless Git still rejects a managed repository after PyPluginStore retries with a repository-scoped `safe.directory` setting. When enabled, PyPluginStore may recursively change that repository's owner to the Domoticz process user and group before retrying Git. |
+| **Auto Update: All** | Checks registry-managed items at startup and daily after 12:00. Applies eligible updates automatically. |
+| **Auto Update: All (NotifyOnly)** | The default. Runs background scheduled checks but only reports newer versions via the notification service without applying them. |
+| **Auto Update: None** | Disables all background updates and notifications. |
+| **Debug** | Set to **True** for detailed Python logging. |
 
-## Advanced operation
+## Advanced Operation
 
-### Local registry overrides
+### Local Registry Overrides
+Use `registry_local.json` to have your installation track different branches or to add private plugins not listed in the public catalog. 
 
-Use `registry_local.json` when you want your Domoticz installation to track a different branch of a public plugin, or when you want to add a plugin that is not in the public registry yet.
+Open **Local registry** in the Plugin Store header to add, edit, or delete entries. Local entries are loaded after the public registry, override public entries, and show a **Local** badge in the interface.
 
-Open **Local registry** in the Plugin Store header to add, edit, or delete entries. You can start from an existing public plugin to create an override, or create a blank entry for a private, local, or unpublished repository. Local entries are loaded after the public registry, override matching public entries, and show a **Local** badge.
+*See the [`registry_local.json` how-to](docs/registry_local.md) for more examples.*
 
-The manager validates entries without contacting the repository and saves changes atomically. A valid legacy local file is backed up and atomically rewritten to schema v2 on first load. If `registry_local.json` is malformed, the dialog becomes read-only and all Release management pauses until the file is repaired and reloaded. See the [`registry_local.json` how-to](docs/registry_local.md) for the UI workflow, v2 examples, and GitHub, GitLab, Codeberg, SSH, and local repository sources. If a plugin card shows **Repo mismatch**, see the [Repo Mismatch warning](docs/registry_local.md#repo-mismatch-warning).
+## Support and Contributing
 
-Local registry entries remain Git-managed. They override the reviewed public source for that installation, so only add repositories you trust and prefer HTTPS or SSH for network sources.
+- [Issue Tracker](https://github.com/adrighem/PyPluginStore/issues)
+- [Releases](https://github.com/adrighem/PyPluginStore/releases)
+- [Changelog](CHANGELOG.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [GNU GPL v3 or later license](LICENSE)
 
 ### Release and Git channels
 
