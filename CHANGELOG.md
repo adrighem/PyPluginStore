@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.27.2](https://github.com/adrighem/PyPluginStore/compare/v2.27.1...v2.27.2) (2026-08-20)
+
+
+### Bug Fixes
+
+* disable git and manager update buttons when up-to-date ([f2ad923](https://github.com/adrighem/PyPluginStore/commit/f2ad9231e07a179c52e658393f204ddb50e4d75f))
+
 ## [2.27.1](https://github.com/adrighem/PyPluginStore/compare/v2.27.0...v2.27.1) (2026-08-19)
 
 
