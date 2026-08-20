@@ -4375,6 +4375,10 @@
                     updateButton.className = 'btn-update btn-update-disabled';
                     updateButton.title = selfUpdatePhaseLabel(selfUpdateState);
                     updateButton.disabled = true;
+                } else if (presentationUpdateStatus !== 'available') {
+                    updateButton.className = 'btn-update btn-update-disabled';
+                    updateButton.title = presentationUpdateStatus === 'current' ? 'Already up-to-date' : 'Update status unknown';
+                    updateButton.disabled = true;
                 } else {
                     const updateClass = presentationUpdateStatus === 'available' ? 'btn-update btn-update-available' : 'btn-update btn-update-current';
                     const verInfo = versionsCache && versionsCache[key] ? versionsCache[key] : {};
