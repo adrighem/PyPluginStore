@@ -17,6 +17,10 @@ def test_theme_paths_and_validation(plugin_core_module, tmp_path):
     # Test key validations
     assert host.validate_theme_key("nightglass") == "nightglass"
     assert host.validate_theme_key("osi-dark") == "osi-dark"
+    assert host.validate_theme_key("aurora") == "aurora"
+    assert host.validate_theme_key("little-theme") == "little-theme"
+    assert host.validate_theme_key("serenity") == "serenity"
+    assert host.validate_theme_key("think-theme") == "think-theme"
 
     with pytest.raises(ValueError):
         host.validate_theme_key(".")

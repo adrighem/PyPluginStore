@@ -34,5 +34,53 @@
     "entry_files": ["custom.css"],
     "contains_javascript": true,
     "requires_restart": "first_install"
+  },
+  "aurora": {
+    "display_name": "Aurora Theme",
+    "author": "flatsiedatsie",
+    "repository": "domoticz-aurora-theme",
+    "branch": "master",
+    "description": "A modern theme for Domoticz, the open source home automation platform.",
+    "target_dir": "aurora",
+    "source_path": ".",
+    "entry_files": ["custom.css"],
+    "contains_javascript": false,
+    "requires_restart": "first_install"
+  },
+  "little-theme": {
+    "display_name": "LittleTheme",
+    "author": "Tixav",
+    "repository": "LittleTheme",
+    "branch": "main",
+    "description": "Theme for domoticz UI",
+    "target_dir": "little-theme",
+    "source_path": ".",
+    "entry_files": ["custom.css"],
+    "contains_javascript": false,
+    "requires_restart": "first_install"
+  },
+  "serenity": {
+    "display_name": "Serenity Theme",
+    "author": "gpajot",
+    "repository": "domoticz-serenity-theme",
+    "branch": "main",
+    "description": "Clean and calm serenity theme for Domoticz.",
+    "target_dir": "serenity",
+    "source_path": ".",
+    "entry_files": ["custom.css"],
+    "contains_javascript": false,
+    "requires_restart": "first_install"
+  },
+  "think-theme": {
+    "display_name": "ThinkTheme",
+    "author": "DewGew",
+    "repository": "Domoticz-ThinkTheme",
+    "branch": "master",
+    "description": "ThinkTheme V2",
+    "target_dir": "think-theme",
+    "source_path": ".",
+    "entry_files": ["custom.css"],
+    "contains_javascript": false,
+    "requires_restart": "first_install"
   }
 }
