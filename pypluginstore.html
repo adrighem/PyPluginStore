@@ -317,6 +317,7 @@
     }
 
     #pypluginstore-status {
+        display: inline-block;
         font-weight: 500;
         font-size: 0.85em;
         color: var(--pps-panel-text);
@@ -325,6 +326,7 @@
         padding: 5px 12px;
         border-radius: var(--pps-radius);
         box-shadow: var(--pps-panel-shadow);
+        margin-bottom: 16px;
     }
 
     #pypluginstore-status:empty {
@@ -1157,9 +1159,10 @@
             <button id="manage-local-registry" class="btn-local-registry" type="button">Local registry</button>
             <button id="refresh-update-status" class="btn-refresh" type="button">Refresh status</button>
             <button id="restart-domoticz" class="btn-restart" type="button">Restart Domoticz</button>
-            <div id="pypluginstore-status" role="status" aria-live="polite" aria-atomic="true">Initializing...</div>
         </div>
     </div>
+
+    <div id="pypluginstore-status" role="status" aria-live="polite" aria-atomic="true">Initializing...</div>
 
     <div class="pps-tabs">
         <button id="tab-plugins" class="pps-tab active" type="button">Plugins</button>
