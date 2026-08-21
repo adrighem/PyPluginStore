@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.28.0](https://github.com/adrighem/PyPluginStore/compare/v2.27.2...v2.28.0) (2026-08-21)
+
+
+### Features
+
+* add aurora, little-theme, serenity, and think-theme to themes registry ([b35710b](https://github.com/adrighem/PyPluginStore/commit/b35710bcf51ac6a6d446f1c570e96f56e5de460a))
+
+
+### Bug Fixes
+
+* display new commits available for Git manager and plugins when semantic versions match ([d344edc](https://github.com/adrighem/PyPluginStore/commit/d344edc42d4aefb80fe9b1f61791af455a181a22))
+
+
+### Styles
+
+* move pypluginstore-status below header line and configure pytest default quiet mode ([8914f04](https://github.com/adrighem/PyPluginStore/commit/8914f045faaa3b8c26396aea5444c0766311f4f6))
+
 ## [2.27.2](https://github.com/adrighem/PyPluginStore/compare/v2.27.1...v2.27.2) (2026-08-20)
 
 
