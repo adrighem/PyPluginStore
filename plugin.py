@@ -20445,7 +20445,12 @@ class BasePlugin:
         elif status == "available":
             summary = "Release available"
         elif status == "git_available":
-            summary = "Git - update available"
+            installed_v = state.get("installed_version")
+            available_v = state.get("available_version")
+            if installed_v and available_v and installed_v == available_v:
+                summary = "Git - new commits available"
+            else:
+                summary = "Git - update available"
         elif status == "migration_available":
             summary = "Git - Release migration available"
         elif status == "migration_confirmation_required":

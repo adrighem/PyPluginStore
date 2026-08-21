@@ -4013,11 +4013,14 @@
         return [channelPrefix, ...details].filter(Boolean).join(' · ');
     }
 
-    function formatCardManagementStatus(management, isManager, updateStatus) {
+    function formatCardManagementStatus(management, isManager, updateStatus, verInfo) {
         if (management) {
             return formatReleaseManagementStatus(management);
         }
         if (isManager && updateStatus === 'available') {
+            if (verInfo && verInfo.installed && verInfo.available && verInfo.installed === verInfo.available) {
+                return 'Git - new commits available';
+            }
             return 'Git - update available';
         }
         return '';
@@ -4266,10 +4269,12 @@
             }
 
             if (isInstalled) {
+                const verInfo = (versionsCache && versionsCache[key]) || null;
                 const managementText = formatCardManagementStatus(
                     management,
                     isManager,
-                    presentationUpdateStatus
+                    presentationUpdateStatus,
+                    verInfo
                 );
                 if (managementText) {
                     const managementDetail = document.createElement('span');
