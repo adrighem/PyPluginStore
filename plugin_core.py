@@ -11055,7 +11055,7 @@ class ReleaseTransactionManager:
         if (
             metadata is None
             or metadata.management_mode != "release"
-            or metadata.plugin_key != plugin_key
+            or metadata.plugin_key.casefold() != plugin_key.casefold()
         ):
             return False
         fields = (
@@ -20067,9 +20067,15 @@ class BasePlugin:
                 raise ValueError(
                     "Installed plugin folders could not be scanned safely."
                 )
-        ambiguous_folders = self.ambiguous_installed_plugin_folders.get(
-            plugin_key, []
-        )
+
+        plugin_key_cf = plugin_key.casefold()
+
+        ambiguous_folders = []
+        for key, folders in self.ambiguous_installed_plugin_folders.items():
+            if key.casefold() == plugin_key_cf:
+                ambiguous_folders = folders
+                break
+
         if ambiguous_folders:
             raise ValueError(
                 "Multiple installed folders match "
@@ -20078,19 +20084,31 @@ class BasePlugin:
                 + ", ".join(ambiguous_folders)
                 + ". Remove or rename duplicates before continuing."
             )
-        install_conflict = self.installed_plugin_install_conflicts.get(
-            plugin_key,
-            {},
-        ).get("management_error", "")
+
+        install_conflict = ""
+        for key, conf in self.installed_plugin_install_conflicts.items():
+            if key.casefold() == plugin_key_cf:
+                install_conflict = conf.get("management_error", "")
+                break
+
         if install_conflict:
             raise ValueError(install_conflict)
-        management_error = self.installed_plugin_match_details.get(
-            plugin_key,
-            {},
-        ).get("management_error", "")
+
+        management_error = ""
+        for key, detail in self.installed_plugin_match_details.items():
+            if key.casefold() == plugin_key_cf:
+                management_error = detail.get("management_error", "")
+                break
+
         if management_error:
             raise ValueError(management_error)
-        plugin_folder = self.installed_plugin_folders.get(plugin_key, "")
+
+        plugin_folder = ""
+        for key, folder in self.installed_plugin_folders.items():
+            if key.casefold() == plugin_key_cf:
+                plugin_folder = folder
+                break
+
         if plugin_folder and os.path.isdir(os.path.join(plugins_dir, plugin_folder)):
             return plugin_folder
 
@@ -20099,9 +20117,13 @@ class BasePlugin:
             raise ValueError(
                 "Installed plugin folders could not be scanned safely."
             )
-        ambiguous_folders = self.ambiguous_installed_plugin_folders.get(
-            plugin_key, []
-        )
+
+        ambiguous_folders = []
+        for key, folders in self.ambiguous_installed_plugin_folders.items():
+            if key.casefold() == plugin_key_cf:
+                ambiguous_folders = folders
+                break
+
         if ambiguous_folders:
             raise ValueError(
                 "Multiple installed folders match "
@@ -20110,19 +20132,32 @@ class BasePlugin:
                 + ", ".join(ambiguous_folders)
                 + ". Remove or rename duplicates before continuing."
             )
-        install_conflict = self.installed_plugin_install_conflicts.get(
-            plugin_key,
-            {},
-        ).get("management_error", "")
+
+        install_conflict = ""
+        for key, conf in self.installed_plugin_install_conflicts.items():
+            if key.casefold() == plugin_key_cf:
+                install_conflict = conf.get("management_error", "")
+                break
+
         if install_conflict:
             raise ValueError(install_conflict)
-        management_error = self.installed_plugin_match_details.get(
-            plugin_key,
-            {},
-        ).get("management_error", "")
+
+        management_error = ""
+        for key, detail in self.installed_plugin_match_details.items():
+            if key.casefold() == plugin_key_cf:
+                management_error = detail.get("management_error", "")
+                break
+
         if management_error:
             raise ValueError(management_error)
-        return self.installed_plugin_folders.get(plugin_key, plugin_key)
+
+        plugin_folder = ""
+        for key, folder in self.installed_plugin_folders.items():
+            if key.casefold() == plugin_key_cf:
+                plugin_folder = folder
+                break
+
+        return plugin_folder if plugin_folder else plugin_key
 
     def resolve_installed_plugin_dir(
         self,
