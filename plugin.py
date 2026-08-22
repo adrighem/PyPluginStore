@@ -9174,6 +9174,32 @@ class ReleaseTransaction:
         return self.plugin_key
 
 
+class ReleaseSnapshotService:
+    """Dedicated service for capturing and validating staged release snapshots."""
+
+    def __init__(self, plugin, manager):
+        self.plugin = plugin
+        self.manager = manager
+
+    def capture_staged_snapshot(self, root, transaction):
+        metadata = InstallMetadataService(self.plugin).read(root)
+        if not self.manager._release_metadata_matches(
+            metadata,
+            transaction.plugin_key,
+            transaction.target,
+        ):
+            raise ValueError("Staged metadata does not match the target.")
+        snapshot = self.manager._snapshot_for_metadata(metadata)
+        if not self.manager._release_tree_matches_descriptor(
+            root,
+            transaction.plugin_key,
+            transaction.target,
+            snapshot,
+        ):
+            raise ValueError("Staged release inventory is invalid.")
+        return snapshot
+
+
 class ReleaseTransactionManager:
     """Durably activate and recover manager-owned release transactions."""
 
@@ -9181,6 +9207,7 @@ class ReleaseTransactionManager:
         if plugin is None:
             raise ValueError("plugin is required.")
         self.plugin = plugin
+        self.snapshot_service = ReleaseSnapshotService(plugin, self)
         self.fault_injector = None
 
     def _fsync_directory(self, path):
@@ -10715,24 +10742,6 @@ class ReleaseTransactionManager:
             transaction.staged_snapshot,
         )
 
-    def _capture_staged_snapshot(self, root, transaction):
-        metadata = InstallMetadataService(self.plugin).read(root)
-        if not self._release_metadata_matches(
-            metadata,
-            transaction.plugin_key,
-            transaction.target,
-        ):
-            raise ValueError("Staged metadata does not match the target.")
-        snapshot = self._snapshot_for_metadata(metadata)
-        if not self._release_tree_matches_descriptor(
-            root,
-            transaction.plugin_key,
-            transaction.target,
-            snapshot,
-        ):
-            raise ValueError("Staged release inventory is invalid.")
-        return snapshot
-
     def _dependency_tree_state(self, path, label):
         if not os.path.lexists(path):
             return {"present": False, "tree": None}
@@ -10771,7 +10780,7 @@ class ReleaseTransactionManager:
                 "Staged release code",
             )
             try:
-                staged_snapshot = self._capture_staged_snapshot(
+                staged_snapshot = self.snapshot_service.capture_staged_snapshot(
                     transaction.paths.staged_code,
                     transaction,
                 )
