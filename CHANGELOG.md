@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.28.1](https://github.com/adrighem/PyPluginStore/compare/v2.28.0...v2.28.1) (2026-08-22)
+
+
+### Bug Fixes
+
+* **core:** ensure robust casefolded lookup of plugin folders ([ea1e306](https://github.com/adrighem/PyPluginStore/commit/ea1e306f15d20ae702c3d88937858daba0886926))
+
 ## [2.28.0](https://github.com/adrighem/PyPluginStore/compare/v2.27.2...v2.28.0) (2026-08-21)
 
 
