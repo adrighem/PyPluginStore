@@ -67,7 +67,15 @@ def compare_packages(orig_pkg, local_pkg):
 
     return changes
 
-def main():
+def main(argv=None):
+    if argv is None:
+        argv = []
+    import argparse
+    parser = argparse.ArgumentParser(description="Summarize registry changes.")
+    parser.add_argument("--pr-body-output", help="Path to write the PR body markdown.")
+    parser.add_argument("--commit-message-output", help="Path to write the Conventional Commit message.")
+    args = parser.parse_args(argv)
+
     # 1. Load Local files
     if os.path.isfile(REGISTRY_FILE_PATH):
         local_registry = load_registry_file(REGISTRY_FILE_PATH)
@@ -141,65 +149,119 @@ def main():
             added_tombstones.append(tomb)
 
     # 5. Generate Markdown Output
-    print("This automated PR updates the Domoticz Python plugin registry with newly discovered plugins, refreshed repository metadata, and inferred platform badges from supported Git forges.")
-    print()
-    print("Newly discovered plugins use explicit package records with a certified Domoticz runtime key, a provider-neutral repository URL, and a reviewed release-first delivery policy. Git delivery remains available.")
-    print()
-    print("The platform badge inference checks repository metadata, README and install text, selected source files, platform-specific imports, scripts, and OS-specific paths or commands.")
-    print()
-    print("## Data Changes")
-    print()
+    pr_body_lines = []
+    def pr_print(text=""):
+        pr_body_lines.append(text)
+
+    pr_print("This automated PR updates the Domoticz Python plugin registry with newly discovered plugins, refreshed repository metadata, and inferred platform badges from supported Git forges.")
+    pr_print()
+    pr_print("Newly discovered plugins use explicit package records with a certified Domoticz runtime key, a provider-neutral repository URL, and a reviewed release-first delivery policy. Git delivery remains available.")
+    pr_print()
+    pr_print("The platform badge inference checks repository metadata, README and install text, selected source files, platform-specific imports, scripts, and OS-specific paths or commands.")
+    pr_print()
+    pr_print("## Data Changes")
+    pr_print()
 
     # Summary list
-    print("### Summary")
-    print(f"- **Release index sequence**: `{orig_index.get('sequence', 'N/A')}` -> `{local_index.get('sequence', 'N/A')}`")
-    print(f"- **Active releases**: `{len(orig_releases_map)}` -> `{len(local_releases_map)}`")
-    print(f"- **Tombstones**: `{len(orig_tombstones_map)}` -> `{len(local_tombstones_map)}`")
-    print(f"- **Packages**: `{len(orig_registry)}` -> `{len(local_registry)}`")
-    print()
+    pr_print("### Summary")
+    pr_print(f"- **Release index sequence**: `{orig_index.get('sequence', 'N/A')}` -> `{local_index.get('sequence', 'N/A')}`")
+    pr_print(f"- **Active releases**: `{len(orig_releases_map)}` -> `{len(local_releases_map)}`")
+    pr_print(f"- **Tombstones**: `{len(orig_tombstones_map)}` -> `{len(local_tombstones_map)}`")
+    pr_print(f"- **Packages**: `{len(orig_registry)}` -> `{len(local_registry)}`")
+    pr_print()
 
     # Added Packages
     if added_packages:
-        print("### New Packages Added")
+        pr_print("### New Packages Added")
         for pkg_id, repo_url, desc in added_packages:
-            print(f"- **`{pkg_id}`** ({repo_url}): {desc}")
-        print()
+            pr_print(f"- **`{pkg_id}`** ({repo_url}): {desc}")
+        pr_print()
 
     # Removed Packages
     if removed_packages:
-        print("### Packages Removed")
+        pr_print("### Packages Removed")
         for pkg_id, repo_url in removed_packages:
-            print(f"- **`{pkg_id}`** ({repo_url})")
-        print()
+            pr_print(f"- **`{pkg_id}`** ({repo_url})")
+        pr_print()
 
     # Updated Packages
     if updated_packages:
-        print("### Packages Updated")
+        pr_print("### Packages Updated")
         for pkg_id, repo_url, changes in updated_packages:
-            print(f"- **`{pkg_id}`** ({repo_url}):")
+            pr_print(f"- **`{pkg_id}`** ({repo_url}):")
             for change in changes:
-                print(f"  - {change}")
-        print()
+                pr_print(f"  - {change}")
+        pr_print()
 
     # Added Releases
     if added_releases:
-        print("### New Active Releases")
+        pr_print("### New Active Releases")
         for rel in sorted(added_releases, key=lambda x: (x.get("package_id", ""), x.get("version", ""))):
             pkg_id = rel.get("package_id")
             version = rel.get("version")
             tag = rel.get("tag")
-            print(f"- **`{pkg_id}`**: version `{version}` (tag `{tag}`)")
-        print()
+            pr_print(f"- **`{pkg_id}`**: version `{version}` (tag `{tag}`)")
+        pr_print()
 
     # Added Tombstones
     if added_tombstones:
-        print("### New Tombstones")
+        pr_print("### New Tombstones")
         for tomb in sorted(added_tombstones, key=lambda x: (x.get("package_id", ""), x.get("release_id", ""))):
             pkg_id = tomb.get("package_id")
             rel_id = tomb.get("release_id")
             reason = tomb.get("reason")
-            print(f"- **`{pkg_id}`**: `{rel_id}` - Reason: {reason}")
-        print()
+            pr_print(f"- **`{pkg_id}`**: `{rel_id}` - Reason: {reason}")
+        pr_print()
+
+    pr_body_text = "\n".join(pr_body_lines)
+    if args.pr_body_output:
+        with open(args.pr_body_output, "w", encoding="utf-8") as f:
+            f.write(pr_body_text + "\n")
+    else:
+        print("PR Body:")
+        print(pr_body_text)
+
+    # 6. Generate Commit Message
+    commit_parts = []
+    if added_packages:
+        added_names = [pkg_id for pkg_id, _, _ in added_packages]
+        if len(added_names) <= 3:
+            added_str = ", ".join(added_names)
+        else:
+            added_str = ", ".join(added_names[:3]) + " and others"
+        commit_parts.append(f"add {added_str}")
+    if removed_packages:
+        removed_names = [pkg_id for pkg_id, _ in removed_packages]
+        if len(removed_names) <= 3:
+            removed_str = ", ".join(removed_names)
+        else:
+            removed_str = ", ".join(removed_names[:3]) + " and others"
+        commit_parts.append(f"remove {removed_str}")
+    if updated_packages:
+        updated_names = [pkg_id for pkg_id, _, _ in updated_packages]
+        if len(updated_names) <= 3:
+            updated_str = ", ".join(updated_names)
+        else:
+            updated_str = ", ".join(updated_names[:3]) + " and others"
+        commit_parts.append(f"update {updated_str}")
+
+    if not commit_parts:
+        orig_seq = orig_index.get('sequence', 0) if orig_index else 0
+        local_seq = local_index.get('sequence', 0) if local_index else 0
+        if orig_seq != local_seq:
+            commit_msg = "fix(registry): refresh release metadata"
+        else:
+            commit_msg = "fix(registry): update Domoticz Python plugin registry"
+    else:
+        commit_msg = "fix(registry): " + "; ".join(commit_parts)
+
+    if args.commit_message_output:
+        with open(args.commit_message_output, "w", encoding="utf-8") as f:
+            f.write(commit_msg + "\n")
+    else:
+        print("Commit Message:")
+        print(commit_msg)
 
 if __name__ == "__main__":
-    main()
+    import sys
+    sys.exit(main(sys.argv[1:]))

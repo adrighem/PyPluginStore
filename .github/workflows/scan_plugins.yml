@@ -74,14 +74,22 @@ jobs:
 
       - name: Summarize registry changes
         run: |
-          python .github/scripts/summarize_registry_changes.py > "${{ runner.temp }}/pr-body.md"
+          python .github/scripts/summarize_registry_changes.py \
+            --pr-body-output "${{ runner.temp }}/pr-body.md" \
+            --commit-message-output "${{ runner.temp }}/commit-message.txt"
           cat "${{ runner.temp }}/pr-body.md" >> $GITHUB_STEP_SUMMARY
+
+      - name: Read Commit Message
+        id: get_msg
+        run: |
+          msg=$(cat "${{ runner.temp }}/commit-message.txt")
+          echo "COMMIT_MSG=$msg" >> $GITHUB_ENV
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "feat: update Domoticz Python plugin registry"
+          commit-message: ${{ env.COMMIT_MSG }}
           title: "Update Domoticz Python plugin registry from weekly scan"
           body-path: "${{ runner.temp }}/pr-body.md"
           branch: "auto-add-plugins"
