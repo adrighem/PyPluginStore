@@ -1054,6 +1054,28 @@
       }
     },
     {
+      "package_id": "Domoticz-OpenAQ-Plugin",
+      "domoticz_key": "xfr_openaq4",
+      "description": "Get the air quality - API Version 3.0 compatible, thanks to :waltervl and :xofor for their previous developments.",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-OpenAQ-Plugin",
+        "branch": "master"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-OpenDTU-Plugin",
       "domoticz_key": "OpenDTU",
       "description": "Plugin to collect datas from OpenDTU",
@@ -3048,6 +3070,28 @@
       }
     },
     {
+      "package_id": "MaxSonar",
+      "domoticz_key": "MaxSonar-remote",
+      "description": "Domoticz plugin for Max Sonar distance meter",
+      "repository": {
+        "url": "https://github.com/saidlm/MaxSonar",
+        "branch": "main"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "MeshCore",
       "domoticz_key": "MeshCore",
       "description": "Domoticz integration for MeshCore",
@@ -4061,7 +4105,7 @@
     {
       "package_id": "dell-idrac",
       "domoticz_key": "dellidrac",
-      "description": "Dell PowerEdge monitoring via the iDRAC Redfish API: temperatures, fans, power, utilization, storage and health, with opt-in power control.",
+      "description": "Domoticz plugin that monitors a Dell PowerEdge server over the iDRAC Redfish API: temperatures, fans, power, utilization, storage and health, with opt-in power control.",
       "repository": {
         "url": "https://github.com/Rouzax/dell-idrac-domoticz-plugin",
         "branch": "dist"

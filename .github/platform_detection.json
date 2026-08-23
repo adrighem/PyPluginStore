@@ -223,6 +223,38 @@
       "source": "legacy_detected"
     },
     {
+      "branch": "dist",
+      "confidence": "unknown",
+      "evidence_class": "manual_registry_edit",
+      "identity": "github.com/rouzax/dell-idrac-domoticz-plugin@dist",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 2,
+          "windows": 0
+        }
+      },
+      "owner": "Rouzax",
+      "package_id": "dell-idrac",
+      "policy_action": "kept_reviewed",
+      "registry_platforms": [
+        "linux",
+        "windows"
+      ],
+      "repository": "dell-idrac-domoticz-plugin",
+      "reviewed": true,
+      "source": "reviewed"
+    },
+    {
       "branch": "master",
       "confidence": "unknown",
       "evidence_class": "legacy",
@@ -1267,6 +1299,35 @@
       "repository": "domoticz-onkyo-plugin",
       "reviewed": false,
       "source": "legacy_detected"
+    },
+    {
+      "branch": "master",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/janreimen/domoticz-openaq-plugin@master",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "generic: no Linux-only or Windows-only evidence found"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 0,
+          "windows": 0
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-OpenAQ-Plugin",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Domoticz-OpenAQ-Plugin",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "main",
@@ -3316,6 +3377,35 @@
       "repository": "Mattericz",
       "reviewed": false,
       "source": "legacy_detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/saidlm/maxsonar@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "generic: no Linux-only or Windows-only evidence found"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 0,
+          "windows": 0
+        }
+      },
+      "owner": "saidlm",
+      "package_id": "MaxSonar",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "MaxSonar",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "main",
