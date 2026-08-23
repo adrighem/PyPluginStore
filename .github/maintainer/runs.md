@@ -1,5 +1,20 @@
 # Maintainer Runs
 
+## 2026-08-23 - Resolve transitional Issue #150 recurrence & Merge registry update PR #160
+
+Scope:
+- Investigated the recurrence of the "Release metadata is expired" error on Issue #150 reported this morning.
+- Identified the root cause as a one-time transitional gap: the index sitting on `master` had been generated on August 16 (PR #149) with the old 7-day expiration limit, expiring today at 04:29 UTC. The August 17 script fix did not retroactively regenerate it.
+- Reviewed and confirmed that the newly generated automated weekly scan PR #160 successfully generates `release_index.json` with the new 16-day validity format (expires September 8).
+- Coordinated PR #160 merge, deploying the fresh index.
+- Added a friendly explanation and closed Issue #150.
+- Updated `.github/maintainer/notes/issue-150.md` notes.
+
+Verification:
+- Confirmed PR #160 index structure and validity window of 16 days.
+- Local test suite passed fully (1563 passed).
+- Updated inbox status using `gh-helper`.
+
 ## 2026-08-18 - Resolve FullyKiosk release_mutation block (Issue #150 follow-up)
 
 Scope:
