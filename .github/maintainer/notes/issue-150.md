@@ -29,3 +29,8 @@ Implementation notes:
 
 Verification:
 - Local test suite passed (1558 passed).
+
+### Update 2026-08-23: Recurrence of Index Expiration
+- Users reported the issue again this morning (August 23).
+- **Root Cause:** The fix on 2026-08-17 updated the script to 16 days, but did not retroactively regenerate `release_index.json` on `master`. The index on `master` remained the one generated on August 16, which had a 7-day expiration. Thus, it expired today at 04:29 UTC.
+- **Resolution:** The automated weekly scan ran today and generated PR #160 with the correct 16-day validity (expires 2026-09-08). Merging PR #160 permanently resolves this transition issue. No further changes to `plugin_core.py` are needed.
