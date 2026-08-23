@@ -1,5 +1,31 @@
 # Maintainer Runs
 
+## 2026-08-23 - v2.29.0 release
+
+Scope:
+- Reviewed the complete Release Please `PR:161` diff, provenance, version
+  consistency, generated artifact, and checks.
+- Independently reviewed and validated exact head `075bba0` in the local branch.
+- Merged only that reviewed head through the existing release pull request.
+- Verified the v2.29.0 tag, release target, publication state, and branding
+  assets.
+- Fast-forwarded local `master` while preserving unrelated maintainer-record
+  edits.
+
+Verification:
+- Exact pull-request head: 1,563 tests passed in a sanitized environment.
+- Generated-runtime parity, Python compilation, and `git diff --check` passed.
+- Post-merge Ubuntu and Windows validation, live registry validation, generated
+  runtime verification, Release Please, and CodeQL passed.
+
+Notes:
+- `PR:161` merged as `bcf76f8`.
+- v2.29.0 is published, non-draft, non-prerelease, and tagged at `bcf76f8`.
+- All three branding assets are present.
+- Cleared one low-risk release notification; the repository inbox is empty.
+- Release:
+  `https://github.com/adrighem/PyPluginStore/releases/tag/v2.29.0`.
+
 ## 2026-08-23 - Resolve transitional Issue #150 recurrence & Merge registry update PR #160
 
 Scope:
