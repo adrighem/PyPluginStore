@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.29.0](https://github.com/adrighem/PyPluginStore/compare/v2.28.1...v2.29.0) (2026-08-23)
+
+
+### Features
+
+* update Domoticz Python plugin registry ([e6077d9](https://github.com/adrighem/PyPluginStore/commit/e6077d927ecf116dc6b8c72b3d197b72c0ffd304))
+
+
+### Bug Fixes
+
+* **ci:** support dynamic conventional patch commits for weekly scan ([87361e8](https://github.com/adrighem/PyPluginStore/commit/87361e8c0ba807f6fc41b6a5a277a4c87c27643d))
+
+
+### Documentation
+
+* **maintainer:** document recurrence of issue 150 on Aug 23 ([45ba9b5](https://github.com/adrighem/PyPluginStore/commit/45ba9b5a3c4f2f37d600347350648e9798a76a18))
+* **maintainer:** document run 2026-08-23 for transitional index expiration ([dc1d735](https://github.com/adrighem/PyPluginStore/commit/dc1d735ef8d24028a13d0e6cac2b727c010e4fdc))
+
 ## [2.28.1](https://github.com/adrighem/PyPluginStore/compare/v2.28.0...v2.28.1) (2026-08-22)
 
 
