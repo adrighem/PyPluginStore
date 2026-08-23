@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.29.1](https://github.com/adrighem/PyPluginStore/compare/v2.29.0...v2.29.1) (2026-08-23)
+
+
+### Documentation
+
+* **maintainer:** document run for v2.29.0 release ([9c904a9](https://github.com/adrighem/PyPluginStore/commit/9c904a9d3c7ba41da443d962e31fe5467f03b651))
+
 ## [2.29.0](https://github.com/adrighem/PyPluginStore/compare/v2.28.1...v2.29.0) (2026-08-23)
 
 
