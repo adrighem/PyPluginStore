@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-08-23T04:29:18Z",
-  "generated_at": "2026-08-16T04:29:18Z",
-  "registry_sha256": "edcdad3f6aab49c65674433f2e68d5d0c6ec36f1861133dcecf67c1764370e7c",
+  "expires_at": "2026-09-08T04:39:13Z",
+  "generated_at": "2026-08-23T04:39:13Z",
+  "registry_sha256": "68459c4fdf8b65449b0b88be44b8528cc95c5635f8ab70b0779bc64befa1c0dd",
   "releases": [
     {
       "artifact": {
@@ -182,6 +182,36 @@
       "supersedes": [],
       "tag": "v0.0.1",
       "version": "0.0.1"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "janreimen-Domoticz-OpenAQ-Plugin-802e48b",
+        "sha256": "fd4d6922676ed029bd717b8adc46fca261273e802e91dbaca00773acdc345428",
+        "size": 86766,
+        "source_path": ".",
+        "tree_sha256": "7ab45e87d72cc7d3424dede0d360acf02c9ca7da70c3ea336901d78dbf36b775",
+        "url": "https://api.github.com/repos/janreimen/domoticz-openaq-plugin/zipball/802e48bfe2c12b3aee31471948e3a80c97cba49b"
+      },
+      "certified_identity": {
+        "domoticz_key": "xfr_openaq4",
+        "plugin_py_sha256": "d8bd712adf91215d72d942fef1ec4ae3625788b10bed5f47027a1c24f55ee6f8"
+      },
+      "commit": "802e48bfe2c12b3aee31471948e3a80c97cba49b",
+      "package_id": "Domoticz-OpenAQ-Plugin",
+      "provider": "github",
+      "release_id": "github:janreimen/domoticz-openaq-plugin:v4.0",
+      "released_at": "2026-08-18T11:37:53Z",
+      "repository_identity": "github.com/janreimen/domoticz-openaq-plugin",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v4.0",
+      "version": "4.0"
     },
     {
       "artifact": {
@@ -1082,6 +1112,36 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
+        "root_prefix": "Rouzax-dell-idrac-domoticz-plugin-fa04382",
+        "sha256": "ebd236a011c86c17dfd28241197f96bd23ea9ab249011c73c99c7e6eeb5dc530",
+        "size": 71774,
+        "source_path": ".",
+        "tree_sha256": "384184d1374bb73721f6db08fc59bdbb25ae9e3c0af45fb1042b876d9c6095a3",
+        "url": "https://api.github.com/repos/rouzax/dell-idrac-domoticz-plugin/zipball/fa043827bb3ff41ce15dbbbe43e858d0e1c93009"
+      },
+      "certified_identity": {
+        "domoticz_key": "dellidrac",
+        "plugin_py_sha256": "8dcc027488dee8cceb3584d82b8e6d17a8cb110013686c2dcda19a5d78436455"
+      },
+      "commit": "fa043827bb3ff41ce15dbbbe43e858d0e1c93009",
+      "package_id": "dell-idrac",
+      "provider": "github",
+      "release_id": "github:rouzax/dell-idrac-domoticz-plugin:v0.3.0",
+      "released_at": "2026-08-22T18:28:44Z",
+      "repository_identity": "github.com/rouzax/dell-idrac-domoticz-plugin",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v0.3.0",
+      "version": "0.3.0"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
         "root_prefix": "Guintolli-domoticz-P110Tapo-plugin-8dbb9dc",
         "sha256": "921df296da00a350e8f7bfdcf367fe525c7ff6f35f3d7c8b3b6842db75ac8f7c",
         "size": 7056,
@@ -1502,7 +1562,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 12,
+  "sequence": 13,
   "tombstones": [
     {
       "last_revision": 1,
