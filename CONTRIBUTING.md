@@ -46,6 +46,40 @@ change is a compatibility change and needs explicit review. Repository identity
 uses one canonical, credential-free HTTPS web URL; use an empty `platforms`
 array when support is unknown.
 
+### Public Registry Field Reference (`registry.json`)
+
+The public registry format supports the following fields within the `packages` array:
+
+| Field | Type | Required | Explanation |
+| --- | --- | --- | --- |
+| `package_id` | String | Yes | Stable package identity; normal folder name for installation. |
+| `domoticz_key` | String | Yes | Exact Domoticz `<plugin key="...">` value, mapping hardware configuration. |
+| `description` | String | Yes | Description shown in the Plugin Store package catalog card. |
+| `repository` | Object | Yes | Repository configuration containing `url` and `branch`. |
+| `repository.url` | String | Yes | Canonical, credential-free HTTPS web URL to the source repository. |
+| `repository.branch` | String | Yes | Active development or build branch to monitor. |
+| `platforms` | Array | Yes | Target operating systems. Supported: `"linux"`, `"windows"`. Empty `[]` means unknown. |
+| `delivery` | Object | Yes | Delivery policy setting rules for updates and channels. |
+| `delivery.preferred` | String | Yes | Preferred channel. One of: `"git"` (stay on Git branch), `"release"` (use release artifacts), `"release_if_indexed"` (use release if available, fallback to Git). |
+| `delivery.git_supported` | Boolean | Yes | Explicitly denotes if Git branch-based installs are permitted. |
+| `delivery.release` | Object | No | Release-specific policy configuration. Required if `preferred` is `"release"` or `"release_if_indexed"`. |
+| `delivery.release.provider` | String | Yes | The forge host adapter. Supported: `"github"`, `"gitlab"`, `"codeberg"`, `"gitea"`, `"generic"`. |
+| `delivery.release.channel` | String | Yes | Channel restriction. Currently only `"stable"` is supported. |
+| `delivery.release.tag_pattern` | String | No | Regex matching eligible stable tag names. Defaults to `^v?[0-9]+(?:\.[0-9]+){1,3}$`. |
+| `delivery.release.artifact` | String | No | Asset to download. Supported: `"source_zip"`, `"attached_zip"`, `"manifest_zip"`. |
+| `delivery.release.source_path` | String | No | Directory path within the extracted ZIP containing `plugin.py` (defaults to `"."`). |
+| `delivery.release.mutable_paths` | Array | No | String list of relative file/folder paths to preserve across updates (e.g. state databases, local files). |
+| `delivery.release.allowed_origins` | Array | No | List of allowed domain origins for remote ZIP downloads (used only by `"generic"` provider). |
+| `delivery.release.api_base` | String | No | Custom API base URL for self-hosted instances (Gitea/Forgejo). |
+| `delivery.release.web_base` | String | No | Custom web URL base for self-hosted instances (Gitea/Forgejo). |
+| `delivery.release.release_page_size` | Integer | No | Count of releases to fetch per API call. |
+| `delivery.release.manifest_url` | String | No | Strict HTTPS URL pointing to the dynamic manifest metadata (used only by `"generic"` provider). |
+| `delivery.release.asset_name` | String | No | Exact filename of the attached ZIP asset (used only by `"attached_zip"` artifact). |
+| `delivery.release.asset_pattern` | String | No | Regex pattern matching the attached ZIP filename to select (used only by `"attached_zip"` artifact). |
+| `delivery.release.allow_automatic_git_migration` | Boolean | No | Indicates if existing Git checkouts are eligible for automatic Release transition. |
+| `delivery.release.manifest_path` | String | No | Custom subpath within the ZIP to verify the generic manifest, if applicable. |
+| `annotations` | Object | No | Optional dictionary mapping metadata tags or maintainer notes for reference. |
+
 All delivery policies are explicit. GitHub, GitLab, and Codeberg packages
 normally use `release_if_indexed`, a stable-tag source-archive policy, and
 `git_supported: true`. Self-hosted Forgejo/Gitea records also require reviewed
@@ -107,6 +141,34 @@ Theme registry entries live in `themes.json`. Use the following schema:
 ```
 
 Private themes and local tests use `themes_local.json`.
+
+### Theme Registry Field Reference (`themes.json`)
+
+The theme registry format maps theme unique keys to objects with these fields:
+
+| Field | Type | Required | Explanation |
+| --- | --- | --- | --- |
+| `display_name` | String | Yes | Friendly display name shown in the Theme catalog. |
+| `author` | String | Yes | The username or name of the theme creator. |
+| `repository` | String | Yes | The name of the forge repository (e.g. `"domoticz-my-theme"`). |
+| `branch` | String | No | The clone or build reference branch (defaults to `master`). |
+| `description` | String | Yes | Brief description of the theme features and enhancements. |
+| `target_dir` | String | Yes | Name of the install destination subdirectory in Domoticz `www/styles/`. |
+| `source_path` | String | No | Subdirectory containing Compiled stylesheets to load (defaults to `"."`). |
+| `entry_files` | Array | Yes | Ordered list of stylesheet filenames to load (e.g. `["custom.css"]`). |
+| `contains_javascript` | Boolean | Yes | Specifies if the theme bundles or runs custom UI scripting. |
+| `requires_restart` | String | Yes | Restart boundary directive. Typically `"first_install"`. |
+
+### Update Times Field Reference (`update_times.json`)
+
+The `update_times.json` file is a schema-validated cache of last updated timestamps.
+
+| Field | Type | Required | Explanation |
+| --- | --- | --- | --- |
+| `schema_version` | Integer | Yes | The tracking version. Must be `2`. |
+| `updates` | Array | Yes | List of package update timestamp objects. |
+| `updates[].package_id` | String | Yes | Stable package identifier. |
+| `updates[].updated_at` | String | Yes | ISO 8601 UTC timestamp of the last observed update. |
 
 Themes are compiled and served directly from `www/styles/` in Domoticz. To support different theme structures and compilation needs without complex schema additions, the registry uses two optional configuration parameters:
 - `branch`: The checkout reference or build branch (defaults to `master`).

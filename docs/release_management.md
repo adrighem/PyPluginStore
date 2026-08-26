@@ -197,6 +197,67 @@ restart; a Git change outside that bundle does not. Until the loaded backend,
 installed files, deployed custom page, and browser page agree, the Plugin Store
 reports recovery guidance in its main status and keeps mutations read-only.
 
+## Release Index File Format (`release_index.json`)
+
+The generated `release_index.json` acts as a credential-free delivery anchor, cataloging the current certified releases for each package in the store.
+
+### Root-Level Properties
+
+| Field | Type | Required | Explanation |
+| --- | --- | --- | --- |
+| `schema_version` | Integer | Yes | The schema tracking version. Must be `2`. |
+| `sequence` | Integer | Yes | Monotonically increasing generation number tracking public index updates. |
+| `expires_at` | String | Yes | ISO 8601 UTC timestamp when the metadata expires (valid for 16 days). |
+| `generated_at` | String | Yes | ISO 8601 UTC timestamp of metadata generation. |
+| `registry_sha256` | String | Yes | SHA-256 digest of the `registry.json` matching this release index snapshot. |
+| `releases` | Array | Yes | Certified stable release candidate records. |
+| `tombstones` | Array | Yes | Pinned de-certified release records blocked from installation. |
+
+### Release Object Properties (`releases[]`)
+
+Each object in the `releases` array represents a certified stable release of a package:
+
+| Field | Type | Required | Explanation |
+| --- | --- | --- | --- |
+| `package_id` | String | Yes | Stable package identifier. |
+| `version` | String | Yes | Semantic version string of the release. |
+| `tag` | String | Yes | Forge tag name of the release. |
+| `commit` | String | Yes | Git commit SHA-256 hash. |
+| `released_at` | String | Yes | ISO 8601 UTC timestamp when the release was published. |
+| `provider` | String | Yes | Forge platform adapter (`github`, `gitlab`, `codeberg`, etc.). |
+| `repository_identity` | String | Yes | Canonical, credential-free identifier of the upstream repository. |
+| `release_id` | String | Yes | Domain-scoped identifier (e.g. `github:owner/repo:tag`). |
+| `revision` | Integer | Yes | Revision sequence tracker for this package's release indices. |
+| `supersedes` | Array | Yes | List of previous `release_id`s superseded by this version. |
+| `certified_identity` | Object | Yes | Verified root metadata mapping from the `plugin.py`. |
+| `certified_identity.domoticz_key` | String | Yes | The certified `<plugin key="...">` parsed from the file. |
+| `certified_identity.plugin_py_sha256` | String | Yes | SHA-256 hash value of `plugin.py` to assert integrity at runtime. |
+| `artifact` | Object | Yes | Pinned download asset metadata. |
+| `artifact.kind` | String | Yes | Download category type (typically `"source_zip"`). |
+| `artifact.provenance` | String | Yes | Origin category type (typically `"forge_source_archive"`). |
+| `artifact.url` | String | Yes | Absolute source download endpoint. |
+| `artifact.size` | Integer | Yes | File content size in bytes. |
+| `artifact.sha256` | String | Yes | SHA-256 digest of the downloaded archive. |
+| `artifact.root_prefix` | String | Yes | Directory prefix name inside the ZIP. |
+| `artifact.source_path` | String | Yes | Inner source subdirectory containing `plugin.py` (defaults to `"."`). |
+| `artifact.tree_sha256` | String | Yes | SHA-256 hash of the canonical file tree to verify extraction safety. |
+| `artifact.migration` | Object | Yes | Automatic continuity evidence validation metadata. |
+| `artifact.migration.mode` | String | Yes | Transition safety constraint mode (`automatic` or `manual`). |
+| `artifact.migration.evidence` | String | Yes | The continuous integration proof type (e.g. `commit_source_archive`). |
+
+### Tombstone Object Properties (`tombstones[]`)
+
+Each object in the `tombstones` array blocks a de-certified release:
+
+| Field | Type | Required | Explanation |
+| --- | --- | --- | --- |
+| `package_id` | String | Yes | Stable package identifier. |
+| `release_id` | String | Yes | Unique de-certified release ID blocked from runtime execution. |
+| `repository_identity` | String | Yes | Credential-free identification of the associated repository. |
+| `last_revision` | Integer | Yes | The index revision of the release prior to tombstoning. |
+| `removed_at` | String | Yes | ISO 8601 UTC timestamp of revocation. |
+| `reason` | String | Yes | High-signal explanation explaining why the release was blocked. |
+
 ## Metadata compatibility
 
 The public registry and release index use strict schema v2 and do not publish
