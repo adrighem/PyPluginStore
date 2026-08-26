@@ -399,14 +399,20 @@ class HostRuntime:
     def domoticz_dir(self):
         return os.path.abspath(os.path.join(self.plugin_home_folder(), "..", ".."))
 
+    def startup_dir(self):
+        startup_folder = self.parameter("StartupFolder", "")
+        if startup_folder:
+            return os.path.abspath(startup_folder)
+        return self.domoticz_dir()
+
     def shared_deps_dir(self):
         return os.path.join(self.plugin_home_folder(), ".shared_deps")
 
     def templates_dir(self):
-        return os.path.join(self.domoticz_dir(), "www", "templates")
+        return os.path.join(self.startup_dir(), "www", "templates")
 
     def images_dir(self):
-        return os.path.join(self.domoticz_dir(), "www", "images")
+        return os.path.join(self.startup_dir(), "www", "images")
 
     def ui_html_source(self):
         return os.path.join(self.plugin_home_folder(), "pypluginstore.html")
@@ -857,7 +863,7 @@ class HostRuntime:
         return plugin_dir
 
     def themes_dir(self):
-        return os.path.abspath(os.path.join(self.domoticz_dir(), "www", "styles"))
+        return os.path.abspath(os.path.join(self.startup_dir(), "www", "styles"))
 
     def theme_sources_dir(self):
         return os.path.abspath(os.path.join(self.plugin_home_folder(), ".theme_sources"))

@@ -169,8 +169,12 @@ class BasePlugin:
             home_folder_param = Parameters.get("HomeFolder", str(os.getcwd()) + "/")
             html_src = os.path.join(home_folder_param, "pypluginstore.html")
             
-            # Find templates directory (relative to plugins folder)
-            domoticz_dir = os.path.abspath(os.path.join(home_folder_param, "..", ".."))
+            # Find templates directory (relative to plugins folder, or StartupFolder if split)
+            startup_folder_param = Parameters.get("StartupFolder", "")
+            if startup_folder_param:
+                domoticz_dir = os.path.abspath(startup_folder_param)
+            else:
+                domoticz_dir = os.path.abspath(os.path.join(home_folder_param, "..", ".."))
             templates_dir = os.path.join(domoticz_dir, "www", "templates")
             html_dst = os.path.join(templates_dir, "pypluginstore.html")
             
