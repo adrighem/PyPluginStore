@@ -7,6 +7,9 @@
       "extra-files": [
         ".github/scripts/generate_plugin.py",
         "plugin.py"
+      ],
+      "ignore-paths": [
+        ".github/**"
       ]
     }
   },
