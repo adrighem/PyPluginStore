@@ -5,14 +5,7 @@
 
 ### Bug Fixes
 
-* install machinon theme from the dist branch ([a4140e0](https://github.com/adrighem/PyPluginStore/commit/a4140e0d1c3519f7a5d96367f9929c3d83b53759))
-* **themes:** install machinon from the dist branch ([d200e57](https://github.com/adrighem/PyPluginStore/commit/d200e574dfcca7fa1b61fd1fb9b64b5fef82254b))
-
-
-### Documentation
-
-* **maintainer:** document run for v2.29.0 release ([9c904a9](https://github.com/adrighem/PyPluginStore/commit/9c904a9d3c7ba41da443d962e31fe5467f03b651))
-* **maintainer:** expand GEMINI.md with architectural invariants and coding standards ([5bd524b](https://github.com/adrighem/PyPluginStore/commit/5bd524b0719083af12742e2b951efdfcb47f3ebe))
+* **themes:** install machinon from the dist branch ([d200e57](https://github.com/adrighem/PyPluginStore/commit/d200e574dfcca7fa1b61fd1fb9b64b5fef82254b), [a4140e0](https://github.com/adrighem/PyPluginStore/commit/a4140e0d1c3519f7a5d96367f9929c3d83b53759))
 
 ## [2.29.0](https://github.com/adrighem/PyPluginStore/compare/v2.28.1...v2.29.0) (2026-08-23)
 
