@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.29.1](https://github.com/adrighem/PyPluginStore/compare/v2.29.0...v2.29.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **themes:** install machinon from the dist branch ([d200e57](https://github.com/adrighem/PyPluginStore/commit/d200e574dfcca7fa1b61fd1fb9b64b5fef82254b), [a4140e0](https://github.com/adrighem/PyPluginStore/commit/a4140e0d1c3519f7a5d96367f9929c3d83b53759))
+
 ## [2.29.0](https://github.com/adrighem/PyPluginStore/compare/v2.28.1...v2.29.0) (2026-08-23)
 
 
