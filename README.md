@@ -252,6 +252,15 @@ Do not run `pip --target` directly into `.shared_deps`. A later generation swap 
 
 ### Register a plugin
 
+We support two ways to register your plugin, with **Release-based delivery being highly preferred and recommended**:
+
+1. **Release-Based Delivery (Preferred):** Distributes static tagged release archives (ZIP/tarball). Offers superior stability, checksum validation, and faster downloads. Set `delivery.preferred` to `"release_if_indexed"`.
+2. **Git-Based Delivery:** Clones your branch directly. Best for early development or nightly builds. Set `delivery.preferred` to `"git"`.
+
+For complete configuration schemas, validation rules, and examples, follow the [Plugin Delivery Options guidance in CONTRIBUTING.md](CONTRIBUTING.md#plugin-delivery-options).
+
+#### Pre-submission Checklist
+
 Before opening a pull request:
 
 1. Keep `plugin.py` at the repository root and use a stable Domoticz plugin key.

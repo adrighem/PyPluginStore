@@ -1,6 +1,70 @@
 To add a plugin, open a pull request with one complete registry-v2 package
 record and its certified Domoticz identity.
 
+## Plugin Delivery Options
+
+Maintainers can submit plugins using one of two delivery channels. **Release-based delivery is the preferred and recommended option** for all registered plugins.
+
+### 1. Release-Based Delivery (Preferred & Recommended)
+Release-based delivery distributes your plugin via static, immutable release archives (source ZIPs or attached ZIP assets) tagged on your repository forge (GitHub, GitLab, Codeberg, etc.).
+
+**Advantages:**
+- **Stability:** Users receive tested, tagged versions rather than moving branch commits.
+- **Security:** Downloads are checksum-verified (SHA-256) and anchored in the public release index.
+- **Speed:** Only the target version archive is downloaded and extracted, bypassing full Git clones and repository history overhead.
+- **Continuous Lifecycle:** New releases are automatically discovered, certified, and proposed via our weekly scanner.
+
+**Example Configuration (`release_if_indexed`):**
+```json
+{
+  "package_id": "ExampleReleasePlugin",
+  "domoticz_key": "EX-RELEASE",
+  "description": "Stable release-based plugin",
+  "repository": {
+    "url": "https://github.com/maintainer/domoticz-plugin",
+    "branch": "main"
+  },
+  "platforms": ["linux"],
+  "delivery": {
+    "preferred": "release_if_indexed",
+    "git_supported": true,
+    "release": {
+      "provider": "github",
+      "channel": "stable",
+      "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+      "artifact": "source_zip",
+      "source_path": ".",
+      "mutable_paths": []
+    }
+  }
+}
+```
+
+### 2. Git-Based Delivery (Alternative)
+Git-based delivery clones the configured repository branch directly to the user's system.
+
+**Use cases:**
+- Initial development or beta-testing phases where tags are not yet established.
+- Dynamic plugins that require tracking active branch commits directly.
+
+**Example Configuration (`git` only):**
+```json
+{
+  "package_id": "ExampleGitPlugin",
+  "domoticz_key": "EX-GIT",
+  "description": "Branch-based Git plugin",
+  "repository": {
+    "url": "https://github.com/maintainer/domoticz-git-plugin",
+    "branch": "main"
+  },
+  "platforms": ["linux"],
+  "delivery": {
+    "preferred": "git",
+    "git_supported": true
+  }
+}
+```
+
 ## Registry maintenance
 
 Public registry entries live in `registry.json`. Private plugins, local forks,
