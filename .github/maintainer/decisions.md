@@ -1,5 +1,24 @@
 # Maintainer Decisions
 
+## 2026-08-26 - Resolve build branch adoption at the theme registry database layer
+
+Decision: Keep the core runtime `plugin_core.py` lean by rejecting automated CSS parsing, unflattened `@import` scanning, or bare-root clone checks. Fully resolve the build branch request at the registry and documentation layers.
+
+Rationale:
+- `.git` folders are already safely omitted during theme mirroring via `shutil.copytree` in `plugin_core.py`. Other developer-only configurations (like `package.json`) present no server execution or data leak risks for Domoticz static styles serving.
+- Premature automated validations introduce severe technical debt, potential ReDoS/path traversal vulnerabilities, and bloat the 22k-line runtime core.
+- The `themes.json` schema already fully supports custom checkout branches (`branch`) and subdirectory compilation targets (`source_path`).
+- Theme maintainers can adopt build branches seamlessly at the database layer without core code changes.
+
+Implementation notes:
+- Documented three primary supported developer workflows (Minimal Hobbyist, Subfolder Compiler, and Clean Release Branch) in `CONTRIBUTING.md`.
+- Expanded `.github/scripts/validate_plugins.py` to cover strict `themes.json` schema schema validation, safe target directory checks, and git remote branch existence checks as part of the automated CI pull request checks.
+
+Verification:
+- Added `themes.json` automated validation test scenarios to verify schemas.
+- Ran entire test suite successfully (all 1,563 tests passed).
+- Related Issue: #164
+
 ## 2026-08-18 - Allow omitted source_revision for forge-based providers to prevent false release_mutation blocks
 
 Decision: Normalize empty or omitted `source_revision` to the `commit` SHA inside `decide()` when evaluating the immutable fields comparison.

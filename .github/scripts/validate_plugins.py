@@ -10,6 +10,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 REGISTRY_FILE_PATH = os.path.join(SCRIPT_DIR, '../../registry.json')
+THEMES_FILE_PATH = os.path.join(SCRIPT_DIR, '../../themes.json')
 UPDATE_TIMES_FILE_PATH = os.path.join(SCRIPT_DIR, '../../update_times.json')
 PLATFORM_METADATA_FILE_PATH = os.path.join(SCRIPT_DIR, '../../.github/platform_detection.json')
 RELEASE_INDEX_FILE_PATH = os.path.join(SCRIPT_DIR, '../../release_index.json')
@@ -242,6 +243,64 @@ def validate_root_plugin_py(
     return False
 
 
+def validate_theme_entry(key, data):
+    if not isinstance(data, dict):
+        raise ValueError(f"Theme '{key}' must be an object.")
+
+    required_keys = {"display_name": str, "author": str, "repository": str, "branch": str, "description": str, "target_dir": str}
+    for req_key, req_type in required_keys.items():
+        if req_key not in data:
+            raise ValueError(f"Theme '{key}' is missing required key '{req_key}'.")
+        if not isinstance(data[req_key], req_type):
+            raise ValueError(f"Theme '{key}' key '{req_key}' must be a {req_type.__name__}.")
+        if req_key != "description" and not data[req_key].strip():
+            raise ValueError(f"Theme '{key}' key '{req_key}' must not be empty.")
+
+    target_dir = data["target_dir"]
+    if target_dir in (".", "..") or target_dir.startswith(".") or "/" in target_dir or "\\" in target_dir:
+        raise ValueError(f"Theme '{key}' target_dir '{target_dir}' is not a safe directory name.")
+
+    if "source_path" in data:
+        if not isinstance(data["source_path"], str):
+            raise ValueError(f"Theme '{key}' source_path must be a string.")
+        if not data["source_path"].strip():
+            raise ValueError(f"Theme '{key}' source_path must not be empty.")
+
+    if "entry_files" in data:
+        if not isinstance(data["entry_files"], list):
+            raise ValueError(f"Theme '{key}' entry_files must be a list of strings.")
+        for item in data["entry_files"]:
+            if not isinstance(item, str) or not item.strip():
+                raise ValueError(f"Theme '{key}' entry_files must contain non-empty strings.")
+
+    if "contains_javascript" in data and not isinstance(data["contains_javascript"], bool):
+        raise ValueError(f"Theme '{key}' contains_javascript must be a boolean.")
+
+    if "requires_restart" in data:
+        if not isinstance(data["requires_restart"], str):
+            raise ValueError(f"Theme '{key}' requires_restart must be a string.")
+
+
+def load_themes():
+    print(f"Checking if themes file exists at: {THEMES_FILE_PATH}")
+    if not os.path.isfile(THEMES_FILE_PATH):
+        print(f"Themes file not found at: {THEMES_FILE_PATH}")
+        return {}
+
+    with open(THEMES_FILE_PATH, "r", encoding="utf-8") as f:
+        themes_data = json.load(f)
+
+    if not isinstance(themes_data, dict):
+        raise ValueError("themes.json must be a JSON object.")
+
+    for key, data in themes_data.items():
+        if key in (".", "..") or key.startswith(".") or "/" in key or "\\" in key:
+            raise ValueError(f"Theme key '{key}' is not a safe identifier.")
+        validate_theme_entry(key, data)
+
+    return themes_data
+
+
 def main():
     print("Loading registry file...")
     plugin_data = load_registry()
@@ -249,8 +308,12 @@ def main():
         validate_release_index_binding()
     print(f"Loaded {len(plugin_data)} plugins.")
 
-    if not plugin_data:
-        print("No plugin data found, exiting.")
+    print("Loading themes file...")
+    theme_data = load_themes()
+    print(f"Loaded {len(theme_data)} themes.")
+
+    if not plugin_data and not theme_data:
+        print("No plugin or theme data found, exiting.")
         sys.exit(1)
 
     all_valid = True
@@ -273,8 +336,17 @@ def main():
             print(f"❌ Repository {data['author']}/{data['repository']} on branch {data['branch']} is invalid.")
             all_valid = False
 
+    for key, data in theme_data.items():
+        print(f"Validating repository for theme: {key}")
+        repository_is_valid = validate_repository(data["author"], data["repository"], data["branch"])
+        if repository_is_valid:
+            print(f"✅ Theme repository {data['author']}/{data['repository']} on branch {data['branch']} is valid.")
+        else:
+            print(f"❌ Theme repository {data['author']}/{data['repository']} on branch {data['branch']} is invalid.")
+            all_valid = False
+
     if not all_valid:
-        print("One or more plugins are invalid.")
+        print("One or more registry items are invalid.")
         sys.exit(1)  # Exit with a non-zero code to indicate failure
 
 if __name__ == "__main__":

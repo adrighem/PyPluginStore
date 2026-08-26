@@ -2067,3 +2067,79 @@ def test_checked_in_active_artifacts_exclude_blocklisted_repositories(
     )
     assert migration["package_count"] == len(migration["package_mappings"])
     assert migration_repositories.isdisjoint(blocked_repository_identities)
+
+
+def test_validate_theme_entry_accepts_valid_entry(validate_plugins_module):
+    valid_entry = {
+        "display_name": "Test Theme",
+        "author": "test-author",
+        "repository": "test-repo",
+        "branch": "main",
+        "description": "A very beautiful theme.",
+        "target_dir": "test-theme",
+        "source_path": "dist",
+        "entry_files": ["custom.css"],
+        "contains_javascript": False,
+        "requires_restart": "first_install",
+    }
+    # Should not raise exception
+    validate_plugins_module.validate_theme_entry("test-theme", valid_entry)
+
+
+def test_validate_theme_entry_rejects_missing_keys(validate_plugins_module):
+    invalid_entry = {
+        "display_name": "Test Theme",
+        "author": "test-author",
+        "repository": "test-repo",
+        "branch": "main",
+        # "description" is missing
+        "target_dir": "test-theme",
+    }
+    with pytest.raises(ValueError, match="missing required key 'description'"):
+        validate_plugins_module.validate_theme_entry("test-theme", invalid_entry)
+
+
+def test_validate_theme_entry_rejects_invalid_types(validate_plugins_module):
+    invalid_entry = {
+        "display_name": "Test Theme",
+        "author": "test-author",
+        "repository": "test-repo",
+        "branch": 1234,  # branch must be a string
+        "description": "A beautiful theme.",
+        "target_dir": "test-theme",
+    }
+    with pytest.raises(ValueError, match="key 'branch' must be a str"):
+        validate_plugins_module.validate_theme_entry("test-theme", invalid_entry)
+
+
+def test_validate_theme_entry_rejects_unsafe_target_dir(validate_plugins_module):
+    invalid_entry = {
+        "display_name": "Test Theme",
+        "author": "test-author",
+        "repository": "test-repo",
+        "branch": "main",
+        "description": "A beautiful theme.",
+        "target_dir": "../unsafe-path",
+    }
+    with pytest.raises(ValueError, match="not a safe directory name"):
+        validate_plugins_module.validate_theme_entry("test-theme", invalid_entry)
+
+
+def test_load_themes_validates_json_file(validate_plugins_module, tmp_path, monkeypatch):
+    themes_file = tmp_path / "themes.json"
+    themes_data = {
+        "valid-theme": {
+            "display_name": "Valid Theme",
+            "author": "valid-author",
+            "repository": "valid-repo",
+            "branch": "main",
+            "description": "A valid theme",
+            "target_dir": "valid-theme",
+        }
+    }
+    themes_file.write_text(json.dumps(themes_data), encoding="utf-8")
+    monkeypatch.setattr(validate_plugins_module, "THEMES_FILE_PATH", str(themes_file))
+
+    loaded = validate_plugins_module.load_themes()
+    assert "valid-theme" in loaded
+    assert loaded["valid-theme"]["display_name"] == "Valid Theme"
