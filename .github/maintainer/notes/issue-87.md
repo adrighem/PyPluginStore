@@ -1,6 +1,6 @@
 # ISSUE:87 - Implement Parallel Theme Store
 
-Status: ready to commit
+Status: closed
 
 Reporter:
 - `basvdijk` originally requested to have theme support.

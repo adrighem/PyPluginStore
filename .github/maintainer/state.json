@@ -2,11 +2,11 @@
   "last_run": "2026-07-28",
   "repository": "adrighem/PyPluginStore",
   "active_items": {
-    "issues": [87],
+    "issues": [],
     "pull_requests": []
   },
   "recently_closed": {
-    "issues": [41, 44, 46, 52, 53, 54, 55, 56, 57, 60, 61, 62, 64, 65, 69, 70, 73, 74, 91, 95, 98, 111, 117, 122],
+    "issues": [41, 44, 46, 52, 53, 54, 55, 56, 57, 60, 61, 62, 64, 65, 69, 70, 73, 74, 87, 91, 95, 98, 111, 117, 122],
     "pull_requests": [42, 43, 45, 47, 49, 51, 58, 59, 63, 66, 68, 71, 72, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 112, 113, 114, 115, 116, 118, 138, 139, 140, 141, 142, 143]
   },
   "last_shipped_commit": "5814216",
@@ -14,7 +14,7 @@
   "pending_public_actions": {
     "issues": [],
     "pull_requests": [],
-    "summary": "v2.24.4 is published and all post-merge workflows are green. Keep ISSUE:87 as a deferred P3 epic pending a safe theme trust/schema design."
+    "summary": "All post-merge workflows are green. Theme registry validation, documentation, and dynamic verification are successfully completed, resolving the deferred ISSUE:87 epic."
   },
   "last_verification": {
     "pytest": "1526 passed in a sanitized environment on exact PR:143 head bacf8f3",
