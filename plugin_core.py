@@ -10734,10 +10734,10 @@ class ReleaseTransactionManager:
                     transaction.paths.staged_code,
                     transaction,
                 )
-            except (OSError, ValueError):
+            except (OSError, ValueError) as error:
                 raise ValueError(
-                    "Staged release does not match the pinned target."
-                ) from None
+                    "Staged release does not match the pinned target: " + str(error)
+                ) from error
             transaction.staged_snapshot = staged_snapshot
             transaction.phase = "staged_verified"
             transaction.error = ""

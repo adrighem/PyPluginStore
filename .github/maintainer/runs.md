@@ -1,5 +1,17 @@
 # Maintainer Runs
 
+## 2026-08-30 - Resolve issue #169
+
+Scope:
+- Modified staged release verification error handling inside `plugin_core.py` (and regenerated `plugin.py`) to chain and append the original exception message, preventing masking (resolves #169).
+
+Verification:
+- Exact local head: 1,569 tests passed in the local development environment.
+- Generated-runtime parity (`generate_plugin.py`), Python compilation, and no trailing spaces verified.
+
+Notes:
+- Prepared draft commit message and public comments for issue #169.
+
 ## 2026-08-23 - v2.29.0 release
 
 Scope:

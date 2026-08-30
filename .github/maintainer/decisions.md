@@ -1,5 +1,20 @@
 # Maintainer Decisions
 
+## 2026-08-30 - Improve staged release verification errors
+
+Decision:
+- Chain and append the underlying error message when staged release verification fails to expose why the verification failed (resolves masking in Issue #169).
+
+Rationale:
+- **Error Masking (Issue #169):** When staged verification failed inside `mark_staged_verified`, any `ValueError` or `OSError` was caught and replaced with a generic `"Staged release does not match the pinned target."`. This masked important root causes (such as integrity checks, layout layout errors, or path validation errors). Chaining the original error string makes the client's logs highly diagnostic without changing schemas.
+
+Implementation notes:
+- Replaced `except (OSError, ValueError):` with `except (OSError, ValueError) as error:` in `plugin_core.py` (and regenerated `plugin.py`) to chain and append `str(error)` to `"Staged release does not match the pinned target."`.
+
+Verification:
+- Ran full test suite (1569 passed).
+- Related Issue: #169
+
 ## 2026-08-26 - Resolve build branch adoption at the theme registry database layer
 
 Decision: Keep the core runtime `plugin_core.py` lean by rejecting automated CSS parsing, unflattened `@import` scanning, or bare-root clone checks. Fully resolve the build branch request at the registry and documentation layers.
