@@ -31,7 +31,7 @@
     },
     {
       "package_id": "BeemEnergy",
-      "updated_at": "2026-07-28T08:09:05Z"
+      "updated_at": "2026-08-25T20:39:38Z"
     },
     {
       "package_id": "Broadlink-Domoticz-plugin",
@@ -55,11 +55,11 @@
     },
     {
       "package_id": "deCONZ",
-      "updated_at": "2026-03-29T14:23:47Z"
+      "updated_at": "2026-08-29T10:38:56Z"
     },
     {
       "package_id": "dell-idrac",
-      "updated_at": "2026-08-22T19:10:00Z"
+      "updated_at": "2026-08-26T03:37:14Z"
     },
     {
       "package_id": "Denon4306",
@@ -76,6 +76,10 @@
     {
       "package_id": "Domoticz---CEPT-plugin",
       "updated_at": "2026-04-28T06:53:01Z"
+    },
+    {
+      "package_id": "Domoticz---Zaptec-plugin",
+      "updated_at": "2026-08-26T15:55:04Z"
     },
     {
       "package_id": "domoticz-AirHumidifier",
@@ -274,8 +278,16 @@
       "updated_at": "2025-10-18T12:09:48Z"
     },
     {
+      "package_id": "Domoticz-MeteoAlarmEU-Atom",
+      "updated_at": "2026-08-27T21:27:48Z"
+    },
+    {
       "package_id": "Domoticz-MG-Plugin",
       "updated_at": "2025-09-10T22:47:29Z"
+    },
+    {
+      "package_id": "Domoticz-MotherboardMonitor",
+      "updated_at": "2026-08-29T07:55:11Z"
     },
     {
       "package_id": "domoticz-mqtt-sync-plugin",
@@ -483,7 +495,7 @@
     },
     {
       "package_id": "Domoticz-TinyTUYA-Plugin",
-      "updated_at": "2026-08-11T19:55:35Z"
+      "updated_at": "2026-08-29T20:07:03Z"
     },
     {
       "package_id": "Domoticz-TPLinkRouter",
@@ -687,7 +699,7 @@
     },
     {
       "package_id": "F1_race",
-      "updated_at": "2026-07-23T16:51:04Z"
+      "updated_at": "2026-08-27T12:25:04Z"
     },
     {
       "package_id": "fmi",
@@ -711,7 +723,7 @@
     },
     {
       "package_id": "Garbage",
-      "updated_at": "2026-07-23T16:49:26Z"
+      "updated_at": "2026-08-30T07:31:59Z"
     },
     {
       "package_id": "goodwe_rs485_domoticz",
@@ -727,7 +739,7 @@
     },
     {
       "package_id": "ha-domoticz-sync",
-      "updated_at": "2026-08-19T07:55:49Z"
+      "updated_at": "2026-08-24T04:33:59Z"
     },
     {
       "package_id": "Hisense-AirCon-Domoticz",
@@ -931,7 +943,7 @@
     },
     {
       "package_id": "Solaredge_modbustcp",
-      "updated_at": "2026-08-08T08:21:03Z"
+      "updated_at": "2026-08-29T13:48:09Z"
     },
     {
       "package_id": "solarFlow2400AC",
@@ -963,7 +975,7 @@
     },
     {
       "package_id": "sweden_energyprice",
-      "updated_at": "2026-08-22T17:54:27Z"
+      "updated_at": "2026-08-27T18:33:02Z"
     },
     {
       "package_id": "Synology SurveillanceStation",
@@ -1039,7 +1051,7 @@
     },
     {
       "package_id": "Zigate",
-      "updated_at": "2026-08-22T17:05:14Z"
+      "updated_at": "2026-08-27T13:41:27Z"
     },
     {
       "package_id": "Zigbee2Mqtt",
