@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.29.2](https://github.com/adrighem/PyPluginStore/compare/v2.29.1...v2.29.2) (2026-08-30)
+
+
+### Bug Fixes
+
+* **registry:** add Domoticz---Zaptec-plugin, Domoticz-MeteoAlarmEU-Atom, Domoticz-MotherboardMonitor; update BeemEnergy ([5ec3302](https://github.com/adrighem/PyPluginStore/commit/5ec33024051d43c21b4efe906b302bc303c20cf1))
+* resolve staged release verification error masking in transaction manager, resolves [#169](https://github.com/adrighem/PyPluginStore/issues/169) ([9a1d943](https://github.com/adrighem/PyPluginStore/commit/9a1d94344ccb6e4280bb3db9b7a738d926c0b973))
+* target correct startup www folder under split userdata configuration, closes [#167](https://github.com/adrighem/PyPluginStore/issues/167) ([0a75ced](https://github.com/adrighem/PyPluginStore/commit/0a75ced8f9a94a1ce53d1416bc61279e046f56e2))
+
+
+### Documentation
+
+* add guidance for release-based and git-based plugin submissions ([eed0d39](https://github.com/adrighem/PyPluginStore/commit/eed0d3906c6db534aa3e5ce111ca3459bbc49b02))
+* document all registry, release index, and theme JSON fields ([d890117](https://github.com/adrighem/PyPluginStore/commit/d8901171c52c2367ceee7d3b3ab2ed6cb2d7efe0))
+
 ## [2.29.1](https://github.com/adrighem/PyPluginStore/compare/v2.29.0...v2.29.1) (2026-08-26)
 
 
