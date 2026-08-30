@@ -127,7 +127,7 @@
     {
       "package_id": "BeemEnergy",
       "domoticz_key": "beemenergy",
-      "description": "eem Energy Plugin for Domoticz home automation",
+      "description": "Beem Energy Plugin for Domoticz home automation",
       "repository": {
         "url": "https://github.com/fratton/BeemEnergy",
         "branch": "main"
@@ -325,6 +325,30 @@
       "description": "Domoticz plugin to get Cheapest Energy Price Time within next 24 hours given a duration of energyconsumption",
       "repository": {
         "url": "https://github.com/sydspost/Domoticz---CEPT-plugin",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "Domoticz---Zaptec-plugin",
+      "domoticz_key": "ZaptecCloud",
+      "description": "Domoticz plugin for managing a Zaptec charger",
+      "repository": {
+        "url": "https://github.com/sydspost/Domoticz---Zaptec-plugin",
         "branch": "main"
       },
       "platforms": [
@@ -966,6 +990,56 @@
       },
       "platforms": [
         "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "Domoticz-MeteoAlarmEU-Atom",
+      "domoticz_key": "MeteoAlarmEU-Atom",
+      "description": "Domoticz plugin that get data from MeteoAlarm RSS data from MeteoAlarm.eu site",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-MeteoAlarmEU-Atom",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "Domoticz-MotherboardMonitor",
+      "domoticz_key": "MotherboardSensors-Custom",
+      "description": "Custom Python Plugin to replace the known native bugged one on mountpoints",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-MotherboardMonitor",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux",
+        "windows"
       ],
       "delivery": {
         "preferred": "release_if_indexed",

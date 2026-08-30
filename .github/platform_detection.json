@@ -312,6 +312,38 @@
       "source": "legacy_detected"
     },
     {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/sydspost/domoticz---zaptec-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses Unix system paths",
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 8,
+          "windows": 0
+        }
+      },
+      "owner": "sydspost",
+      "package_id": "Domoticz---Zaptec-plugin",
+      "policy_action": "accepted_new_medium_or_high",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz---Zaptec-plugin",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "master",
       "confidence": "unknown",
       "evidence_class": "legacy",
@@ -1170,6 +1202,43 @@
       "source": "legacy_detected"
     },
     {
+      "branch": "master",
+      "confidence": "high",
+      "evidence_class": "explicit_both",
+      "identity": "github.com/janreimen/domoticz-meteoalarmeu-atom@master",
+      "last_detection": {
+        "confidence": "high",
+        "evidence_class": "explicit_both",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: mentions Linux and Windows support",
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses apt package installation",
+          "README.md: uses sudo",
+          "README.md: uses shell commands",
+          "plugin.py: uses Windows drive paths"
+        ],
+        "scores": {
+          "both": 8,
+          "linux": 11,
+          "windows": 5
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-MeteoAlarmEU-Atom",
+      "policy_action": "accepted_new_medium_or_high",
+      "registry_platforms": [
+        "linux",
+        "windows"
+      ],
+      "repository": "Domoticz-MeteoAlarmEU-Atom",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "main",
       "confidence": "unknown",
       "evidence_class": "legacy",
@@ -1182,6 +1251,50 @@
       "repository": "Domoticz-MG-Plugin",
       "reviewed": false,
       "source": "legacy_detected"
+    },
+    {
+      "branch": "master",
+      "confidence": "high",
+      "evidence_class": "explicit_both",
+      "identity": "github.com/janreimen/domoticz-motherboardmonitor@master",
+      "last_detection": {
+        "confidence": "high",
+        "evidence_class": "explicit_both",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: mentions Linux and Windows support",
+          "README.md: mentions Windows and Linux support",
+          "README.md: states Linux only",
+          "README.md: states Windows only",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses Unix system paths",
+          "README.md: uses shell commands",
+          "plugin.py: mentions Linux and Windows support",
+          "plugin.py: mentions Windows and Linux support",
+          "plugin.py: states Linux only",
+          "plugin.py: uses Unix system paths",
+          "SECURITY.md: uses systemd"
+        ],
+        "scores": {
+          "both": 32,
+          "linux": 40,
+          "windows": 10
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-MotherboardMonitor",
+      "policy_action": "accepted_new_medium_or_high",
+      "registry_platforms": [
+        "linux",
+        "windows"
+      ],
+      "repository": "Domoticz-MotherboardMonitor",
+      "reviewed": false,
+      "source": "detected"
     },
     {
       "branch": "main",

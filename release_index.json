@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-09-08T04:39:13Z",
-  "generated_at": "2026-08-23T04:39:13Z",
-  "registry_sha256": "68459c4fdf8b65449b0b88be44b8528cc95c5635f8ab70b0779bc64befa1c0dd",
+  "expires_at": "2026-09-15T09:39:33Z",
+  "generated_at": "2026-08-30T09:39:33Z",
+  "registry_sha256": "e52137cc46f16b6facb9c38f412c0a63b3ae301ed55f8d359ef7718aded66bfb",
   "releases": [
     {
       "artifact": {
@@ -32,6 +32,36 @@
       "supersedes": [],
       "tag": "v0.0.9",
       "version": "0.0.9"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "fratton-BeemEnergy-5a41b4c",
+        "sha256": "a5e073b1d310353eaee4b6036a5940121f86016203781770093cf192c2384046",
+        "size": 11764,
+        "source_path": ".",
+        "tree_sha256": "59fa4bfa95d80e54285dca852aea821bb6fc7d48aef9688ffa00bd90d37f7db3",
+        "url": "https://api.github.com/repos/fratton/beemenergy/zipball/5a41b4c7ef03eb6ee1367fc73657531b815fc3b6"
+      },
+      "certified_identity": {
+        "domoticz_key": "beemenergy",
+        "plugin_py_sha256": "78d97bab3c1a5964336be1eed07ca33fa21c7d18a75b3054e0c36c4b6a68a94d"
+      },
+      "commit": "5a41b4c7ef03eb6ee1367fc73657531b815fc3b6",
+      "package_id": "BeemEnergy",
+      "provider": "github",
+      "release_id": "github:fratton/beemenergy:v1.2.0",
+      "released_at": "2026-08-25T20:28:34Z",
+      "repository_identity": "github.com/fratton/beemenergy",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v1.2.0",
+      "version": "1.2.0"
     },
     {
       "artifact": {
@@ -152,6 +182,36 @@
       "supersedes": [],
       "tag": "v1.2.0",
       "version": "1.2.0"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "janreimen-Domoticz-MeteoAlarmEU-Atom-f9c7909",
+        "sha256": "3a7f7af60e214a58ee77f4565f15f8237da2fb5863b7960a187c1f118ac7fbcd",
+        "size": 236706,
+        "source_path": ".",
+        "tree_sha256": "39eb9ea999c4e285b7b7850851d854d3d5f6b69c9a0aeb5243a07747867aad61",
+        "url": "https://api.github.com/repos/janreimen/domoticz-meteoalarmeu-atom/zipball/f9c7909037d1346433c9e0ebe935463055a0dd1b"
+      },
+      "certified_identity": {
+        "domoticz_key": "MeteoAlarmEU-Atom",
+        "plugin_py_sha256": "e49d9014d985acc7a46fa61c1921a5606fa12036749c15929fb1cfadab6cada5"
+      },
+      "commit": "f9c7909037d1346433c9e0ebe935463055a0dd1b",
+      "package_id": "Domoticz-MeteoAlarmEU-Atom",
+      "provider": "github",
+      "release_id": "github:janreimen/domoticz-meteoalarmeu-atom:v1.7.0",
+      "released_at": "2026-08-26T21:19:42Z",
+      "repository_identity": "github.com/janreimen/domoticz-meteoalarmeu-atom",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v1.7.0",
+      "version": "1.7.0"
     },
     {
       "artifact": {
@@ -433,29 +493,30 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_F1-5726a37",
-        "sha256": "e3e4ab2a8bbdf84d53f0f03194617274cab0e44eab04054aaa8572b3892df4bd",
-        "size": 9054,
+        "root_prefix": "MadPatrick-domoticz_F1-b25953a",
+        "sha256": "82061d85d9dbd2bdf488acfc696af97d178e8042dd95143c00e830ea118856d6",
+        "size": 9167,
         "source_path": ".",
-        "tree_sha256": "9f6aa8098b6c528068ecb04a1639a3f3c939d9e6a6b58b54da678835f34d2113",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_f1/zipball/5726a37413ab90db6f286d75cf37429de1dab0d7"
+        "tree_sha256": "1b08af2ea99a4d83ac35aeff398b1a94a10fcdb6e0a9d7e4ef3dd99f5f1f87e8",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_f1/zipball/b25953a454811d6b4dc3d1a4ebf1886a1403f7d2"
       },
       "certified_identity": {
         "domoticz_key": "F1Info",
-        "plugin_py_sha256": "b7ae87ec93c12fd2770797b37f53899f2be9df7d41d3f1e9bea74dffce92ab8f"
+        "plugin_py_sha256": "aae42ddd8c031b1a2af0efc4a18a095934bcf08b03eceb995554f64780a1c970"
       },
-      "commit": "5726a37413ab90db6f286d75cf37429de1dab0d7",
+      "commit": "b25953a454811d6b4dc3d1a4ebf1886a1403f7d2",
       "package_id": "F1_race",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_f1:0.1.6",
-      "released_at": "2026-07-23T16:51:05Z",
+      "release_id": "github:madpatrick/domoticz_f1:0.1.8",
+      "released_at": "2026-08-27T12:25:04Z",
       "repository_identity": "github.com/madpatrick/domoticz_f1",
-      "revision": 2,
+      "revision": 3,
       "supersedes": [
-        "github:madpatrick/domoticz_f1:0.1.3"
+        "github:madpatrick/domoticz_f1:0.1.3",
+        "github:madpatrick/domoticz_f1:0.1.6"
       ],
-      "tag": "0.1.6",
-      "version": "0.1.6"
+      "tag": "0.1.8",
+      "version": "0.1.8"
     },
     {
       "artifact": {
@@ -1112,27 +1173,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "Rouzax-dell-idrac-domoticz-plugin-fa04382",
-        "sha256": "ebd236a011c86c17dfd28241197f96bd23ea9ab249011c73c99c7e6eeb5dc530",
-        "size": 71774,
+        "root_prefix": "Rouzax-dell-idrac-domoticz-plugin-bf7605c",
+        "sha256": "a6517401f47736a1bc9c14292f2007cfd2d0ee852c04444bb2e5063c753a361b",
+        "size": 71529,
         "source_path": ".",
-        "tree_sha256": "384184d1374bb73721f6db08fc59bdbb25ae9e3c0af45fb1042b876d9c6095a3",
-        "url": "https://api.github.com/repos/rouzax/dell-idrac-domoticz-plugin/zipball/fa043827bb3ff41ce15dbbbe43e858d0e1c93009"
+        "tree_sha256": "b294d650f737a20477a4dfde081132863badf123642780941407aa25b93e09a2",
+        "url": "https://api.github.com/repos/rouzax/dell-idrac-domoticz-plugin/zipball/bf7605c30716642f6e150f1c15a7208cc6fe4042"
       },
       "certified_identity": {
         "domoticz_key": "dellidrac",
-        "plugin_py_sha256": "8dcc027488dee8cceb3584d82b8e6d17a8cb110013686c2dcda19a5d78436455"
+        "plugin_py_sha256": "3fe5b71c61896c2221865886627e6a945fd843571fc695a0599a8678551b7ea6"
       },
-      "commit": "fa043827bb3ff41ce15dbbbe43e858d0e1c93009",
+      "commit": "bf7605c30716642f6e150f1c15a7208cc6fe4042",
       "package_id": "dell-idrac",
       "provider": "github",
-      "release_id": "github:rouzax/dell-idrac-domoticz-plugin:v0.3.0",
-      "released_at": "2026-08-22T18:28:44Z",
+      "release_id": "github:rouzax/dell-idrac-domoticz-plugin:v0.4.0",
+      "released_at": "2026-08-23T11:25:34Z",
       "repository_identity": "github.com/rouzax/dell-idrac-domoticz-plugin",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v0.3.0",
-      "version": "0.3.0"
+      "revision": 2,
+      "supersedes": [
+        "github:rouzax/dell-idrac-domoticz-plugin:v0.3.0"
+      ],
+      "tag": "v0.4.0",
+      "version": "0.4.0"
     },
     {
       "artifact": {
@@ -1562,7 +1625,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 13,
+  "sequence": 14,
   "tombstones": [
     {
       "last_revision": 1,
