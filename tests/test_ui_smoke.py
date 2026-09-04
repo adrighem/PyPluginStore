@@ -1286,10 +1286,14 @@ def test_local_registry_dialog_uses_theme_tokens_and_modern_layout():
 
 def test_custom_ui_references_existing_icon_asset():
     html = (REPO_ROOT / "pypluginstore.html").read_text()
+    icon_path = REPO_ROOT / "pypluginstore-icon.png"
 
     assert 'src="images/pypluginstore-icon.png"' in html
+    assert 'width="44"' in html
+    assert 'height="44"' in html
     assert "this.src = '/images/pypluginstore-icon.png'" in html
-    assert (REPO_ROOT / "pypluginstore-icon.png").is_file()
+    assert icon_path.is_file()
+    assert icon_path.stat().st_size < 20_000, "App icon should be optimized under 20 KB"
 
 
 def test_self_update_success_skips_only_the_generic_success_alert():
@@ -2450,3 +2454,48 @@ def extract_js_function(script, function_name):
                 return script[start:index + 1]
 
     raise AssertionError(f"Function {function_name} was not closed")
+
+
+def test_ui_rendering_batches_dom_mutations_with_document_fragment():
+    script = load_inline_script()
+    render_plugins = extract_js_function(script, "renderPlugins")
+    render_themes = extract_js_function(script, "renderThemes")
+    render_local = extract_js_function(script, "renderLocalRegistryEntries")
+
+    assert "document.createDocumentFragment()" in render_plugins
+    assert "fragment.appendChild(card)" in render_plugins
+    assert "container.appendChild(fragment)" in render_plugins
+
+    assert "document.createDocumentFragment()" in render_themes
+    assert "fragment.appendChild(card)" in render_themes
+    assert "container.appendChild(fragment)" in render_themes
+
+    assert "document.createDocumentFragment()" in render_local
+    assert "fragment.appendChild(item)" in render_local
+    assert "container.appendChild(fragment)" in render_local
+
+
+def test_api_bridge_uses_adaptive_polling_delays():
+    script = load_inline_script()
+    poll_response = extract_js_function(script, "pollResponse")
+
+    assert "const initialDelays = [" in poll_response
+    assert "delay = i < initialDelays.length" in poll_response
+
+
+def test_search_box_uses_debounced_input_handler():
+    script = load_inline_script()
+    debounce_fn = extract_js_function(script, "debounce")
+    init_fn = extract_js_function(script, "init")
+
+    assert "clearTimeout(timeoutId)" in debounce_fn
+    assert "setTimeout(" in debounce_fn
+    assert "debounce(filterAndRender" in init_fn
+
+
+def test_api_bridge_discovery_uses_session_cache():
+    script = load_inline_script()
+    find_devices = extract_js_function(script, "findApiBridgeDevices")
+
+    assert "sessionStorage.getItem('pypluginstore.bridgeDevices')" in find_devices
+    assert "sessionStorage.setItem('pypluginstore.bridgeDevices'" in find_devices

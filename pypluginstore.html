@@ -1164,7 +1164,7 @@
 <div id="pypluginstore-container" data-layout="theme">
     <div class="header">
         <div class="header-title">
-            <img class="app-icon" src="images/pypluginstore-icon.png" alt="" aria-hidden="true" onerror="if (!this.dataset.fallbackSrcApplied) { this.dataset.fallbackSrcApplied = 'true'; this.src = '/images/pypluginstore-icon.png'; } else { this.style.display = 'none'; }">
+            <img class="app-icon" width="44" height="44" src="images/pypluginstore-icon.png" alt="" aria-hidden="true" onerror="if (!this.dataset.fallbackSrcApplied) { this.dataset.fallbackSrcApplied = 'true'; this.src = '/images/pypluginstore-icon.png'; } else { this.style.display = 'none'; }">
             <h1 id="pps-main-title">PyPluginStore: Plugin Store</h1>
         </div>
         <div class="header-actions">
@@ -1385,6 +1385,14 @@
     ];
     const THEME_BUTTON_SELECTORS = ['a.btnstyle3', '.btnstyle3', '.btnsmall', '.btn.btn-default', '.btn'];
     const THEME_BUTTON_HOVER_SELECTORS = ['a.btnstyle3:hover', '.btnstyle3:hover', '.btnsmall:hover', '.btn.btn-default:hover', '.btn:hover'];
+
+    function debounce(fn, waitMs) {
+        let timeoutId;
+        return function(...args) {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => fn.apply(this, args), waitMs);
+        };
+    }
 
     function setStatus(msg) {
         console.log("PyPluginStore Status: " + msg);
@@ -2719,7 +2727,7 @@
         const installedToggle = document.getElementById('installed-toggle');
         const layoutToggle = document.getElementById('layout-toggle');
         installedToggle.checked = readStoredInstalledFilter();
-        document.getElementById('search-box').oninput = filterAndRender;
+        document.getElementById('search-box').oninput = debounce(filterAndRender, 200);
         installedToggle.onchange = function() {
             writeStoredInstalledFilter(installedToggle.checked);
             filterAndRender();
@@ -2816,6 +2824,22 @@
     }
 
     async function findApiBridgeDevices() {
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage) {
+                const cachedRaw = sessionStorage.getItem('pypluginstore.bridgeDevices');
+                if (cachedRaw) {
+                    const cached = JSON.parse(cachedRaw);
+                    const cPayload = normalizeDomoticzId(cached && cached.payloadIdx);
+                    const cTrigger = normalizeDomoticzId(cached && cached.triggerIdx);
+                    if (cPayload && cTrigger) {
+                        payloadIdx = cPayload;
+                        triggerIdx = cTrigger;
+                        return;
+                    }
+                }
+            }
+        } catch (e) {}
+
         // Avoid serializing unrelated meter devices while discovering our hardware.
         const lightDevices = await fetchApiBridgeDevices(
             'filter=light&used=all&displayhidden=1'
@@ -2889,6 +2913,15 @@
 
         payloadIdx = payloadDeviceIdx;
         triggerIdx = scopedTriggerIdx;
+
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage) {
+                sessionStorage.setItem('pypluginstore.bridgeDevices', JSON.stringify({
+                    payloadIdx: payloadDeviceIdx,
+                    triggerIdx: scopedTriggerIdx
+                }));
+            }
+        } catch (e) {}
     }
 
     function createTransactionId() {
@@ -2997,8 +3030,10 @@
         requestTimeoutMs = API_BRIDGE_REQUEST_TIMEOUT_MS
     ) {
         console.log("Polling for response to " + action + " (tx_id: " + txId + ")...");
+        const initialDelays = [50, 100, 150, 250, 500];
         for (let i = 0; i < retries; i++) {
-            await new Promise(r => setTimeout(r, 1000));
+            const delay = i < initialDelays.length ? initialDelays[i] : 1000;
+            await new Promise(r => setTimeout(r, delay));
             try {
                 const resp = await fetchWithTimeout(
                     `json.htm?type=command&param=getdevices&rid=${payloadIdx}&t=` + Date.now(),
@@ -3029,6 +3064,11 @@
                 console.error("Polling error", e);
             }
         }
+        try {
+            if (typeof sessionStorage !== 'undefined' && sessionStorage) {
+                sessionStorage.removeItem('pypluginstore.bridgeDevices');
+            }
+        } catch (e) {}
         throw new Error("Timeout waiting for plugin response.");
     }
 
@@ -3167,6 +3207,8 @@
         container.replaceChildren();
         empty.hidden = localRegistryEntries.length > 0;
 
+        const fragment = document.createDocumentFragment();
+
         for (const entry of localRegistryEntries) {
             const item = document.createElement('article');
             item.className = 'local-registry-entry';
@@ -3244,8 +3286,10 @@
                 item.appendChild(actions);
             }
 
-            container.appendChild(item);
+            fragment.appendChild(item);
         }
+
+        container.appendChild(fragment);
     }
 
     function renderLocalRegistryDeleteConfirmation(entry) {
@@ -3574,6 +3618,8 @@
             return;
         }
 
+        const fragment = document.createDocumentFragment();
+
         for (const key of keys) {
             const info = themeData[key] || {};
             const displayName = info.display_name || key;
@@ -3711,8 +3757,10 @@
             card.appendChild(desc);
             card.appendChild(footer);
 
-            container.appendChild(card);
+            fragment.appendChild(card);
         }
+
+        container.appendChild(fragment);
     }
 
     function sortPlugins(pluginData, sortBy) {
@@ -4142,6 +4190,7 @@
         }
 
         const now = new Date();
+        const fragment = document.createDocumentFragment();
 
         for (const key of keys) {
             const info = pluginData[key] || [];
@@ -4546,8 +4595,10 @@
             card.appendChild(desc);
             card.appendChild(meta);
             card.appendChild(actions);
-            container.appendChild(card);
+            fragment.appendChild(card);
         }
+
+        container.appendChild(fragment);
 
         container.querySelectorAll('button[data-action]').forEach(btn => {
             btn.onclick = function() {
@@ -4962,15 +5013,12 @@
         }
     }
 
+    setLayoutMode(readStoredLayoutMode(), false);
+
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(init, 100);
+        init();
     } else {
         document.addEventListener('DOMContentLoaded', init);
     }
-
-    window.addEventListener('load', function() {
-        setLayoutMode(readStoredLayoutMode(), false);
-        init();
-    });
 })();
 </script>
