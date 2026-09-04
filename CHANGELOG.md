@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.30.0](https://github.com/adrighem/PyPluginStore/compare/v2.29.2...v2.30.0) (2026-09-04)
+
+
+### Features
+
+* **dependencies:** add hybrid Python version compatibility badging and action confirmation refs [#151](https://github.com/adrighem/PyPluginStore/issues/151) ([8a7e028](https://github.com/adrighem/PyPluginStore/commit/8a7e028ce0bf5836b9ffbb00d9859bdbcaa2f650))
+
+
+### Bug Fixes
+
+* **dependencies:** improve package extraction and Python incompatibility diagnostics refs [#151](https://github.com/adrighem/PyPluginStore/issues/151) ([e5e3b7c](https://github.com/adrighem/PyPluginStore/commit/e5e3b7c07283ddb3c1a906c6c4c0779979f7df91))
+* **dependencies:** isolate target plugin resolution and prune failing sibling requirements refs [#151](https://github.com/adrighem/PyPluginStore/issues/151) ([4f082ec](https://github.com/adrighem/PyPluginStore/commit/4f082ec79aaf0187987d47fa1712286f1c3ee918))
+* **ui:** use contrast-guarded button text color for disabled update button ([#171](https://github.com/adrighem/PyPluginStore/issues/171)) ([f6a13c6](https://github.com/adrighem/PyPluginStore/commit/f6a13c639954598a6cc72c8ebfe43d98f31d579e)), closes [#168](https://github.com/adrighem/PyPluginStore/issues/168)
+
+
+### Performance Improvements
+
+* **ui:** optimize icon size, batch DOM rendering, and accelerate API bridge polling ([2a9a712](https://github.com/adrighem/PyPluginStore/commit/2a9a7128557d79a676e56d220f486925a1990835))
+
 ## [2.29.2](https://github.com/adrighem/PyPluginStore/compare/v2.29.1...v2.29.2) (2026-08-30)
 
 
