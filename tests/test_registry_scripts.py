@@ -2039,7 +2039,7 @@ def test_checked_in_active_artifacts_exclude_blocklisted_repositories(
             )
         )
     release_index = json.loads(
-        (REPO_ROOT / "release_index.json").read_text()
+        (REPO_ROOT / "release_index.json").read_text(encoding="utf-8")
     )
     blocked_repository_identities = {
         f"github.com/{repository}"
@@ -2052,7 +2052,7 @@ def test_checked_in_active_artifacts_exclude_blocklisted_repositories(
     migration = json.loads(
         (
             REPO_ROOT / ".github" / "package_identity_migration.json"
-        ).read_text()
+        ).read_text(encoding="utf-8")
     )
     migration_repositories = {
         mapping["repository_identity"].casefold()

@@ -31,6 +31,10 @@ class InlineScriptParser(HTMLParser):
             self.scripts[-1] += data
 
 
+def load_html() -> str:
+    return (REPO_ROOT / "pypluginstore.html").read_text(encoding="utf-8")
+
+
 def test_pypluginstore_javascript_has_valid_syntax():
     script = load_inline_script()
     mocks = """
@@ -188,7 +192,7 @@ def test_plugin_cards_use_formatted_author_display():
 
 
 def test_update_buttons_keep_shared_and_state_specific_classes():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
 
     assert ".btn-update {" in html
     assert ".btn-update-available {" in html
@@ -198,7 +202,7 @@ def test_update_buttons_keep_shared_and_state_specific_classes():
 
 
 def test_plugin_cards_render_repo_mismatch_warning():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     script = load_inline_script()
 
     assert ".repo-mismatch-badge" in html
@@ -210,7 +214,7 @@ def test_plugin_cards_render_repo_mismatch_warning():
 
 
 def test_refresh_status_button_is_wired_to_backend_command():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     script = load_inline_script()
 
     assert 'id="refresh-update-status"' in html
@@ -854,7 +858,7 @@ def test_manager_identity_verdict_disables_mutating_controls():
 
 
 def test_self_update_detail_card_rendering_is_removed_completely():
-    html = (REPO_ROOT / "pypluginstore.html").read_text(encoding="utf-8")
+    html = load_html()
     script = load_inline_script()
 
     assert ".self-update-detail" not in html
@@ -928,7 +932,7 @@ writeStoredInstalledFilter(true);
 
 
 def test_domoticz_theme_layout_is_default_and_original_layout_is_optional():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     script = load_inline_script()
 
     assert '<div id="pypluginstore-container" data-layout="theme">' in html
@@ -961,7 +965,7 @@ def test_domoticz_theme_probe_matches_dashboard_tile_contexts():
 
 
 def test_domoticz_theme_uses_panel_and_button_contract_variables():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     script = load_inline_script()
 
     assert "--pps-panel-bg: var(--dz-pps-panel-bg, var(--dz-panel-bg, transparent))" in html
@@ -1070,7 +1074,7 @@ def test_domoticz_theme_preserves_borderless_theme_cards():
 
 
 def test_normal_action_buttons_use_normal_button_style():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
 
     refresh_rule = extract_css_rule(html, "#pypluginstore-container .btn-refresh")
     refresh_hover_rule = extract_css_rule(html, "#pypluginstore-container .btn-refresh:hover")
@@ -1102,7 +1106,7 @@ def test_normal_action_buttons_use_normal_button_style():
 
 
 def test_domoticz_theme_search_input_preserves_theme_specific_styles():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     script = load_inline_script()
 
     assert "--pps-input-border-block-end" in html
@@ -1121,7 +1125,7 @@ def test_domoticz_theme_search_input_preserves_theme_specific_styles():
 
 
 def test_filter_controls_share_panel_text_and_markup_pattern():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
 
     assert '<label class="filter-control sort-controls" for="sort-select">' in html
     assert '<label class="filter-control layout-choice"' in html
@@ -1133,7 +1137,7 @@ def test_filter_controls_share_panel_text_and_markup_pattern():
 
 
 def test_platform_badges_are_wired_to_backend_response():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     script = load_inline_script()
 
     assert ".platform-badge-linux" in html
@@ -1143,7 +1147,7 @@ def test_platform_badges_are_wired_to_backend_response():
 
 
 def test_card_header_badges_use_multiline_rows():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     script = load_inline_script()
 
     header_rule = extract_css_rule(html, "#pypluginstore-container .pps-card-header")
@@ -1173,7 +1177,7 @@ def test_card_header_badges_use_multiline_rows():
 
 
 def test_plugin_card_actions_wrap_when_buttons_do_not_fit():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
 
     actions_rule = extract_css_rule(
         html,
@@ -1185,7 +1189,7 @@ def test_plugin_card_actions_wrap_when_buttons_do_not_fit():
 
 
 def test_plugin_card_title_and_details_are_selectable():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     selector_group = """#pypluginstore-container .pps-plugin-title,
     #pypluginstore-container .pps-card-desc,
     #pypluginstore-container .pps-card-meta"""
@@ -1201,7 +1205,7 @@ def test_plugin_card_title_and_details_are_selectable():
 
 
 def test_local_registry_uses_one_accessible_native_dialog():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
 
     assert 'id="manage-local-registry"' in html
     assert '>Local registry</button>' in html
@@ -1217,7 +1221,7 @@ def test_local_registry_uses_one_accessible_native_dialog():
 
 
 def test_local_registry_form_has_only_approved_editable_fields():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     dialog = html[
         html.index('<dialog id="local-registry-dialog"'):
         html.index("</dialog>")
@@ -1266,7 +1270,7 @@ def test_local_registry_delete_confirmation_is_inline_and_explains_installed_sta
 
 
 def test_local_registry_dialog_uses_theme_tokens_and_modern_layout():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     dialog_rule = extract_css_rule(
         html, "#pypluginstore-container .local-registry-dialog"
     )
@@ -1285,7 +1289,7 @@ def test_local_registry_dialog_uses_theme_tokens_and_modern_layout():
 
 
 def test_custom_ui_references_existing_icon_asset():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     icon_path = REPO_ROOT / "pypluginstore-icon.png"
 
     assert 'src="images/pypluginstore-icon.png"' in html
@@ -2253,7 +2257,7 @@ const console = {{warn: () => {{}}}};
 
 
 def test_manager_status_is_an_accessible_polite_live_region():
-    html = (REPO_ROOT / "pypluginstore.html").read_text(encoding="utf-8")
+    html = load_html()
     status_start = html.index('<div id="pypluginstore-status"')
     status_end = html.index(">", status_start)
     status_tag = html[status_start:status_end]
@@ -2264,7 +2268,7 @@ def test_manager_status_is_an_accessible_polite_live_region():
 
 
 def test_python_warning_badge_style_defined():
-    html = (REPO_ROOT / "pypluginstore.html").read_text(encoding="utf-8")
+    html = load_html()
     assert ".python-warning-badge" in html
 
 
@@ -2410,7 +2414,7 @@ def extract_frozen_json_constant(script, constant_name):
 
 
 def load_inline_script():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     parser = InlineScriptParser()
     parser.feed(html)
     assert parser.scripts, "pypluginstore.html does not contain an inline script"
@@ -2502,7 +2506,7 @@ def test_api_bridge_discovery_uses_session_cache():
 
 
 def test_disabled_update_button_uses_contrast_guarded_card_button_text_token():
-    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    html = load_html()
     assert ".btn-update-disabled {" in html
     disabled_block = html.split(".btn-update-disabled {", 1)[1].split("}", 1)[0]
 
