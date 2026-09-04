@@ -12,7 +12,7 @@
 
 * **dependencies:** improve package extraction and Python incompatibility diagnostics refs [#151](https://github.com/adrighem/PyPluginStore/issues/151) ([e5e3b7c](https://github.com/adrighem/PyPluginStore/commit/e5e3b7c07283ddb3c1a906c6c4c0779979f7df91))
 * **dependencies:** isolate target plugin resolution and prune failing sibling requirements refs [#151](https://github.com/adrighem/PyPluginStore/issues/151) ([4f082ec](https://github.com/adrighem/PyPluginStore/commit/4f082ec79aaf0187987d47fa1712286f1c3ee918))
-* **ui:** use contrast-guarded button text color for disabled update button ([#171](https://github.com/adrighem/PyPluginStore/issues/171)) ([f6a13c6](https://github.com/adrighem/PyPluginStore/commit/f6a13c639954598a6cc72c8ebfe43d98f31d579e)), closes [#168](https://github.com/adrighem/PyPluginStore/issues/168)
+* **ui:** use contrast-guarded button text color for disabled update button ([#171](https://github.com/adrighem/PyPluginStore/issues/171)) ([f6a13c6](https://github.com/adrighem/PyPluginStore/commit/f6a13c639954598a6cc72c8ebfe43d98f31d579e)), closes [#168](https://github.com/adrighem/PyPluginStore/issues/168) ([@bernalalexis-try](https://github.com/bernalalexis-try))
 
 
 ### Performance Improvements
