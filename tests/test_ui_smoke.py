@@ -2499,3 +2499,14 @@ def test_api_bridge_discovery_uses_session_cache():
 
     assert "sessionStorage.getItem('pypluginstore.bridgeDevices')" in find_devices
     assert "sessionStorage.setItem('pypluginstore.bridgeDevices'" in find_devices
+
+
+def test_disabled_update_button_uses_contrast_guarded_card_button_text_token():
+    html = (REPO_ROOT / "pypluginstore.html").read_text()
+    assert ".btn-update-disabled {" in html
+    disabled_block = html.split(".btn-update-disabled {", 1)[1].split("}", 1)[0]
+
+    assert "background: var(--pps-card-button-bg) !important;" in disabled_block
+    assert "color: var(--pps-card-button-text) !important;" in disabled_block
+    assert "color: var(--pps-text-muted)" not in disabled_block
+    assert "opacity: 0.55;" in disabled_block
