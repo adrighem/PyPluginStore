@@ -1069,13 +1069,13 @@ def test_installer_failure_identifies_the_blocking_requirement_owner_safely(
     tmp_path,
 ):
     transaction = stub_transaction(tmp_path)
-    blocker = (
+    transaction.plugin_key = "domoticz-solaredge-modbustcp-plugin"
+    transaction.paths.live_code = str(
         Path(transaction.paths.live_code).parent
         / "domoticz-solaredge-modbustcp-plugin"
-        / "requirements.txt"
     )
     write_files(
-        blocker.parent,
+        Path(transaction.paths.staged_code),
         {
             "requirements.txt": (
                 "pymodbus==3.6.9\n"
@@ -1124,6 +1124,189 @@ def test_installer_failure_identifies_the_blocking_requirement_owner_safely(
     assert "credential" not in error.message
     assert "example.invalid" not in error.message
     assert runner.stderr not in error.message
+
+
+def test_installer_prunes_broken_sibling_requirements_allowing_target_to_succeed(
+    plugin_core_module,
+    tmp_path,
+):
+    transaction = stub_transaction(tmp_path)
+    target_req = Path(transaction.paths.staged_code) / "requirements.txt"
+    write_files(
+        target_req.parent,
+        {"requirements.txt": "requests>=2.31.0\n"},
+    )
+    sibling_dir = (
+        Path(transaction.paths.live_code).parent
+        / "domoticz-solaredge-modbustcp-plugin"
+    )
+    write_files(
+        sibling_dir,
+        {"requirements.txt": "solaredge_modbus==0.8.0\n"},
+    )
+
+    class SiblingFaultCommandRunner:
+        def __init__(self):
+            self.calls = []
+
+        def available(self, command, *, env=None):
+            return command == "pip"
+
+        def run(self, command, *, env=None):
+            cmd = list(command)
+            self.calls.append(cmd)
+            if any("domoticz-solaredge-modbustcp-plugin" in str(arg) for arg in cmd):
+                return SimpleNamespace(
+                    returncode=1,
+                    stdout="",
+                    stderr=(
+                        "Package 'solaredge-modbus' requires a different Python: 3.7.3 not in '>=3.8'\n"
+                        "No matching distribution found for solaredge_modbus==0.8.0"
+                    ),
+                )
+            return SimpleNamespace(
+                returncode=0,
+                stdout="Successfully installed requests\n",
+                stderr="",
+            )
+
+    runner = SiblingFaultCommandRunner()
+    manager = RecordingTransactionManager(transaction)
+    service = make_service(
+        plugin_core_module,
+        manager,
+        runner=runner,
+    )
+
+    stage(service, transaction, installer="pip")
+
+    assert transaction.phase == "dependencies_staged"
+    manifest_path = (
+        Path(transaction.paths.staged_dependencies)
+        / plugin_core_module.ReleaseDependencySnapshotService.MANIFEST_FILE
+    )
+    assert manifest_path.exists()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert any("requests" in str(r) or transaction.plugin_key in str(r) for r in manifest.get("requirements", []))
+    assert not any("domoticz-solaredge-modbustcp-plugin" in str(r) for r in manifest.get("requirements", []))
+
+
+def test_installer_fails_fast_when_target_plugin_requirements_fail(
+    plugin_core_module,
+    tmp_path,
+):
+    transaction = stub_transaction(tmp_path)
+    target_req = Path(transaction.paths.staged_code) / "requirements.txt"
+    write_files(
+        target_req.parent,
+        {"requirements.txt": "broken_package==9.9.9\n"},
+    )
+    sibling_dir = (
+        Path(transaction.paths.live_code).parent
+        / "domoticz-healthy-plugin"
+    )
+    write_files(
+        sibling_dir,
+        {"requirements.txt": "requests>=2.31.0\n"},
+    )
+
+    class TargetFaultCommandRunner:
+        def __init__(self):
+            self.calls = []
+
+        def available(self, command, *, env=None):
+            return command == "pip"
+
+        def run(self, command, *, env=None):
+            cmd = list(command)
+            self.calls.append(cmd)
+            if any(str(target_req) in str(arg) for arg in cmd):
+                return SimpleNamespace(
+                    returncode=1,
+                    stdout="",
+                    stderr="No matching distribution found for broken_package==9.9.9",
+                )
+            return SimpleNamespace(
+                returncode=0,
+                stdout="Successfully installed requests\n",
+                stderr="",
+            )
+
+    runner = TargetFaultCommandRunner()
+    manager = RecordingTransactionManager(transaction)
+    service = make_service(
+        plugin_core_module,
+        manager,
+        runner=runner,
+    )
+
+    error = assert_dependency_error(
+        plugin_core_module,
+        "install_failed",
+        lambda: stage(service, transaction, installer="pip"),
+    )
+    assert "broken-package" in error.message
+    assert transaction.phase == "dependency_blocked"
+
+
+def test_installer_prunes_broken_sibling_when_target_has_no_requirements(
+    plugin_core_module,
+    tmp_path,
+):
+    transaction = stub_transaction(tmp_path)
+    # Remove requirements.txt from staged_code so target has none
+    staged_req = Path(transaction.paths.staged_code) / "requirements.txt"
+    if staged_req.exists():
+        staged_req.unlink()
+
+    sibling_dir = (
+        Path(transaction.paths.live_code).parent
+        / "domoticz-solaredge-modbustcp-plugin"
+    )
+    write_files(
+        sibling_dir,
+        {"requirements.txt": "solaredge_modbus==0.8.0\n"},
+    )
+
+    class SiblingFaultCommandRunner:
+        def __init__(self):
+            self.calls = []
+
+        def available(self, command, *, env=None):
+            return command == "pip"
+
+        def run(self, command, *, env=None):
+            cmd = list(command)
+            self.calls.append(cmd)
+            return SimpleNamespace(
+                returncode=1,
+                stdout="",
+                stderr=(
+                    "Package 'solaredge-modbus' requires a different Python: 3.7.3 not in '>=3.8'\n"
+                    "No matching distribution found for solaredge_modbus==0.8.0"
+                ),
+            )
+
+    runner = SiblingFaultCommandRunner()
+    manager = RecordingTransactionManager(transaction)
+    service = make_service(
+        plugin_core_module,
+        manager,
+        runner=runner,
+    )
+
+    stage(service, transaction, installer="pip")
+
+    assert transaction.phase == "dependencies_staged"
+    manifest_path = (
+        Path(transaction.paths.staged_dependencies)
+        / plugin_core_module.ReleaseDependencySnapshotService.MANIFEST_FILE
+    )
+    assert manifest_path.exists()
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest.get("requirements") == []
+
+
 
 
 @pytest.mark.parametrize(

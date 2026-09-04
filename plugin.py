@@ -103,6 +103,7 @@ import urllib.request
 import zipfile
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import Domoticz
 
@@ -13298,72 +13299,194 @@ class ReleaseDependencySnapshotService:
                     self._installer_unavailable_message(installer),
                     manual_required=True,
                 )
-            if selected_installer == "uv":
-                command = [
-                    "uv",
-                    "pip",
-                    "install",
-                    "--python",
-                    sys.executable,
-                    "--link-mode",
-                    "copy",
-                    "--target",
-                    staged_dependencies,
-                ]
-            else:
-                command = [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "--target",
-                    staged_dependencies,
-                ]
-            for _owner, path in requirements:
-                command.extend(["-r", path])
-            try:
-                completed = self.command_runner.run(
-                    command,
-                    env=installer_environment,
-                )
-            except Exception as error:
-                self._generation_error(
-                    "install_failed",
-                    "Dependency installer could not be started: "
-                    + type(error).__name__,
-                )
+            command, completed = self._run_installer(
+                selected_installer,
+                staged_dependencies,
+                requirements,
+                installer_environment,
+            )
             if completed.returncode != 0:
-                category = classify_release_dependency_failure(
-                    completed.stdout,
-                    completed.stderr,
+                normalized_target = (
+                    os.path.abspath(str(requirements_file))
+                    if requirements_file
+                    else ""
                 )
-                failure_context = self._failure_context(
-                    requirements,
-                    completed.stdout,
-                    completed.stderr,
-                    category,
-                )
-                requirement_count = len(requirements)
-                requirement_label = (
-                    "plugin requirement file"
-                    if requirement_count == 1
-                    else "plugin requirement files"
-                )
-                self._generation_error(
-                    "install_failed",
-                    "Dependency installation failed using "
-                    + selected_installer
-                    + " with exit code "
-                    + str(completed.returncode)
-                    + " while resolving "
-                    + str(requirement_count)
-                    + " "
-                    + requirement_label
-                    + ". "
-                    + RELEASE_DEPENDENCY_FAILURE_MESSAGES[category]
-                    + (" " + failure_context if failure_context else "")
-                    + " Raw installer output was not logged.",
-                )
+                target_reqs = [
+                    (owner, path)
+                    for owner, path in requirements
+                    if (
+                        (
+                            normalized_target
+                            and os.path.abspath(str(path)) == normalized_target
+                        )
+                        or owner == transaction.plugin_key
+                    )
+                ]
+                sibling_reqs = [
+                    (owner, path)
+                    for owner, path in requirements
+                    if (owner, path) not in target_reqs
+                ]
+                if target_reqs:
+                    self._prepare_empty_generation(staged_dependencies)
+                    _target_cmd, target_completed = self._run_installer(
+                        selected_installer,
+                        staged_dependencies,
+                        target_reqs,
+                        installer_environment,
+                    )
+                    if target_completed.returncode != 0:
+                        category = classify_release_dependency_failure(
+                            target_completed.stdout,
+                            target_completed.stderr,
+                        )
+                        failure_context = self._failure_context(
+                            target_reqs,
+                            target_completed.stdout,
+                            target_completed.stderr,
+                            category,
+                        )
+                        requirement_count = len(target_reqs)
+                        requirement_label = (
+                            "plugin requirement file"
+                            if requirement_count == 1
+                            else "plugin requirement files"
+                        )
+                        self._generation_error(
+                            "install_failed",
+                            "Dependency installation failed using "
+                            + selected_installer
+                            + " with exit code "
+                            + str(target_completed.returncode)
+                            + " while resolving "
+                            + str(requirement_count)
+                            + " "
+                            + requirement_label
+                            + ". "
+                            + RELEASE_DEPENDENCY_FAILURE_MESSAGES[category]
+                            + (" " + failure_context if failure_context else "")
+                            + " Raw installer output was not logged.",
+                        )
+                if sibling_reqs:
+                    healthy_reqs = list(target_reqs)
+                    pruned_siblings = []
+                    for sibling in sibling_reqs:
+                        candidate_reqs = healthy_reqs + [sibling]
+                        self._prepare_empty_generation(staged_dependencies)
+                        _sib_cmd, sib_completed = self._run_installer(
+                            selected_installer,
+                            staged_dependencies,
+                            candidate_reqs,
+                            installer_environment,
+                        )
+                        if sib_completed.returncode == 0:
+                            healthy_reqs.append(sibling)
+                        else:
+                            pruned_siblings.append((sibling, sib_completed))
+                    if healthy_reqs:
+                        self._prepare_empty_generation(staged_dependencies)
+                        command, completed = self._run_installer(
+                            selected_installer,
+                            staged_dependencies,
+                            healthy_reqs,
+                            installer_environment,
+                        )
+                    else:
+                        self._prepare_empty_generation(staged_dependencies)
+                        completed = SimpleNamespace(
+                            returncode=0,
+                            stdout="",
+                            stderr="",
+                        )
+                    if completed.returncode == 0:
+                        requirements = healthy_reqs
+                        for (s_owner, s_path), s_completed in pruned_siblings:
+                            s_cat = classify_release_dependency_failure(
+                                s_completed.stdout,
+                                s_completed.stderr,
+                            )
+                            s_ctx = self._failure_context(
+                                [(s_owner, s_path)],
+                                s_completed.stdout,
+                                s_completed.stderr,
+                                s_cat,
+                            )
+                            msg = (
+                                "PyPluginStore: Sibling plugin '"
+                                + s_owner
+                                + "' requirements could not be resolved and were excluded from shared dependencies. "
+                                + RELEASE_DEPENDENCY_FAILURE_MESSAGES.get(s_cat, "")
+                                + (" " + s_ctx if s_ctx else "")
+                            )
+                            if "Domoticz" in sys.modules:
+                                try:
+                                    sys.modules["Domoticz"].Error(msg)
+                                except Exception:
+                                    pass
+                    else:
+                        category = classify_release_dependency_failure(
+                            completed.stdout,
+                            completed.stderr,
+                        )
+                        failure_context = self._failure_context(
+                            requirements,
+                            completed.stdout,
+                            completed.stderr,
+                            category,
+                        )
+                        requirement_count = len(requirements)
+                        requirement_label = (
+                            "plugin requirement file"
+                            if requirement_count == 1
+                            else "plugin requirement files"
+                        )
+                        self._generation_error(
+                            "install_failed",
+                            "Dependency installation failed using "
+                            + selected_installer
+                            + " with exit code "
+                            + str(completed.returncode)
+                            + " while resolving "
+                            + str(requirement_count)
+                            + " "
+                            + requirement_label
+                            + ". "
+                            + RELEASE_DEPENDENCY_FAILURE_MESSAGES[category]
+                            + (" " + failure_context if failure_context else "")
+                            + " Raw installer output was not logged.",
+                        )
+                else:
+                    category = classify_release_dependency_failure(
+                        completed.stdout,
+                        completed.stderr,
+                    )
+                    failure_context = self._failure_context(
+                        requirements,
+                        completed.stdout,
+                        completed.stderr,
+                        category,
+                    )
+                    requirement_count = len(requirements)
+                    requirement_label = (
+                        "plugin requirement file"
+                        if requirement_count == 1
+                        else "plugin requirement files"
+                    )
+                    self._generation_error(
+                        "install_failed",
+                        "Dependency installation failed using "
+                        + selected_installer
+                        + " with exit code "
+                        + str(completed.returncode)
+                        + " while resolving "
+                        + str(requirement_count)
+                        + " "
+                        + requirement_label
+                        + ". "
+                        + RELEASE_DEPENDENCY_FAILURE_MESSAGES[category]
+                        + (" " + failure_context if failure_context else "")
+                        + " Raw installer output was not logged.",
+                    )
         try:
             self._write_manifest(
                 staged_dependencies,
@@ -13377,6 +13500,49 @@ class ReleaseDependencySnapshotService:
                 + type(error).__name__,
             )
         return selected_installer, command, requirements
+
+    def _run_installer(
+        self,
+        selected_installer,
+        staged_dependencies,
+        requirements,
+        installer_environment,
+    ):
+        if selected_installer == "uv":
+            command = [
+                "uv",
+                "pip",
+                "install",
+                "--python",
+                sys.executable,
+                "--link-mode",
+                "copy",
+                "--target",
+                staged_dependencies,
+            ]
+        else:
+            command = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "--target",
+                staged_dependencies,
+            ]
+        for _owner, path in requirements:
+            command.extend(["-r", path])
+        try:
+            completed = self.command_runner.run(
+                command,
+                env=installer_environment,
+            )
+        except Exception as error:
+            self._generation_error(
+                "install_failed",
+                "Dependency installer could not be started: "
+                + type(error).__name__,
+            )
+        return command, completed
 
     def _block(
         self,
