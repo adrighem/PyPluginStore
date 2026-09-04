@@ -162,6 +162,11 @@ def _load_package_registry_module():
 _package_registry_module = _load_package_registry_module()
 PackageRegistry = _package_registry_module.PackageRegistry
 UpdateTimesDocument = _package_registry_module.UpdateTimesDocument
+is_python_version_compatible = getattr(
+    _package_registry_module,
+    "is_python_version_compatible",
+    lambda req, ver=None: True,
+)
 _MANAGER_LOADED_PACKAGE_REGISTRY_FINGERPRINT = getattr(
     _package_registry_module,
     "PYPLUGINSTORE_LOADED_SOURCE_FINGERPRINT",
@@ -13340,6 +13345,9 @@ class ReleaseDependencySnapshotService:
                             target_completed.stdout,
                             target_completed.stderr,
                         )
+                        if category == "python_incompatible" and hasattr(self.plugin, "record_python_incompatibility"):
+                            for t_owner, _ in target_reqs:
+                                self.plugin.record_python_incompatibility(t_owner)
                         failure_context = self._failure_context(
                             target_reqs,
                             target_completed.stdout,
@@ -13405,6 +13413,8 @@ class ReleaseDependencySnapshotService:
                                 s_completed.stdout,
                                 s_completed.stderr,
                             )
+                            if s_cat == "python_incompatible" and hasattr(self.plugin, "record_python_incompatibility"):
+                                self.plugin.record_python_incompatibility(s_owner)
                             s_ctx = self._failure_context(
                                 [(s_owner, s_path)],
                                 s_completed.stdout,
@@ -13901,6 +13911,7 @@ class RegistryEntry:
         local=False,
         delivery=None,
         domoticz_key="",
+        requires_python="",
     ):
         self.package_id = str(key or "")
         self.key = self.package_id
@@ -13914,6 +13925,7 @@ class RegistryEntry:
         self.local = bool(local)
         self.delivery = delivery or DeliveryPolicy.implicit()
         self.domoticz_key = str(domoticz_key or "")
+        self.requires_python = str(requires_python or "").strip()
 
     def to_legacy_list(self):
         entry = [self.author, self.repository, self.description, self.branch]
@@ -13921,7 +13933,13 @@ class RegistryEntry:
             entry.append(self.updated_at)
         return entry
 
-    def copy_with(self, author=None, repository=None, branch=None):
+    def copy_with(
+        self,
+        author=None,
+        repository=None,
+        branch=None,
+        requires_python=None,
+    ):
         return RegistryEntry(
             self.key,
             self.author if author is None else author,
@@ -13934,6 +13952,7 @@ class RegistryEntry:
             self.local,
             self.delivery,
             self.domoticz_key,
+            self.requires_python if requires_python is None else requires_python,
         )
 
 
@@ -13965,6 +13984,9 @@ class RegistryService:
             description = data.get("description", "")
             updated_at = "" if local else data.get("updated_at", "")
             platforms = self.plugin.normalize_platforms(data.get("platforms", data.get("platform", None)))
+            requires_python = data.get("requires_python", "")
+            if not requires_python and isinstance(data.get("annotations"), dict):
+                requires_python = data.get("annotations", {}).get("requires_python", "")
             try:
                 if local:
                     delivery = DeliveryPolicy.git_only()
@@ -14004,6 +14026,7 @@ class RegistryService:
                 local,
                 delivery,
                 domoticz_key,
+                requires_python=requires_python,
             )
         elif isinstance(data, list):
             raw_entry = list(data[:5])
@@ -18011,6 +18034,7 @@ class BasePlugin:
         self.update_times = {}
         self.update_status = {}
         self.plugin_platforms = {}
+        self.dynamic_python_requirements = {}
         self.last_update_date = None
         self.last_update_status_refresh_date = None
         self.host = None
@@ -21226,6 +21250,38 @@ class BasePlugin:
 
         return normalized or ["unknown"]
 
+    def record_python_incompatibility(self, plugin_key, requires_python=">=3.8"):
+        if not hasattr(self, "dynamic_python_requirements"):
+            self.dynamic_python_requirements = {}
+        if plugin_key:
+            self.dynamic_python_requirements[str(plugin_key)] = str(requires_python or ">=3.8").strip()
+
+    def get_plugin_python_compatibility(self, entries=None):
+        entries = entries if entries is not None else getattr(self, "registry_entries", {})
+        entries = entries or {}
+        compatibility = {}
+        dynamic_reqs = getattr(self, "dynamic_python_requirements", {})
+        for key, entry in entries.items():
+            req = ""
+            if hasattr(entry, "requires_python") and entry.requires_python:
+                req = entry.requires_python
+            if not req and key in dynamic_reqs:
+                req = dynamic_reqs[key]
+            if req:
+                compatible = is_python_version_compatible(req)
+                compatibility[key] = {
+                    "requires_python": req,
+                    "compatible": bool(compatible),
+                }
+        for key, req in dynamic_reqs.items():
+            if key not in compatibility and req:
+                compatible = is_python_version_compatible(req)
+                compatibility[key] = {
+                    "requires_python": req,
+                    "compatible": bool(compatible),
+                }
+        return compatibility
+
     def normalize_registry_entry(self, key, data):
         entry, platforms = self.registry_service.normalize_entry(key, data)
         if entry is None:
@@ -22535,6 +22591,8 @@ class BasePlugin:
                 "versions": versions,
                 "management": management,
                 "platforms": self.plugin_platforms,
+                "python_compatibility": self.get_plugin_python_compatibility(),
+                "host_python": f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}",
                 "self_update": self.getSelfUpdateState()
             })
         elif action == "refresh_update_status":
@@ -22574,6 +22632,8 @@ class BasePlugin:
                 "versions": versions,
                 "management": management,
                 "platforms": self.plugin_platforms,
+                "python_compatibility": self.get_plugin_python_compatibility(),
+                "host_python": f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}",
                 "self_update": self.getSelfUpdateState()
             })
         elif action == "self_update_status":

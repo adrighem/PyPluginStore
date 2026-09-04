@@ -1889,3 +1889,89 @@ def test_successful_new_install_reaches_restart_pending_without_fake_backups(
     ).is_file()
     assert not Path(activated.paths.backup_code).exists()
     assert not Path(activated.paths.backup_dependencies).exists()
+
+
+def test_base_plugin_python_compatibility_hybrid_resolution(plugin_core_module):
+    plugin = plugin_core_module.BasePlugin()
+
+    # Mock registry entries
+    entry_compat = plugin_core_module.RegistryEntry(
+        key="CompatPlugin",
+        author="Author",
+        repository="repo",
+        description="desc",
+        branch="master",
+        requires_python=">=3.7",
+    )
+    entry_incompat = plugin_core_module.RegistryEntry(
+        key="IncompatPlugin",
+        author="Author",
+        repository="repo",
+        description="desc",
+        branch="master",
+        requires_python=">=3.12",
+    )
+    plugin.registry_entries = {
+        "CompatPlugin": entry_compat,
+        "IncompatPlugin": entry_incompat,
+    }
+
+    # Record dynamic incompatibility for an unannotated plugin
+    plugin.record_python_incompatibility("DynamicIncompatPlugin", ">=3.11")
+
+    compat_map = plugin.get_plugin_python_compatibility()
+
+    assert "CompatPlugin" in compat_map
+    assert compat_map["CompatPlugin"]["requires_python"] == ">=3.7"
+    assert compat_map["CompatPlugin"]["compatible"] is True
+
+    assert "IncompatPlugin" in compat_map
+    assert compat_map["IncompatPlugin"]["requires_python"] == ">=3.12"
+    expected_incompat = plugin_core_module.is_python_version_compatible(">=3.12")
+    assert compat_map["IncompatPlugin"]["compatible"] == expected_incompat
+
+    assert "DynamicIncompatPlugin" in compat_map
+    assert compat_map["DynamicIncompatPlugin"]["requires_python"] == ">=3.11"
+    expected_dyn = plugin_core_module.is_python_version_compatible(">=3.11")
+    assert compat_map["DynamicIncompatPlugin"]["compatible"] == expected_dyn
+
+
+def test_snapshot_service_records_dynamic_python_incompatibility(plugin_core_module, tmp_path):
+    manager, transaction = create_real_transaction(
+        plugin_core_module,
+        tmp_path,
+        operation="release_update",
+    )
+    service = real_service(plugin_core_module, manager)
+
+    # Add a mock plugin instance on service with recording support
+    service.plugin = plugin_core_module.BasePlugin()
+
+    # Create sibling plugin with incompatible python requirement
+    sibling_dir = Path(transaction.paths.live_code).parent / "IncompatibleSibling"
+    sibling_dir.mkdir(parents=True, exist_ok=True)
+    (sibling_dir / "plugin.py").write_text("print('sib')\n", encoding="utf-8")
+    (sibling_dir / "requirements.txt").write_text("solaredge_modbus==0.8.0\n", encoding="utf-8")
+
+    # Mock installer runner to simulate failure on sibling
+    def fake_run_installer(installer, staged_dependencies, requirements_files, environment):
+        files_str = str(requirements_files)
+        if "IncompatibleSibling" in files_str:
+            return "fake-pip", SimpleNamespace(
+                returncode=1,
+                stdout="ERROR: Package 'solaredge_modbus' requires a different Python: 3.7.3 not in '>=3.8'",
+                stderr="",
+            )
+        return "fake-pip", SimpleNamespace(
+            returncode=0,
+            stdout="Successfully installed new-dependency",
+            stderr="",
+        )
+
+    service._run_installer = fake_run_installer
+    service._locate_installer = lambda: "fake-pip"
+
+    stage(service, transaction)
+
+    assert "IncompatibleSibling" in service.plugin.dynamic_python_requirements
+    assert service.plugin.dynamic_python_requirements["IncompatibleSibling"] == ">=3.8"

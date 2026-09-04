@@ -638,3 +638,63 @@ def test_v1_documents_require_explicit_normalization_boundary(
         now=NOW,
     )
     assert index.releases["ExamplePlugin"].package_id == "ExamplePlugin"
+
+
+def test_package_record_requires_python_support(plugin_core_module):
+    import package_registry
+
+    raw = package_record(
+        package_id="ModernPlugin",
+        domoticz_key="ModernKey",
+    )
+    raw["requires_python"] = ">=3.8"
+    record = package_registry.PackageRecord.from_document(raw)
+    assert record.requires_python == ">=3.8"
+    doc = record.to_document()
+    assert doc["requires_python"] == ">=3.8"
+
+    # From annotations fallback
+    raw2 = package_record(
+        package_id="AnnotatedPlugin",
+        domoticz_key="AnnotatedKey",
+    )
+    raw2["annotations"] = {"requires_python": ">=3.10"}
+    record2 = package_registry.PackageRecord.from_document(raw2)
+    assert record2.requires_python == ">=3.10"
+
+
+@pytest.mark.parametrize(
+    ("specifier", "version", "expected"),
+    [
+        (">=3.8", (3, 7, 3), False),
+        (">=3.8", (3, 8, 0), True),
+        (">=3.8", (3, 11, 2), True),
+        (">=3.8, <4.0", (3, 11, 2), True),
+        (">=3.8, <4.0", (4, 0, 0), False),
+        ("~=3.8.0", (3, 8, 5), True),
+        ("~=3.8.0", (3, 9, 0), False),
+        ("==3.8.*", (3, 8, 2), True),
+        ("==3.8.*", (3, 9, 0), False),
+        ("<3.12", (3, 14, 0), False),
+        ("<3.12", (3, 11, 0), True),
+        ("!=3.9.0", (3, 9, 0), False),
+        ("!=3.9.0", (3, 9, 1), True),
+        ("", (3, 7, 3), True),
+    ],
+)
+def test_is_python_version_compatible(
+    plugin_core_module,
+    specifier,
+    version,
+    expected,
+):
+    func = getattr(
+        plugin_core_module,
+        "is_python_version_compatible",
+        None,
+    )
+    if func is None:
+        import package_registry
+
+        func = package_registry.is_python_version_compatible
+    assert func(specifier, version) == expected

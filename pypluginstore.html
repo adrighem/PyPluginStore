@@ -1075,6 +1075,18 @@
         font-weight: 600;
     }
 
+    #pypluginstore-container .python-warning-badge {
+        display: inline-block;
+        background: rgba(224, 102, 102, 0.16);
+        color: #d9534f;
+        border: 1px solid rgba(224, 102, 102, 0.45);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7em;
+        font-weight: 600;
+        letter-spacing: 0;
+    }
+
     #pypluginstore-container .self-update-badge {
         display: inline-block;
         background: var(--pps-badge-muted-bg);
@@ -1283,6 +1295,8 @@
     let versionsCache = {};
     let managementCache = {};
     let platformCache = {};
+    let pythonCompatibilityCache = {};
+    let hostPythonVersion = '';
     let installedMatchDetailsCache = {};
     let installationConflictCache = {};
     let installedScanError = '';
@@ -3027,6 +3041,8 @@
         versionsCache = response.versions || {};
         managementCache = response.management || {};
         platformCache = response.platforms || {};
+        pythonCompatibilityCache = response.python_compatibility || {};
+        hostPythonVersion = response.host_python || '';
         installedMatchDetailsCache = response.installed_match_details || {};
         installationConflictCache = response.installation_conflicts || {};
         installedScanError = String(response.installed_scan_error || '');
@@ -4241,6 +4257,16 @@
                 header.appendChild(platformBadges);
             }
 
+            const pyCompat = (typeof pythonCompatibilityCache !== 'undefined' && pythonCompatibilityCache) ? pythonCompatibilityCache[key] : null;
+            if (pyCompat && pyCompat.compatible === false) {
+                const hostVer = (typeof hostPythonVersion !== 'undefined' && hostPythonVersion) ? ' (running on ' + hostPythonVersion + ')' : '';
+                const pyBadge = document.createElement('span');
+                pyBadge.className = 'python-warning-badge';
+                pyBadge.textContent = 'Python ' + (pyCompat.requires_python || 'Incompatible');
+                pyBadge.title = 'Requires Python ' + (pyCompat.requires_python || '') + hostVer;
+                statusBadges.appendChild(pyBadge);
+            }
+
             if (statusBadges.childNodes.length > 0) {
                 header.appendChild(statusBadges);
             }
@@ -4558,6 +4584,18 @@
         if (action === 'remove' && !confirm(`Are you sure you want to remove ${pluginKey}?`)) {
             return;
         }
+        if (['install', 'update', 'use_release'].includes(action)) {
+            const pyCompat = (typeof pythonCompatibilityCache !== 'undefined' && pythonCompatibilityCache) ? pythonCompatibilityCache[pluginKey] : null;
+            if (pyCompat && pyCompat.compatible === false) {
+                const hostVer = (typeof hostPythonVersion !== 'undefined' && hostPythonVersion) ? ` (Domoticz is running Python ${hostPythonVersion})` : '';
+                const msg = `⚠️ Python Compatibility Warning\n\n` +
+                    `Plugin '${pluginKey}' requires Python ${pyCompat.requires_python}${hostVer}.\n\n` +
+                    `Installing or updating this plugin may fail dependency resolution. Do you want to proceed anyway?`;
+                if (!confirm(msg)) {
+                    return;
+                }
+            }
+        }
 
         const actionName = actionDisplayName(action);
         setManagerActivity(`Executing ${actionName} for ${pluginKey}...`);
@@ -4666,6 +4704,8 @@
                 versionsCache = response.versions || versionsCache;
                 managementCache = response.management || managementCache;
                 platformCache = response.platforms || platformCache;
+                pythonCompatibilityCache = response.python_compatibility || pythonCompatibilityCache;
+                hostPythonVersion = response.host_python || hostPythonVersion;
                 installedMatchDetailsCache = response.installed_match_details || installedMatchDetailsCache;
                 installationConflictCache = response.installation_conflicts || installationConflictCache;
                 installedScanError = String(response.installed_scan_error || '');

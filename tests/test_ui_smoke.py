@@ -2259,6 +2259,91 @@ def test_manager_status_is_an_accessible_polite_live_region():
     assert 'aria-atomic="true"' in status_tag
 
 
+def test_python_warning_badge_style_defined():
+    html = (REPO_ROOT / "pypluginstore.html").read_text(encoding="utf-8")
+    assert ".python-warning-badge" in html
+
+
+def test_python_compatibility_warning_prompts_user_on_action():
+    assert_ui_behavior(
+        ("handleAction",),
+        setup="""
+let installedScanError = '';
+let managerIdentityVerdict = {
+    state: 'consistent',
+    mutations_allowed: true
+};
+let pythonCompatibilityCache = {
+    'IncompatiblePlugin': {
+        requires_python: '>=3.8',
+        compatible: false
+    },
+    'CompatiblePlugin': {
+        requires_python: '>=3.7',
+        compatible: true
+    }
+};
+let hostPythonVersion = '3.7.3';
+let managerKey = 'PyPluginStore';
+let nextResponse = { status: 'success', message: 'Installed.' };
+let confirmPrompts = [];
+let confirmResponse = true;
+const confirm = message => {
+    confirmPrompts.push(message);
+    return confirmResponse;
+};
+const alerts = [];
+let loadCalls = 0;
+const managerActionIsMutating = () => true;
+const managerIdentityAllowsMutations = () => true;
+const renderManagerStatus = () => {};
+const actionDisplayName = action => action;
+const setManagerActivity = () => {};
+const clearManagerActivity = () => {};
+const sendCommand = async () => nextResponse;
+const handleReleaseManagementAction = async () => nextResponse;
+const loadPlugins = async () => { loadCalls += 1; };
+const alert = message => alerts.push(message);
+""",
+        exercise="""
+    // Test 1: Incompatible plugin prompts confirmation and proceeds if accepted
+    confirmResponse = true;
+    await handleAction('install', 'IncompatiblePlugin');
+    if (confirmPrompts.length !== 1) {
+        throw new Error('incompatible plugin did not prompt confirmation modal');
+    }
+    if (!confirmPrompts[0].includes('requires Python >=3.8') || !confirmPrompts[0].includes('3.7.3')) {
+        throw new Error('confirmation prompt did not include requirements or host python: ' + confirmPrompts[0]);
+    }
+    if (loadCalls !== 1) {
+        throw new Error('accepted install did not complete');
+    }
+
+    // Test 2: Incompatible plugin aborts if confirmation cancelled
+    confirmPrompts = [];
+    confirmResponse = false;
+    await handleAction('install', 'IncompatiblePlugin');
+    if (confirmPrompts.length !== 1) {
+        throw new Error('cancelled install did not prompt confirmation');
+    }
+    if (loadCalls !== 1) {
+        throw new Error('cancelled install proceeded when it should have aborted');
+    }
+
+    // Test 3: Compatible plugin proceeds without confirmation prompt
+    confirmPrompts = [];
+    await handleAction('install', 'CompatiblePlugin');
+    if (confirmPrompts.length !== 0) {
+        throw new Error('compatible plugin prompted unnecessary confirmation');
+    }
+    if (loadCalls !== 2) {
+        throw new Error('compatible plugin did not finish installing');
+    }
+""",
+    )
+
+
+
 def assert_ui_behavior(function_names, *, setup, exercise):
     """Run selected inline UI functions in a bounded Node behavior harness."""
     script = load_inline_script()

@@ -61,6 +61,7 @@ PACKAGE_FIELDS = {
     "repository",
     "platforms",
     "delivery",
+    "requires_python",
     "annotations",
 }
 REPOSITORY_FIELDS = {"url", "branch"}
@@ -260,6 +261,81 @@ class PackageDelivery:
         return document
 
 
+_PYTHON_SPECIFIER_REGEX = re.compile(
+    r"^\s*(==|!=|<=|>=|<|>|~=)\s*([0-9]+(?:\.[0-9]+)*)(?:\.\*)?\s*$"
+)
+
+
+def _parse_version_tuple(version_str):
+    parts = []
+    for part in str(version_str or "").strip().split("."):
+        if not part or not part.isdigit():
+            break
+        parts.append(int(part))
+    return tuple(parts)
+
+
+def is_python_version_compatible(requires_python, python_version=None):
+    """Check if a Python version satisfies a PEP 440 style requires_python specifier."""
+    if not requires_python:
+        return True
+    if python_version is None:
+        import sys
+        python_version = sys.version_info[:3]
+    elif isinstance(python_version, str):
+        python_version = _parse_version_tuple(python_version)
+    elif isinstance(python_version, (tuple, list)):
+        python_version = tuple(int(x) for x in python_version)
+
+    clauses = [
+        clause.strip()
+        for clause in str(requires_python).split(",")
+        if clause.strip()
+    ]
+    if not clauses:
+        return True
+
+    for clause in clauses:
+        match = _PYTHON_SPECIFIER_REGEX.match(clause)
+        if match is None:
+            continue
+        op, target_str = match.groups()
+        target = _parse_version_tuple(target_str)
+        curr = python_version[:max(len(target), len(python_version))]
+        max_len = max(len(curr), len(target))
+        curr_padded = curr + (0,) * (max_len - len(curr))
+        target_padded = target + (0,) * (max_len - len(target))
+
+        if op == "==":
+            if ".*" in clause:
+                if python_version[:len(target)] != target:
+                    return False
+            elif curr_padded != target_padded:
+                return False
+        elif op == "!=":
+            if curr_padded == target_padded:
+                return False
+        elif op == ">=":
+            if curr_padded < target_padded:
+                return False
+        elif op == ">":
+            if curr_padded <= target_padded:
+                return False
+        elif op == "<=":
+            if curr_padded > target_padded:
+                return False
+        elif op == "<":
+            if curr_padded >= target_padded:
+                return False
+        elif op == "~=":
+            if curr_padded < target_padded:
+                return False
+            prefix_len = max(1, len(target) - 1)
+            if python_version[:prefix_len] != target[:prefix_len]:
+                return False
+    return True
+
+
 @dataclass(frozen=True)
 class PackageRecord:
     package_id: str
@@ -268,6 +344,7 @@ class PackageRecord:
     repository: PackageRepository
     platforms: tuple
     delivery: PackageDelivery
+    requires_python: str = ""
     annotations: object = None
 
     @classmethod
@@ -288,6 +365,18 @@ class PackageRecord:
         annotations = document.get("annotations")
         if annotations is not None and not isinstance(annotations, dict):
             raise ValueError("package.annotations must be an object.")
+        requires_python = document.get("requires_python")
+        if requires_python is not None:
+            requires_python = _require_string(
+                requires_python,
+                "requires_python",
+                allow_empty=True,
+            )
+        elif annotations and isinstance(annotations, dict):
+            req = annotations.get("requires_python")
+            if req is not None and isinstance(req, str):
+                requires_python = req.strip()
+        requires_python = requires_python or ""
         return cls(
             package_id=_require_package_id(document["package_id"]),
             domoticz_key=_require_domoticz_key(document["domoticz_key"]),
@@ -295,6 +384,7 @@ class PackageRecord:
             repository=PackageRepository.from_document(document["repository"]),
             platforms=tuple(_normalize_platforms(document["platforms"])),
             delivery=PackageDelivery.from_document(document["delivery"]),
+            requires_python=requires_python,
             annotations=copy.deepcopy(annotations),
         )
 
@@ -339,6 +429,8 @@ class PackageRecord:
             "platforms": list(self.platforms),
             "delivery": self.delivery.to_document(),
         }
+        if self.requires_python:
+            document["requires_python"] = self.requires_python
         if self.annotations is not None:
             document["annotations"] = copy.deepcopy(self.annotations)
         return document
