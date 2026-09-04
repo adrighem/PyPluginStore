@@ -136,6 +136,7 @@ def build_registry_entry(
     branch,
     platforms=None,
     release_tag_pattern="",
+    requires_python="",
 ):
     return build_package_document(
         package_id,
@@ -146,6 +147,7 @@ def build_registry_entry(
         branch,
         platforms,
         release_tag_pattern,
+        requires_python=requires_python,
     )
 
 
@@ -641,12 +643,23 @@ def main():
                     info,
                 )
                 release_pattern_changed = bool(inferred_tag_pattern)
+                current_requires_python = registry_record.requires_python
+                detected_requires_python = (
+                    getattr(platform_decision, "requires_python", "")
+                    if platform_decision is not None
+                    else ""
+                )
+                requires_python_changed = bool(
+                    detected_requires_python
+                    and detected_requires_python != current_requires_python
+                )
 
                 # Check if changed
                 if (updated_desc != registry_record.description or
                     update_times.get(key) != updated_at or
                     next_platforms != current_platforms or
-                    release_pattern_changed):
+                    release_pattern_changed or
+                    requires_python_changed):
 
                     print(f"[*] Updating {key}")
                     if release_pattern_changed:
@@ -655,6 +668,10 @@ def main():
                             + current_tag_pattern
                             + " -> "
                             + inferred_tag_pattern
+                        )
+                    if requires_python_changed:
+                        print(
+                            f"    requires_python {current_requires_python} -> {detected_requires_python}"
                         )
                     if detected_platforms and next_platforms == current_platforms:
                         print(
@@ -676,6 +693,12 @@ def main():
                         updated_record = (
                             updated_record.with_release_tag_pattern(
                                 inferred_tag_pattern
+                            )
+                        )
+                    if requires_python_changed:
+                        updated_record = (
+                            updated_record.with_requires_python(
+                                detected_requires_python
                             )
                         )
                     registry[key] = updated_record.to_document()
@@ -790,6 +813,7 @@ def main():
                     if repo.get(RELEASE_TAG_PATTERN_CHECKED_FIELD)
                     else ""
                 ),
+                requires_python=getattr(platform_decision, "requires_python", ""),
             )
             if pushed_at:
                 update_times[key] = normalize_update_timestamp(pushed_at)

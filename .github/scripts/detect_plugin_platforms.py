@@ -180,6 +180,7 @@ class PlatformDecision:
         confidence="low",
         reasons=None,
         evidence_class="unknown",
+        requires_python="",
     ):
         self.platforms = list(platforms)
         self.linux_score = linux_score
@@ -188,9 +189,10 @@ class PlatformDecision:
         self.confidence = confidence
         self.reasons = list(reasons or [])
         self.evidence_class = evidence_class
+        self.requires_python = str(requires_python or "")
 
     def to_dict(self):
-        return {
+        result = {
             "platforms": self.platforms,
             "confidence": self.confidence,
             "evidence_class": self.evidence_class,
@@ -201,6 +203,9 @@ class PlatformDecision:
             },
             "reasons": self.reasons,
         }
+        if self.requires_python:
+            result["requires_python"] = self.requires_python
+        return result
 
 
 def github_headers():
@@ -731,7 +736,7 @@ def file_priority(path):
         return None
     if base.startswith("readme"):
         return 0
-    if base in {"requirements.txt", "pyproject.toml", "setup.py", "setup.cfg"}:
+    if base in {"requirements.txt", "constraints.txt", "pyproject.toml", "setup.py", "setup.cfg"}:
         return 1
     if base == "plugin.py" or base.startswith("plugin_"):
         return 2
@@ -920,6 +925,171 @@ def decide_platforms(scores, assume_generic_python_is_cross_platform=True):
     return PlatformDecision([], linux_score, windows_score, both_score, "unknown", scores["reasons"], "unknown")
 
 
+_PYPI_CACHE = {}
+
+
+def _get_pypi_requires_python(pkg_name, version=None):
+    cache_key = (pkg_name.lower(), version)
+    if cache_key in _PYPI_CACHE:
+        return _PYPI_CACHE[cache_key]
+
+    if version:
+        url = f"https://pypi.org/pypi/{urllib.parse.quote(pkg_name)}/{urllib.parse.quote(str(version))}/json"
+    else:
+        url = f"https://pypi.org/pypi/{urllib.parse.quote(pkg_name)}/json"
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": API_USER_AGENT, "Accept": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.load(resp)
+            req_py = data.get("info", {}).get("requires_python") or ""
+            _PYPI_CACHE[cache_key] = req_py.strip()
+            return _PYPI_CACHE[cache_key]
+    except Exception:
+        _PYPI_CACHE[cache_key] = ""
+        return ""
+
+
+def _parse_requirement_specifiers(text):
+    results = []
+    for line in text.splitlines():
+        line = line.split("#")[0].strip()
+        if not line or line.startswith("-"):
+            continue
+        match = re.match(
+            r"^([A-Za-z0-9_.\-]+)\s*(?:(==|>=|<=|~=|>|<)\s*([0-9A-Za-z_.\-]+))?",
+            line,
+        )
+        if match:
+            pkg_name = match.group(1)
+            op = match.group(2)
+            ver = match.group(3)
+            is_pinned = (op == "==" and bool(ver))
+            results.append((pkg_name, ver if is_pinned else None, op, ver))
+    return results
+
+
+def _extract_min_python_version(requires_python_str):
+    if not requires_python_str:
+        return None
+    min_ver = None
+    for clause in requires_python_str.split(","):
+        clause = clause.strip()
+        m = re.match(r"^(?:>=|>|~=|==)\s*([0-9]+(?:\.[0-9]+)*)", clause)
+        if m:
+            v_parts = [int(p) for p in m.group(1).split(".") if p.isdigit()]
+            while len(v_parts) < 2:
+                v_parts.append(0)
+            v_tuple = tuple(v_parts[:2])
+            if min_ver is None or v_tuple > min_ver:
+                min_ver = v_tuple
+    return min_ver
+
+
+def detect_requires_python_from_texts(file_texts):
+    """Detect Python version requirement from pyproject.toml, setup.cfg, setup.py, requirements, or plugin.py."""
+    if not file_texts:
+        return ""
+
+    # 1. pyproject.toml
+    for path, text in file_texts.items():
+        if os.path.basename(path).lower() == "pyproject.toml":
+            try:
+                import tomllib
+            except ImportError:
+                try:
+                    import tomli as tomllib
+                except ImportError:
+                    tomllib = None
+            if tomllib is not None:
+                try:
+                    data = tomllib.loads(text)
+                    req = (
+                        data.get("project", {}).get("requires-python")
+                        or data.get("tool", {})
+                        .get("poetry", {})
+                        .get("dependencies", {})
+                        .get("python")
+                    )
+                    if isinstance(req, str) and req.strip():
+                        return req.strip()
+                except Exception:
+                    pass
+            m = re.search(
+                r"requires-python\s*=\s*['\"]([^'\"]+)['\"]",
+                text,
+                re.IGNORECASE,
+            )
+            if m:
+                return m.group(1).strip()
+
+    # 2. setup.cfg
+    for path, text in file_texts.items():
+        if os.path.basename(path).lower() == "setup.cfg":
+            import configparser
+
+            try:
+                cfg = configparser.ConfigParser()
+                cfg.read_string(text)
+                req = cfg.get("options", "python_requires", fallback=None)
+                if req and req.strip():
+                    return req.strip()
+            except Exception:
+                pass
+            m = re.search(
+                r"python_requires\s*=\s*([^#\r\n]+)", text, re.IGNORECASE
+            )
+            if m:
+                return m.group(1).split("#")[0].strip().strip("'\"")
+
+    # 3. setup.py
+    for path, text in file_texts.items():
+        if os.path.basename(path).lower() == "setup.py":
+            m = re.search(
+                r"python_requires\s*=\s*['\"]([^'\"]+)['\"]", text, re.IGNORECASE
+            )
+            if m:
+                return m.group(1).strip()
+
+    # 4. plugin.py XML header or sys.version_info check
+    for path, text in file_texts.items():
+        if os.path.basename(path).lower() == "plugin.py":
+            m = re.search(
+                r"<plugin\b[^>]*\b(?:requires_python|python_requires|python)\s*=\s*['\"]([^'\"]+)['\"]",
+                text,
+                re.IGNORECASE,
+            )
+            if m:
+                return m.group(1).strip()
+            m = re.search(
+                r"sys\.version_info\s*(?:<|<=\s*\(|\s*<\s*\()\s*([0-9]+)\s*,\s*([0-9]+)",
+                text,
+            )
+            if m:
+                return f">={m.group(1)}.{m.group(2)}"
+
+    # 5. requirements.txt / constraints.txt pinned dependencies
+    highest_min = None
+    for path, text in file_texts.items():
+        base = os.path.basename(path).lower()
+        if base in {"requirements.txt", "constraints.txt"}:
+            specs = _parse_requirement_specifiers(text)
+            for pkg_name, pinned_ver, op, ver in specs:
+                if pinned_ver:
+                    py_req = _get_pypi_requires_python(pkg_name, pinned_ver)
+                    if py_req:
+                        min_v = _extract_min_python_version(py_req)
+                        if min_v and (highest_min is None or min_v > highest_min):
+                            highest_min = min_v
+
+    if highest_min and highest_min >= (3, 8):
+        return f">={highest_min[0]}.{highest_min[1]}"
+
+    return ""
+
+
 def detect_platforms_from_repository_data(repo_info=None, file_texts=None, assume_generic_python_is_cross_platform=True):
     scores = new_scores()
     repo_info = repo_info or {}
@@ -936,7 +1106,9 @@ def detect_platforms_from_repository_data(repo_info=None, file_texts=None, assum
         score_path(path, scores)
         score_text(text, path, scores)
 
-    return decide_platforms(scores, assume_generic_python_is_cross_platform)
+    decision = decide_platforms(scores, assume_generic_python_is_cross_platform)
+    decision.requires_python = detect_requires_python_from_texts(file_texts)
+    return decision
 
 
 def detect_platforms_for_repo(owner, repo, branch, repo_info=None):
@@ -1015,7 +1187,15 @@ def update_registry_platforms(
         if decision is None:
             print("no decision")
             stats["failed"] += 1
-        elif decision.platforms != current_platforms:
+        else:
+            current_record = RegistryRecord.from_entry(key, data)
+            current_requires_python = current_record.requires_python
+            detected_requires_python = getattr(decision, "requires_python", "")
+            requires_python_changed = bool(
+                detected_requires_python
+                and detected_requires_python != current_requires_python
+            )
+
             metadata_entry = platform_metadata["entries"].get(key, {})
             next_platforms, policy_action = choose_platforms_for_registry(
                 current_platforms,
@@ -1023,15 +1203,30 @@ def update_registry_platforms(
                 metadata_entry=metadata_entry,
                 is_new=False,
             )
-            if next_platforms != current_platforms:
-                registry[key] = set_registry_entry_platforms(data, next_platforms)
-                print(f"{current_platforms or ['unknown']} -> {next_platforms} ({decision.confidence}, {policy_action})")
+            platforms_changed = (next_platforms != current_platforms)
+
+            if platforms_changed or requires_python_changed:
+                updated_record = current_record
+                if platforms_changed:
+                    updated_record = updated_record.with_platforms(next_platforms)
+                if requires_python_changed:
+                    updated_record = updated_record.with_requires_python(
+                        detected_requires_python
+                    )
+                registry[key] = updated_record.to_document()
+                log_parts = []
+                if platforms_changed:
+                    log_parts.append(
+                        f"platforms: {current_platforms or ['unknown']} -> {next_platforms} ({decision.confidence}, {policy_action})"
+                    )
+                if requires_python_changed:
+                    log_parts.append(
+                        f"requires_python: '{current_requires_python}' -> '{detected_requires_python}'"
+                    )
+                print("; ".join(log_parts))
                 stats["updated"] += 1
             else:
-                print(
-                    f"{current_platforms or ['unknown']} unchanged; "
-                    f"detected {decision.platforms} ({decision.confidence}, {policy_action})"
-                )
+                print(f"{current_platforms} unchanged")
                 stats["unchanged"] += 1
 
             before = json.dumps(platform_metadata["entries"].get(key, {}), sort_keys=True)
@@ -1048,9 +1243,6 @@ def update_registry_platforms(
             after = json.dumps(platform_metadata["entries"].get(key, {}), sort_keys=True)
             if after != before:
                 stats["metadata_updated"] += 1
-        else:
-            print(f"{current_platforms} unchanged")
-            stats["unchanged"] += 1
 
         if sleep_seconds:
             time.sleep(sleep_seconds)

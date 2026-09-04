@@ -499,3 +499,59 @@ def test_scanner_package_builder_emits_release_first_v2_records(
     assert document["delivery"]["preferred"] == "release_if_indexed"
     assert document["delivery"]["git_supported"] is True
     assert document["delivery"]["release"]["provider"] == provider
+
+
+def test_scanner_package_builder_includes_requires_python(registry_records_module):
+    document = registry_records_module.build_package_document(
+        "Solaredge",
+        "SOLAREDGE",
+        "Owner",
+        "Solaredge",
+        "Solaredge plugin",
+        "main",
+        ["linux"],
+        requires_python=">=3.8",
+    )
+    assert document["requires_python"] == ">=3.8"
+    record = registry_records_module.RegistryRecord.from_entry("Solaredge", document)
+    assert record.requires_python == ">=3.8"
+
+    updated = record.with_requires_python(">=3.10")
+    assert updated.requires_python == ">=3.10"
+    assert updated.to_document()["requires_python"] == ">=3.10"
+
+    cleared = updated.with_requires_python("")
+    assert cleared.requires_python == ""
+    assert "requires_python" not in cleared.to_document()
+
+
+def test_detect_requires_python_from_texts():
+    platform_module = load_module_from_path(
+        "detect_plugin_platforms_under_test",
+        REPO_ROOT / ".github" / "scripts" / "detect_plugin_platforms.py",
+    )
+    detect = platform_module.detect_requires_python_from_texts
+
+    # pyproject.toml
+    assert detect({"pyproject.toml": '[project]\nrequires-python = ">=3.14.2"\n'}) == ">=3.14.2"
+    # setup.cfg
+    assert detect({"setup.cfg": "[options]\npython_requires = >=3.9\n"}) == ">=3.9"
+    # setup.py
+    assert detect({"setup.py": 'setup(name="test", python_requires=">=3.8")'}) == ">=3.8"
+    # plugin.py sys.version_info
+    assert detect({"plugin.py": "if sys.version_info < (3, 11):\n    Domoticz.Error('requires 3.11')\n"}) == ">=3.11"
+    # plugin.py XML header
+    assert detect({"plugin.py": '<plugin key="test" name="Test" requires_python=">=3.10">\n</plugin>'}) == ">=3.10"
+
+
+def test_validate_registry_entry_pep440():
+    validate_module = load_module_from_path(
+        "validate_plugins_under_test",
+        REPO_ROOT / ".github" / "scripts" / "validate_plugins.py",
+    )
+    valid_doc = package("ValidPlugin", requires_python=">=3.8,<4.0")
+    validate_module.validate_registry_entry("ValidPlugin", valid_doc)
+
+    invalid_doc = package("InvalidPlugin", requires_python="invalid-specifier!!!")
+    with pytest.raises(ValueError, match="invalid requires_python specifier"):
+        validate_module.validate_registry_entry("InvalidPlugin", invalid_doc)

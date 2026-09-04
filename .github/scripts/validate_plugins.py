@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import hashlib
+import re
 import subprocess
 import time
 
@@ -136,7 +137,17 @@ def validate_update_times(registry_data):
 
 
 def validate_registry_entry(key, data):
-    RegistryRecord.from_entry(key, data)
+    record = RegistryRecord.from_entry(key, data)
+    if record.requires_python:
+        for clause in record.requires_python.split(","):
+            clause = clause.strip()
+            if not clause or not re.match(
+                r"^(?:==|!=|<=|>=|<|>|~=|===)\s*v?[0-9]+(?:\.[0-9]+)*(?:\.?(?:a|b|rc|post|dev)[0-9]*)?(?:\.\*)?$",
+                clause,
+            ):
+                raise ValueError(
+                    f"Registry package {key} has invalid requires_python specifier: {record.requires_python}"
+                )
 
 
 def split_registry_owner(author):

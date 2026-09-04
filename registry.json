@@ -144,7 +144,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.8"
     },
     {
       "package_id": "Broadlink-Domoticz-plugin",
@@ -169,7 +170,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.8"
     },
     {
       "package_id": "ChromecastPlugin",
@@ -783,7 +785,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.10"
     },
     {
       "package_id": "Domoticz-Hewalex",
@@ -3459,7 +3462,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.8"
     },
     {
       "package_id": "SmartVirtualThermostat",
@@ -3559,7 +3563,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.8"
     },
     {
       "package_id": "SolaxCloud",
@@ -4001,7 +4006,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.11"
     },
     {
       "package_id": "Zigbee2Mqtt",
@@ -5399,7 +5405,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.8"
     },
     {
       "package_id": "domoticz-tailscale-plugin",
@@ -5793,7 +5800,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.10"
     },
     {
       "package_id": "domoticz_panasonic_CZ-TACG1",
@@ -5841,7 +5849,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.9"
     },
     {
       "package_id": "domoticz_zigbee2tasmota",
@@ -6108,7 +6117,8 @@
           "source_path": ".",
           "mutable_paths": []
         }
-      }
+      },
+      "requires_python": ">=3.14.2"
     },
     {
       "package_id": "home-connect",

@@ -54,6 +54,7 @@ OBJECT_FIELDS = {
     "updated_at",
     "platforms",
     "delivery",
+    "requires_python",
 }
 DELIVERY_FIELDS = {"schema_version", "preferred", "git_supported", "release"}
 RELEASE_FIELDS = {
@@ -552,6 +553,7 @@ def build_package_document(
     branch,
     platforms=None,
     release_tag_pattern="",
+    requires_python="",
 ):
     repository_url = build_repository_url(owner, repository)
     delivery = default_delivery_for_repository(repository_url)
@@ -583,6 +585,10 @@ def build_package_document(
         "platforms": _normalize_platforms(platforms),
         "delivery": delivery,
     }
+    if requires_python:
+        document["requires_python"] = _require_string(
+            requires_python, "requires_python"
+        )
     package = PackageRecord.from_document(document)
     validate_explicit_delivery(package)
     return package.to_document()
@@ -934,6 +940,7 @@ class RegistryRecord:
     is_legacy: bool
     extra_fields: dict
     _document: object = field(repr=False, compare=False)
+    requires_python: str = ""
 
     @classmethod
     def from_entry(cls, key, entry):
@@ -952,6 +959,7 @@ class RegistryRecord:
             platforms = list(package.platforms)
             delivery = package.delivery
             extra_fields = copy.deepcopy(package.annotations or {})
+            requires_python = package.requires_python
             is_legacy = False
         elif isinstance(entry, list):
             if len(entry) < 4:
@@ -975,6 +983,7 @@ class RegistryRecord:
             location = parse_registry_owner(owner)
             delivery = DeliveryPolicy.implicit()
             extra_fields = {}
+            requires_python = ""
             is_legacy = True
         elif isinstance(entry, dict):
             for required in ("owner", "repository", "description", "branch"):
@@ -1007,6 +1016,11 @@ class RegistryRecord:
                 for field_name, value in entry.items()
                 if field_name not in OBJECT_FIELDS
             }
+            requires_python = _require_string(
+                entry.get("requires_python", ""),
+                "requires_python",
+                allow_empty=True,
+            )
             is_legacy = False
         else:
             raise ValueError("Registry entry must be a legacy list or object.")
@@ -1024,6 +1038,7 @@ class RegistryRecord:
             delivery=delivery,
             is_legacy=is_legacy,
             extra_fields=extra_fields,
+            requires_python=requires_python,
             _document=original,
         )
 
@@ -1110,4 +1125,26 @@ class RegistryRecord:
         if not isinstance(release, dict):
             raise ValueError("Package does not have a release policy.")
         release["tag_pattern"] = tag_pattern
+        return type(self).from_entry(self.key, document)
+
+    def with_requires_python(self, requires_python):
+        """Return this package record with an updated requires_python specifier."""
+        requires_python = _require_string(
+            requires_python,
+            "requires_python",
+            allow_empty=True,
+        )
+        document = self.to_document()
+        if isinstance(document, dict) and "package_id" in document:
+            if requires_python:
+                document["requires_python"] = requires_python
+            else:
+                document.pop("requires_python", None)
+        elif self.is_legacy:
+            pass
+        else:
+            if requires_python:
+                document["requires_python"] = requires_python
+            else:
+                document.pop("requires_python", None)
         return type(self).from_entry(self.key, document)
