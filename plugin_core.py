@@ -12400,10 +12400,11 @@ RELEASE_DEPENDENCY_FAILURE_PATTERNS = (
         (
             "requires-python",
             "requires python",
-            "requires a different python version",
+            "requires a different python",
             "not compatible with python",
             "does not support python",
             "unsupported python version",
+            "require a different python version",
         ),
     ),
     (
@@ -12475,23 +12476,33 @@ RELEASE_DEPENDENCY_FAILURE_MESSAGES = {
 
 RELEASE_DEPENDENCY_FAILURE_PACKAGE_PATTERNS = (
     re.compile(
-        r"could not find a version that satisfies the requirement "
-        r"([a-z0-9][a-z0-9._-]{0,127})",
+        r"could not find a version that satisfies the requirement\s+"
+        r"['\"]?([a-z0-9][a-z0-9._-]{0,127})",
         re.IGNORECASE,
     ),
     re.compile(
-        r"no matching distribution found for "
-        r"([a-z0-9][a-z0-9._-]{0,127})",
+        r"no matching distribution found for\s+"
+        r"['\"]?([a-z0-9][a-z0-9._-]{0,127})",
         re.IGNORECASE,
     ),
     re.compile(
-        r"([a-z0-9][a-z0-9._-]{0,127}) "
+        r"package\s+['\"]?([a-z0-9][a-z0-9._-]{0,127})['\"]?\s+"
+        r"requires a different python",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"['\"]?([a-z0-9][a-z0-9._-]{0,127})['\"]?\s+"
+        r"requires a different python",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"['\"]?([a-z0-9][a-z0-9._-]{0,127})['\"]?\s+"
         r"was not found in the package registry",
         re.IGNORECASE,
     ),
     re.compile(
-        r"([a-z0-9][a-z0-9._-]{0,127}) "
-        r"requires a different python version",
+        r"failed to build\s+"
+        r"['\"]?([a-z0-9][a-z0-9._-]{0,127})",
         re.IGNORECASE,
     ),
 )

@@ -1146,6 +1146,26 @@ def test_installer_failure_identifies_the_blocking_requirement_owner_safely(
             "python_incompatible",
         ),
         (
+            "Package 'example-package' requires a different Python: 3.7.3 not in '>=3.8'",
+            "python_incompatible",
+        ),
+        (
+            "Package example-package requires a different Python: 3.7.3 not in '>=3.8'",
+            "python_incompatible",
+        ),
+        (
+            "Ignored the following versions that require a different python version",
+            "python_incompatible",
+        ),
+        (
+            "could not find a version that satisfies the requirement example-package==1.2.3",
+            "package_not_found",
+        ),
+        (
+            "no matching distribution found for example-package==1.2.3",
+            "package_not_found",
+        ),
+        (
             "certificate verify failed while downloading",
             "network_tls",
         ),
@@ -1184,6 +1204,32 @@ def test_installer_failure_output_is_reduced_to_an_allowlisted_category(
         "",
         output,
     ) == expected
+
+
+def test_release_dependency_failure_packages_and_owners_support_pinned_and_quoted_formats(
+    plugin_core_module,
+    tmp_path,
+):
+    requirements_file = tmp_path / "requirements.txt"
+    requirements_file.write_text("solaredge_modbus==0.8.0\nrequests>=2.31.0\n")
+    requirements = [("domoticz-solaredge-modbustcp-plugin", str(requirements_file))]
+
+    outputs = [
+        "Could not find a version that satisfies the requirement solaredge_modbus==0.8.0",
+        "No matching distribution found for solaredge_modbus==0.8.0",
+        "Package 'solaredge-modbus' requires a different Python: 3.7.3 not in '>=3.8'",
+        "Package solaredge_modbus requires a different Python: 3.7.3 not in '>=3.8'",
+    ]
+    for output in outputs:
+        packages = plugin_core_module.release_dependency_failure_packages(
+            "", output
+        )
+        assert "solaredge-modbus" in packages, f"Failed to extract solaredge-modbus from: {output}"
+        owners = plugin_core_module.release_dependency_failure_owners(
+            requirements, "", output
+        )
+        assert owners == [("domoticz-solaredge-modbustcp-plugin", "solaredge-modbus")], f"Failed to map owner from: {output}"
+
 
 
 def test_validation_failure_discards_installed_stage_and_never_mutates_live(
