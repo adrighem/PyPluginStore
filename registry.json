@@ -1058,6 +1058,30 @@
       }
     },
     {
+      "package_id": "Domoticz-MySkodaAPI",
+      "domoticz_key": "MySkodaAPI",
+      "description": "Domoticz Integration for MySkoda via their API",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-MySkodaAPI",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-N8N-Plugin",
       "domoticz_key": "Domoticz-N8N-Plugin",
       "description": "Plugin for Domoticz to load the UI inside Domoticz, and add all workflows as devices that you can toggle on/off inside Domoticz.",
@@ -6189,6 +6213,31 @@
           "mutable_paths": []
         }
       }
+    },
+    {
+      "package_id": "lg-thinq-4-domoticz",
+      "domoticz_key": "LGThinq4Domoticz",
+      "description": "Domoticz plugin for LG ThinQ washers and dryers, using the official ThinQ Connect API with optional WideQ support for cycle program detection.",
+      "repository": {
+        "url": "https://github.com/blooesky/lg-thinq-4-domoticz",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      },
+      "requires_python": ">=3.10"
     },
     {
       "package_id": "luxtronikex",

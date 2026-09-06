@@ -59,7 +59,7 @@
     },
     {
       "package_id": "dell-idrac",
-      "updated_at": "2026-08-26T03:37:14Z"
+      "updated_at": "2026-09-02T03:34:42Z"
     },
     {
       "package_id": "Denon4306",
@@ -251,7 +251,7 @@
     },
     {
       "package_id": "Domoticz-Indevolt-plugin",
-      "updated_at": "2026-08-11T14:28:11Z"
+      "updated_at": "2026-09-05T07:50:06Z"
     },
     {
       "package_id": "domoticz-ir-climate-controller",
@@ -279,7 +279,7 @@
     },
     {
       "package_id": "Domoticz-MeteoAlarmEU-Atom",
-      "updated_at": "2026-08-27T21:27:48Z"
+      "updated_at": "2026-08-30T19:06:00Z"
     },
     {
       "package_id": "Domoticz-MG-Plugin",
@@ -287,7 +287,7 @@
     },
     {
       "package_id": "Domoticz-MotherboardMonitor",
-      "updated_at": "2026-08-29T07:55:11Z"
+      "updated_at": "2026-08-31T04:52:58Z"
     },
     {
       "package_id": "domoticz-mqtt-sync-plugin",
@@ -296,6 +296,10 @@
     {
       "package_id": "domoticz-mqttmapper-plugin",
       "updated_at": "2026-02-15T11:25:51Z"
+    },
+    {
+      "package_id": "Domoticz-MySkodaAPI",
+      "updated_at": "2026-09-05T19:34:35Z"
     },
     {
       "package_id": "Domoticz-N8N-Plugin",
@@ -423,7 +427,7 @@
     },
     {
       "package_id": "domoticz-python-melcloud",
-      "updated_at": "2024-02-03T13:40:36Z"
+      "updated_at": "2026-09-05T15:18:46Z"
     },
     {
       "package_id": "Domoticz-RAVEn-Plugin",
@@ -495,7 +499,7 @@
     },
     {
       "package_id": "Domoticz-TinyTUYA-Plugin",
-      "updated_at": "2026-08-29T20:07:03Z"
+      "updated_at": "2026-08-30T12:56:02Z"
     },
     {
       "package_id": "Domoticz-TPLinkRouter",
@@ -659,7 +663,7 @@
     },
     {
       "package_id": "Dreame",
-      "updated_at": "2026-07-23T16:50:01Z"
+      "updated_at": "2026-09-05T06:15:53Z"
     },
     {
       "package_id": "ds238-modbus-tcp",
@@ -679,7 +683,7 @@
     },
     {
       "package_id": "easee-domoticz",
-      "updated_at": "2026-08-09T20:51:47Z"
+      "updated_at": "2026-09-01T15:07:00Z"
     },
     {
       "package_id": "Easun-ISolarSPS-Domoticz",
@@ -699,7 +703,7 @@
     },
     {
       "package_id": "F1_race",
-      "updated_at": "2026-08-27T12:25:04Z"
+      "updated_at": "2026-09-05T06:16:21Z"
     },
     {
       "package_id": "fmi",
@@ -719,11 +723,11 @@
     },
     {
       "package_id": "FullyKiosk",
-      "updated_at": "2026-07-26T11:32:47Z"
+      "updated_at": "2026-09-05T11:38:00Z"
     },
     {
       "package_id": "Garbage",
-      "updated_at": "2026-08-30T07:31:59Z"
+      "updated_at": "2026-09-05T18:19:19Z"
     },
     {
       "package_id": "goodwe_rs485_domoticz",
@@ -739,7 +743,7 @@
     },
     {
       "package_id": "ha-domoticz-sync",
-      "updated_at": "2026-08-24T04:33:59Z"
+      "updated_at": "2026-08-31T14:39:15Z"
     },
     {
       "package_id": "Hisense-AirCon-Domoticz",
@@ -791,7 +795,7 @@
     },
     {
       "package_id": "HP_iLo",
-      "updated_at": "2026-07-25T08:00:36Z"
+      "updated_at": "2026-09-05T15:26:15Z"
     },
     {
       "package_id": "HyundaiKiaConnect",
@@ -826,6 +830,10 @@
       "updated_at": "2026-03-18T22:09:07Z"
     },
     {
+      "package_id": "lg-thinq-4-domoticz",
+      "updated_at": "2026-09-02T19:11:21Z"
+    },
+    {
       "package_id": "Link-Tap",
       "updated_at": "2026-06-11T21:56:15Z"
     },
@@ -843,7 +851,7 @@
     },
     {
       "package_id": "Lyrion",
-      "updated_at": "2026-07-23T16:50:31Z"
+      "updated_at": "2026-09-05T06:17:38Z"
     },
     {
       "package_id": "Marstek-Venus-plugin",
@@ -875,7 +883,7 @@
     },
     {
       "package_id": "myenergi",
-      "updated_at": "2026-08-20T11:48:54Z"
+      "updated_at": "2026-09-03T22:34:48Z"
     },
     {
       "package_id": "NEDsolarForecast",
@@ -943,7 +951,7 @@
     },
     {
       "package_id": "Solaredge_modbustcp",
-      "updated_at": "2026-08-29T13:48:09Z"
+      "updated_at": "2026-09-05T06:18:40Z"
     },
     {
       "package_id": "solarFlow2400AC",
@@ -963,7 +971,7 @@
     },
     {
       "package_id": "Somfy",
-      "updated_at": "2026-08-16T18:27:55Z"
+      "updated_at": "2026-09-05T15:30:10Z"
     },
     {
       "package_id": "sonoff-domoticz-plugin",
@@ -999,7 +1007,7 @@
     },
     {
       "package_id": "Toon_Thermostat",
-      "updated_at": "2026-07-24T14:25:11Z"
+      "updated_at": "2026-09-05T06:18:05Z"
     },
     {
       "package_id": "tuyaha",
@@ -1019,11 +1027,11 @@
     },
     {
       "package_id": "WeatherInfo",
-      "updated_at": "2026-07-23T17:07:48Z"
+      "updated_at": "2026-09-05T06:12:07Z"
     },
     {
       "package_id": "weheat-domoticz-plugin",
-      "updated_at": "2026-06-20T08:50:56Z"
+      "updated_at": "2026-09-03T07:56:23Z"
     },
     {
       "package_id": "WifiTIC",
@@ -1051,7 +1059,7 @@
     },
     {
       "package_id": "Zigate",
-      "updated_at": "2026-08-27T13:41:27Z"
+      "updated_at": "2026-09-02T14:54:53Z"
     },
     {
       "package_id": "Zigbee2Mqtt",
@@ -1063,7 +1071,7 @@
     },
     {
       "package_id": "Zonneplan-Domoticz-Plugin",
-      "updated_at": "2026-07-31T20:01:28Z"
+      "updated_at": "2026-09-06T07:38:20Z"
     }
   ]
 }
