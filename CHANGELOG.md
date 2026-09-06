@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.30.1](https://github.com/adrighem/PyPluginStore/compare/v2.30.0...v2.30.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **registry:** add Domoticz-MySkodaAPI, lg-thinq-4-domoticz ([1e44b5f](https://github.com/adrighem/PyPluginStore/commit/1e44b5fd3144528a69b3bfa4edbe1c1ddff025a3))
+
+
+### Documentation
+
+* add dashboard screenshot to README ([b91052d](https://github.com/adrighem/PyPluginStore/commit/b91052dd48d33274530a8c7c93cbf980bf4ff92f))
+
 ## [2.30.0](https://github.com/adrighem/PyPluginStore/compare/v2.29.2...v2.30.0) (2026-09-04)
 
 
