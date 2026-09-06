@@ -53,6 +53,8 @@ Install, update, remove, and manage Domoticz Python plugins and frontend themes 
 
 ## Using the Dashboard
 
+<a href="store-screenshot.png"><img src="store-screenshot.png" alt="PyPluginStore Dashboard" width="600"></a>
+
 The dashboard provides two main tabs:
 
 ### 🧩 Plugins Tab
