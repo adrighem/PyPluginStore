@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-09-22T08:27:48Z",
-  "generated_at": "2026-09-06T08:27:48Z",
-  "registry_sha256": "aed58935a3e61e3b4350cc6002550b177198acb01a6163ce200832d5de59ad0d",
+  "expires_at": "2026-09-29T08:44:56Z",
+  "generated_at": "2026-09-13T08:44:56Z",
+  "registry_sha256": "c926888456071c8f6cc130b15fdba7c02e51578f864bf9f25ebfbf92b6e42188",
   "releases": [
     {
       "artifact": {
@@ -11,27 +11,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "galadril-Domoticz-AWTRIX3-Plugin-36b8b62",
-        "sha256": "a318e847a984d9841ffb1857182427aeca508970e1c790a38ca79e222abd9145",
-        "size": 451960,
+        "root_prefix": "galadril-Domoticz-AWTRIX3-Plugin-6179552",
+        "sha256": "84dae367305b340845de569a57188b292570088ed560a98f047be079b4819218",
+        "size": 452182,
         "source_path": ".",
-        "tree_sha256": "f4d5ffb495fd0259a751fc9ff992e2ccfe11acc75f66280ac9e599cf33018476",
-        "url": "https://api.github.com/repos/galadril/domoticz-awtrix3-plugin/zipball/36b8b62306f3e83c953ac79e8e79ba8c84eb1fef"
+        "tree_sha256": "a52645aa7141b085d7c18cff41ff44a8bc97633cdbba51d004722b7476230d08",
+        "url": "https://api.github.com/repos/galadril/domoticz-awtrix3-plugin/zipball/6179552d7382908491a86fd58b391dc329f85304"
       },
       "certified_identity": {
         "domoticz_key": "AWTRIX3",
         "plugin_py_sha256": "44edb2527947885843e46bcd0126f5ed63a035d410e89bea6415cd40f8546ac9"
       },
-      "commit": "36b8b62306f3e83c953ac79e8e79ba8c84eb1fef",
+      "commit": "6179552d7382908491a86fd58b391dc329f85304",
       "package_id": "AWTRIX3",
       "provider": "github",
-      "release_id": "github:galadril/domoticz-awtrix3-plugin:v0.0.9",
-      "released_at": "2025-01-10T07:59:37Z",
+      "release_id": "github:galadril/domoticz-awtrix3-plugin:v1.0.0",
+      "released_at": "2026-09-07T20:07:15Z",
       "repository_identity": "github.com/galadril/domoticz-awtrix3-plugin",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v0.0.9",
-      "version": "0.0.9"
+      "revision": 2,
+      "supersedes": [
+        "github:galadril/domoticz-awtrix3-plugin:v0.0.9"
+      ],
+      "tag": "v1.0.0",
+      "version": "1.0.0"
     },
     {
       "artifact": {
@@ -62,6 +64,36 @@
       "supersedes": [],
       "tag": "v1.2.0",
       "version": "1.2.0"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "blooesky-Detect-Presence-at-Home---Domoticz-plugin-3fb98ac",
+        "sha256": "e8146b76266f82d9780af9422a12fb97bbef7d64bd2739eb2d8caf69d3e1f90e",
+        "size": 4334,
+        "source_path": ".",
+        "tree_sha256": "3052dd13e669007ae89a29c93ee9746fc7ce023696c4d781a7d31a423f167517",
+        "url": "https://api.github.com/repos/blooesky/detect-presence-at-home---domoticz-plugin/zipball/3fb98ac5f84d742e605171cb2947e5feefec44b7"
+      },
+      "certified_identity": {
+        "domoticz_key": "detect_presence_arp",
+        "plugin_py_sha256": "786233491640378cc8b32333a0c215b0f2920b13f61b24cf8b85989f7639f887"
+      },
+      "commit": "3fb98ac5f84d742e605171cb2947e5feefec44b7",
+      "package_id": "Detect-Presence-at-Home---Domoticz-plugin",
+      "provider": "github",
+      "release_id": "github:blooesky/detect-presence-at-home---domoticz-plugin:v1.0.2",
+      "released_at": "2026-09-08T07:02:49Z",
+      "repository_identity": "github.com/blooesky/detect-presence-at-home---domoticz-plugin",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v1.0.2",
+      "version": "1.0.2"
     },
     {
       "artifact": {
@@ -161,6 +193,36 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
+        "root_prefix": "blooesky-Domoticz-Gree-Ac-0a7c72a",
+        "sha256": "93ed19a409afaef907b5bd8044132238ebcde659da3f3916f63f9788a5ecdfc5",
+        "size": 5879,
+        "source_path": ".",
+        "tree_sha256": "58cab287ae7009f7331223d6e160d7305b1c50d92df2ac280cee78a73d06c0ff",
+        "url": "https://api.github.com/repos/blooesky/domoticz-gree-ac/zipball/0a7c72ae87371cbdb43e05c135da562eba716bd5"
+      },
+      "certified_identity": {
+        "domoticz_key": "GreeAC",
+        "plugin_py_sha256": "b0d97333ad25e549b145b53e5427198dbad95198ddc2baf1320320831f58fbbd"
+      },
+      "commit": "0a7c72ae87371cbdb43e05c135da562eba716bd5",
+      "package_id": "Domoticz-Gree-Ac",
+      "provider": "github",
+      "release_id": "github:blooesky/domoticz-gree-ac:v1.0.0",
+      "released_at": "2026-09-08T07:01:54Z",
+      "repository_identity": "github.com/blooesky/domoticz-gree-ac",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v1.0.0",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
         "root_prefix": "JWGracht-Domoticz-Huawei-Inverter-4f91085",
         "sha256": "a5758ddd3bbb2f6c6a735290ac9750bb801a4e0ff767d85558a48b9b49a67de2",
         "size": 22151,
@@ -191,27 +253,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "janreimen-Domoticz-MeteoAlarmEU-Atom-f9c7909",
-        "sha256": "3a7f7af60e214a58ee77f4565f15f8237da2fb5863b7960a187c1f118ac7fbcd",
-        "size": 236706,
+        "root_prefix": "janreimen-Domoticz-MeteoAlarmEU-Atom-b4d756b",
+        "sha256": "1f23dca343f59dd424391f7a584ee4d8e869fa1faa33163c2f8a74b62c475eb7",
+        "size": 243704,
         "source_path": ".",
-        "tree_sha256": "39eb9ea999c4e285b7b7850851d854d3d5f6b69c9a0aeb5243a07747867aad61",
-        "url": "https://api.github.com/repos/janreimen/domoticz-meteoalarmeu-atom/zipball/f9c7909037d1346433c9e0ebe935463055a0dd1b"
+        "tree_sha256": "ffb966b8ec293607282e81814db2e61d67db30f9cbe97e9adc6c9e95c4033175",
+        "url": "https://api.github.com/repos/janreimen/domoticz-meteoalarmeu-atom/zipball/b4d756b5204d84078c65781cd292fcce61a77d59"
       },
       "certified_identity": {
         "domoticz_key": "MeteoAlarmEU-Atom",
-        "plugin_py_sha256": "e49d9014d985acc7a46fa61c1921a5606fa12036749c15929fb1cfadab6cada5"
+        "plugin_py_sha256": "3b77374b3f5dcea1ddc435de8aea89afcb544f88f3325d698a00655813ba1c4a"
       },
-      "commit": "f9c7909037d1346433c9e0ebe935463055a0dd1b",
+      "commit": "b4d756b5204d84078c65781cd292fcce61a77d59",
       "package_id": "Domoticz-MeteoAlarmEU-Atom",
       "provider": "github",
-      "release_id": "github:janreimen/domoticz-meteoalarmeu-atom:v1.7.0",
-      "released_at": "2026-08-26T21:19:42Z",
+      "release_id": "github:janreimen/domoticz-meteoalarmeu-atom:v1.7.1",
+      "released_at": "2026-09-11T14:50:27Z",
       "repository_identity": "github.com/janreimen/domoticz-meteoalarmeu-atom",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v1.7.0",
-      "version": "1.7.0"
+      "revision": 2,
+      "supersedes": [
+        "github:janreimen/domoticz-meteoalarmeu-atom:v1.7.0"
+      ],
+      "tag": "v1.7.1",
+      "version": "1.7.1"
     },
     {
       "artifact": {
@@ -251,27 +315,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "janreimen-Domoticz-MySkodaAPI-2cffabc",
-        "sha256": "35d5d2f79136e3df5ab876b205647f295ffa4c48cf2721deba3d944c057e34de",
-        "size": 34341,
+        "root_prefix": "janreimen-Domoticz-MySkodaAPI-80e315f",
+        "sha256": "8abc8ad8c590e23a8783d57efc61f9c66a5da893971537c21a9b87a9200983ce",
+        "size": 40931,
         "source_path": ".",
-        "tree_sha256": "63b7c31ab822b00e1c66a1f8f38091f79ad33320d328cce9bfefb634365e6137",
-        "url": "https://api.github.com/repos/janreimen/domoticz-myskodaapi/zipball/2cffabc8b5f945ecb3fe545f599c2e3b98d56637"
+        "tree_sha256": "7b6d88ea5270c56a5e2f82a46b519d6593f2c3e7c3d1c87192e5d7c478f11ded",
+        "url": "https://api.github.com/repos/janreimen/domoticz-myskodaapi/zipball/80e315f1b1d09e4ab19738b6804d533e5b1ae55e"
       },
       "certified_identity": {
         "domoticz_key": "MySkodaAPI",
-        "plugin_py_sha256": "4efacbbecf37808aca919ac94ac00f6a1546a8f70543d8dcc952cad6b2a41bb3"
+        "plugin_py_sha256": "7232b91378d5936916ddeff6c1545ba567bb914bad3e4d72209180640c84e191"
       },
-      "commit": "2cffabc8b5f945ecb3fe545f599c2e3b98d56637",
+      "commit": "80e315f1b1d09e4ab19738b6804d533e5b1ae55e",
       "package_id": "Domoticz-MySkodaAPI",
       "provider": "github",
-      "release_id": "github:janreimen/domoticz-myskodaapi:v0.4.1",
-      "released_at": "2026-09-05T19:31:36Z",
+      "release_id": "github:janreimen/domoticz-myskodaapi:v0.4.2",
+      "released_at": "2026-09-11T21:22:55Z",
       "repository_identity": "github.com/janreimen/domoticz-myskodaapi",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v0.4.1",
-      "version": "0.4.1"
+      "revision": 2,
+      "supersedes": [
+        "github:janreimen/domoticz-myskodaapi:v0.4.1"
+      ],
+      "tag": "v0.4.2",
+      "version": "0.4.2"
     },
     {
       "artifact": {
@@ -362,6 +428,66 @@
       "supersedes": [],
       "tag": "1.0.0",
       "version": "1.0.0"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "blooesky-Domoticz-TPLinkRouter-d1e100e",
+        "sha256": "a3c42f6dab6f316bea77a25631b0bf062da9be89b5327ca9fa91937b4001f4e2",
+        "size": 8736,
+        "source_path": ".",
+        "tree_sha256": "50d2a825d09c43059e48f40b12223cb86821b02ac47c5551656712fd259607e1",
+        "url": "https://api.github.com/repos/blooesky/domoticz-tplinkrouter/zipball/d1e100ea5df18392281fb10a0dd1249ad1f90a5b"
+      },
+      "certified_identity": {
+        "domoticz_key": "TPLinkRouter",
+        "plugin_py_sha256": "f2b99a362ea7659e5fc99f233f46328ccbcaf1895fab6a4c1d770be2e174c95c"
+      },
+      "commit": "d1e100ea5df18392281fb10a0dd1249ad1f90a5b",
+      "package_id": "Domoticz-TPLinkRouter",
+      "provider": "github",
+      "release_id": "github:blooesky/domoticz-tplinkrouter:v1.0.0",
+      "released_at": "2026-09-08T07:01:01Z",
+      "repository_identity": "github.com/blooesky/domoticz-tplinkrouter",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v1.0.0",
+      "version": "1.0.0"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "blooesky-Domoticz-Xiaomi-Purifier-4-Pro-e727c69",
+        "sha256": "b4c2a2294fc569c70e40729c342a5fa66e2494d9086fa1f02cd9167b206f6ebf",
+        "size": 11920,
+        "source_path": ".",
+        "tree_sha256": "37e707e085312b523f4df9331c71a9c621e41e1829dad55885104dc5a6ad845b",
+        "url": "https://api.github.com/repos/blooesky/domoticz-xiaomi-purifier-4-pro/zipball/e727c69e9da9e5645773e94daace6e9dae8ce1cf"
+      },
+      "certified_identity": {
+        "domoticz_key": "XiaomiPurifier4Pro",
+        "plugin_py_sha256": "2ea8cab47622d478552a357285ecdc4779557b8e061d30698feaaa2da22223ac"
+      },
+      "commit": "e727c69e9da9e5645773e94daace6e9dae8ce1cf",
+      "package_id": "Domoticz-Xiaomi-Purifier-4-Pro",
+      "provider": "github",
+      "release_id": "github:blooesky/domoticz-xiaomi-purifier-4-pro:v1.0.8",
+      "released_at": "2026-09-08T07:03:44Z",
+      "repository_identity": "github.com/blooesky/domoticz-xiaomi-purifier-4-pro",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v1.0.8",
+      "version": "1.0.8"
     },
     {
       "artifact": {
@@ -553,30 +679,31 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_F1-b25953a",
-        "sha256": "82061d85d9dbd2bdf488acfc696af97d178e8042dd95143c00e830ea118856d6",
-        "size": 9167,
+        "root_prefix": "MadPatrick-domoticz_F1-556ed53",
+        "sha256": "c66a93db9c8f48b73ea8574221b2cdf7cc2f1a8541ee4a3bdcc2b85a00e5889e",
+        "size": 12625,
         "source_path": ".",
-        "tree_sha256": "1b08af2ea99a4d83ac35aeff398b1a94a10fcdb6e0a9d7e4ef3dd99f5f1f87e8",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_f1/zipball/b25953a454811d6b4dc3d1a4ebf1886a1403f7d2"
+        "tree_sha256": "2efae44287e183f09588ff88954987614a028a336104994dd0a1a54fdde83b58",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_f1/zipball/556ed538566aafb68fe2cc1779cd52d50f551e4f"
       },
       "certified_identity": {
         "domoticz_key": "F1Info",
-        "plugin_py_sha256": "aae42ddd8c031b1a2af0efc4a18a095934bcf08b03eceb995554f64780a1c970"
+        "plugin_py_sha256": "3ef2c0a4c78eafb22795a7f07b6518c23adfb9af1bbce11c4647cda81646da17"
       },
-      "commit": "b25953a454811d6b4dc3d1a4ebf1886a1403f7d2",
+      "commit": "556ed538566aafb68fe2cc1779cd52d50f551e4f",
       "package_id": "F1_race",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_f1:0.1.8",
-      "released_at": "2026-08-27T12:25:04Z",
+      "release_id": "github:madpatrick/domoticz_f1:0.2.1",
+      "released_at": "2026-09-12T07:26:05Z",
       "repository_identity": "github.com/madpatrick/domoticz_f1",
-      "revision": 3,
+      "revision": 4,
       "supersedes": [
         "github:madpatrick/domoticz_f1:0.1.3",
-        "github:madpatrick/domoticz_f1:0.1.6"
+        "github:madpatrick/domoticz_f1:0.1.6",
+        "github:madpatrick/domoticz_f1:0.1.8"
       ],
-      "tag": "0.1.8",
-      "version": "0.1.8"
+      "tag": "0.2.1",
+      "version": "0.2.1"
     },
     {
       "artifact": {
@@ -586,30 +713,31 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_fullykiosk-c7228c6",
-        "sha256": "d1ee4076d0bc17c95cadcf2d57471f945577c39fde8e48b8bf2a31a837c8b35e",
-        "size": 16456,
+        "root_prefix": "MadPatrick-domoticz_fullykiosk-f3f6d88",
+        "sha256": "298801a890d8287e0c2638708541adafa473e212190b2d981306926f0bfe4f82",
+        "size": 20334,
         "source_path": ".",
-        "tree_sha256": "4d4dd60b6365c810d544d6f3c854fb1500f47cc0c9695028a55514a8208cc1fe",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_fullykiosk/zipball/c7228c6f6357e880066a169d1958f64721e0af51"
+        "tree_sha256": "6462f65f012d08dcb592676299697d55ee4baccd67bb799e19dae0a5d7ddb796",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_fullykiosk/zipball/f3f6d88f38d838521f35ff38101ee17d0c33446a"
       },
       "certified_identity": {
         "domoticz_key": "FullyKiosk",
-        "plugin_py_sha256": "e2bff398d4d83e4e61d717275db5d0469cb1044fddb8dd4218cafedf0921d9a2"
+        "plugin_py_sha256": "8e4f62454d4d1f9fea1a74c2d85ba3591e2dbd83bd449fb68e18c801e0c7d29f"
       },
-      "commit": "c7228c6f6357e880066a169d1958f64721e0af51",
+      "commit": "f3f6d88f38d838521f35ff38101ee17d0c33446a",
       "package_id": "FullyKiosk",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_fullykiosk:1.1.4",
-      "released_at": "2026-09-05T05:53:12Z",
+      "release_id": "github:madpatrick/domoticz_fullykiosk:1.2.0",
+      "released_at": "2026-09-12T07:26:40Z",
       "repository_identity": "github.com/madpatrick/domoticz_fullykiosk",
-      "revision": 3,
+      "revision": 4,
       "supersedes": [
         "github:madpatrick/domoticz_fullykiosk:1.0.4",
-        "github:madpatrick/domoticz_fullykiosk:1.1.2"
+        "github:madpatrick/domoticz_fullykiosk:1.1.2",
+        "github:madpatrick/domoticz_fullykiosk:1.1.4"
       ],
-      "tag": "1.1.4",
-      "version": "1.1.4"
+      "tag": "1.2.0",
+      "version": "1.2.0"
     },
     {
       "artifact": {
@@ -711,30 +839,31 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_HP_ilo-ceea56d",
-        "sha256": "5fb6da93ae31ec2ee4e01540f676991cae48cc28b5cbd1896b58d45dc4297345",
-        "size": 22282,
+        "root_prefix": "MadPatrick-domoticz_HP_ilo-c2c622e",
+        "sha256": "4bad8b973a550fa78ee0a752518767ee69fc0d8682d3c5a59dd7b4720a0eacf8",
+        "size": 23369,
         "source_path": ".",
-        "tree_sha256": "90cd7d3295594f570774a3f27ac6d2db426c5f2d283623e0acce9abff135ee15",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_hp_ilo/zipball/ceea56d5944655385906b9460ecb88fcbdd1828f"
+        "tree_sha256": "bab9ae1960745e1ef6bbc97226c73402870f566bfa220b8015225f74bf2351aa",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_hp_ilo/zipball/c2c622e3ed4c745f1b421264ced66e06bf6d6440"
       },
       "certified_identity": {
         "domoticz_key": "hp_ilo",
-        "plugin_py_sha256": "65df7efc3d26d0cf9656911536d5cd223e9f3d7f2d777d4858657fc7b8b3cc7f"
+        "plugin_py_sha256": "e252465c0b622a7d9816627cbf50e26a41be2ef2d9a8bf84f03cadbef63fcff6"
       },
-      "commit": "ceea56d5944655385906b9460ecb88fcbdd1828f",
+      "commit": "c2c622e3ed4c745f1b421264ced66e06bf6d6440",
       "package_id": "HP_iLo",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_hp_ilo:1.2.6",
-      "released_at": "2026-09-05T15:26:15Z",
+      "release_id": "github:madpatrick/domoticz_hp_ilo:1.2.7",
+      "released_at": "2026-09-12T07:23:05Z",
       "repository_identity": "github.com/madpatrick/domoticz_hp_ilo",
-      "revision": 3,
+      "revision": 4,
       "supersedes": [
         "github:madpatrick/domoticz_hp_ilo:1.0.1",
-        "github:madpatrick/domoticz_hp_ilo:1.2.3"
+        "github:madpatrick/domoticz_hp_ilo:1.2.3",
+        "github:madpatrick/domoticz_hp_ilo:1.2.6"
       ],
-      "tag": "1.2.6",
-      "version": "1.2.6"
+      "tag": "1.2.7",
+      "version": "1.2.7"
     },
     {
       "artifact": {
@@ -804,30 +933,31 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_lyrion-a00c0e6",
-        "sha256": "7e175b40088e50bbcc45623af454b465c527a5764c68868dea1da7fb2feb8ace",
-        "size": 18899,
+        "root_prefix": "MadPatrick-domoticz_lyrion-790311d",
+        "sha256": "3e96a9db03d3e1523bed3951fc448e8bfaac1b5089a6f4568d0e7d21eca6ff39",
+        "size": 21413,
         "source_path": ".",
-        "tree_sha256": "397b4925b2e919036fc72da69b6e2dbac62e69cb59579feed685f20ba7be7751",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_lyrion/zipball/a00c0e6a7f03d1e704c6ac25d4ebf1ccd5cccdc9"
+        "tree_sha256": "ce0d1eb62d8074192d34877a7a2023ba418a98a64f442469f21316e2070f4b94",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_lyrion/zipball/790311d7f98d8f5e7cadb143c025e397aabeecb6"
       },
       "certified_identity": {
         "domoticz_key": "LyrionMusicServer",
-        "plugin_py_sha256": "c889a979afeea47189d401b013470f7ad533abef857581c2518f2086b95c4084"
+        "plugin_py_sha256": "01a50bbf29223ff4705729d5fcac4329823c86e7a83d2dca99bbcac8c0a29b31"
       },
-      "commit": "a00c0e6a7f03d1e704c6ac25d4ebf1ccd5cccdc9",
+      "commit": "790311d7f98d8f5e7cadb143c025e397aabeecb6",
       "package_id": "Lyrion",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_lyrion:2.2.3",
-      "released_at": "2026-09-05T05:54:19Z",
+      "release_id": "github:madpatrick/domoticz_lyrion:2.3.0",
+      "released_at": "2026-09-12T07:27:26Z",
       "repository_identity": "github.com/madpatrick/domoticz_lyrion",
-      "revision": 3,
+      "revision": 4,
       "supersedes": [
         "github:madpatrick/domoticz_lyrion:2.1.9",
-        "github:madpatrick/domoticz_lyrion:2.2.1"
+        "github:madpatrick/domoticz_lyrion:2.2.1",
+        "github:madpatrick/domoticz_lyrion:2.2.3"
       ],
-      "tag": "2.2.3",
-      "version": "2.2.3"
+      "tag": "2.3.0",
+      "version": "2.3.0"
     },
     {
       "artifact": {
@@ -990,30 +1120,31 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_somfy-9a24060",
-        "sha256": "ada76c37fbeda0ab9291628377605aebea913b4e8019f55878a74ce3d591a3ad",
-        "size": 30708,
+        "root_prefix": "MadPatrick-domoticz_somfy-4f01cd6",
+        "sha256": "d7097b2b9d54c0ac72871302e9db05f28cabfb21b9abbffdf60f776497ce7639",
+        "size": 30817,
         "source_path": ".",
-        "tree_sha256": "397e5c90952d55b4cfc78f07eee73bba8e5ce00fd6e23b85ca94f6294c5c6941",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_somfy/zipball/9a24060ff1065a4cd45bd1420caca3fda7e10528"
+        "tree_sha256": "c45dfcf926dd41415cf515b686fd61102ab5cffe14ca2447b5e0342ac09a2297",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_somfy/zipball/4f01cd6d053fd744b6d8a721bf854ea20c616b13"
       },
       "certified_identity": {
         "domoticz_key": "tahomaIO",
-        "plugin_py_sha256": "9ec110a039fbdfab55c4be2aee798dd76781a5ca4f29ad2d76520abe097da454"
+        "plugin_py_sha256": "6ad55010250a1a3f8a79578d6292255629352828599fb91968dd28e9c4f11a7f"
       },
-      "commit": "9a24060ff1065a4cd45bd1420caca3fda7e10528",
+      "commit": "4f01cd6d053fd744b6d8a721bf854ea20c616b13",
       "package_id": "Somfy",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_somfy:5.3.6",
-      "released_at": "2026-09-05T15:30:10Z",
+      "release_id": "github:madpatrick/domoticz_somfy:5.4.1",
+      "released_at": "2026-09-12T07:23:38Z",
       "repository_identity": "github.com/madpatrick/domoticz_somfy",
-      "revision": 3,
+      "revision": 4,
       "supersedes": [
         "github:madpatrick/domoticz_somfy:5.3.1",
-        "github:madpatrick/domoticz_somfy:5.3.2"
+        "github:madpatrick/domoticz_somfy:5.3.2",
+        "github:madpatrick/domoticz_somfy:5.3.6"
       ],
-      "tag": "5.3.6",
-      "version": "5.3.6"
+      "tag": "5.4.1",
+      "version": "5.4.1"
     },
     {
       "artifact": {
@@ -1086,29 +1217,30 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_weatherinfo-d07bcbc",
-        "sha256": "0b2233f37753585024d62fefb330ba50c843be5604a7da0ef718462202e31c28",
-        "size": 18539,
+        "root_prefix": "MadPatrick-domoticz_weatherinfo-defdac3",
+        "sha256": "01c04dfecf5d5149f91fbdf9d727201cd63f5039bf0660ff3f913cb3eb18927c",
+        "size": 21175,
         "source_path": ".",
-        "tree_sha256": "e74c45da267241953b9524f9b0a11ee7f35830a7c1dc790aced4ef4ff9ef700e",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_weatherinfo/zipball/d07bcbc24fd068ef9bcd12f95ab2dc60b8fb7a28"
+        "tree_sha256": "81ceb37bf8e40d084e5b5fa0b82488c422ec3becbae455413a592f5fc639f9da",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_weatherinfo/zipball/defdac3c4a024b2aa24337cb60552f64876eca52"
       },
       "certified_identity": {
         "domoticz_key": "WeatherInfo",
-        "plugin_py_sha256": "99ca92d3f74db4b3c901fbd3bb749aea815e5ab18df814f57fce646403a0fd73"
+        "plugin_py_sha256": "ee7909e2183b2c14829ea5ef497f69550540eb881a49c2e13320964f61ced76d"
       },
-      "commit": "d07bcbc24fd068ef9bcd12f95ab2dc60b8fb7a28",
+      "commit": "defdac3c4a024b2aa24337cb60552f64876eca52",
       "package_id": "WeatherInfo",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_weatherinfo:1.2.2",
-      "released_at": "2026-09-05T05:55:52Z",
+      "release_id": "github:madpatrick/domoticz_weatherinfo:1.3.1",
+      "released_at": "2026-09-12T07:22:11Z",
       "repository_identity": "github.com/madpatrick/domoticz_weatherinfo",
-      "revision": 2,
+      "revision": 3,
       "supersedes": [
-        "github:madpatrick/domoticz_weatherinfo:1.2.1"
+        "github:madpatrick/domoticz_weatherinfo:1.2.1",
+        "github:madpatrick/domoticz_weatherinfo:1.2.2"
       ],
-      "tag": "1.2.2",
-      "version": "1.2.2"
+      "tag": "1.3.1",
+      "version": "1.3.1"
     },
     {
       "artifact": {
@@ -1302,29 +1434,30 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "adrighem-domoticz-kpn-experia-v10-9c3f4cd",
-        "sha256": "6ca0084d7c08a785568a661c53d13e891e81af7aa2f0b686a39e583d1b4a715a",
-        "size": 96771,
+        "root_prefix": "adrighem-domoticz-kpn-experia-v10-8053dd2",
+        "sha256": "5abbcfc94eb94ff1fc3fb11ee8cc25a45a84a0a846de743d8418ad4f592cf03c",
+        "size": 107607,
         "source_path": ".",
-        "tree_sha256": "71083d524b0bd286cd503c9260f1b061f2980ffda6f26bb3b8bd7c78a07f9ab6",
-        "url": "https://api.github.com/repos/adrighem/domoticz-kpn-experia-v10/zipball/9c3f4cdf514d1f010adf5aa7a514b9259d4ddef2"
+        "tree_sha256": "9a4971b055d996f2ee00b86a8da680897fb1c3863f2bd23c2b6416c0e2bf3598",
+        "url": "https://api.github.com/repos/adrighem/domoticz-kpn-experia-v10/zipball/8053dd21663534b70b193d5edbfefd344b3218c0"
       },
       "certified_identity": {
         "domoticz_key": "ExperiaV10",
-        "plugin_py_sha256": "37fa1c1dab20d61b86b434272c2d4e4c3a4c226c9e4123af7f34ebcaec272af1"
+        "plugin_py_sha256": "1cfd33892ae7c66767a1e246855835881e328086477889c82078ec573e565e12"
       },
-      "commit": "9c3f4cdf514d1f010adf5aa7a514b9259d4ddef2",
+      "commit": "8053dd21663534b70b193d5edbfefd344b3218c0",
       "package_id": "domoticz-kpn-experia-v10",
       "provider": "github",
-      "release_id": "github:adrighem/domoticz-kpn-experia-v10:v1.1.2",
-      "released_at": "2026-08-02T13:08:13Z",
+      "release_id": "github:adrighem/domoticz-kpn-experia-v10:v1.2.0",
+      "released_at": "2026-09-13T07:08:09Z",
       "repository_identity": "github.com/adrighem/domoticz-kpn-experia-v10",
-      "revision": 2,
+      "revision": 3,
       "supersedes": [
-        "github:adrighem/domoticz-kpn-experia-v10:v1.1.1"
+        "github:adrighem/domoticz-kpn-experia-v10:v1.1.1",
+        "github:adrighem/domoticz-kpn-experia-v10:v1.1.2"
       ],
-      "tag": "v1.1.2",
-      "version": "1.1.2"
+      "tag": "v1.2.0",
+      "version": "1.2.0"
     },
     {
       "artifact": {
@@ -1549,6 +1682,36 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
+        "root_prefix": "blooesky-lg-thinq-4-domoticz-dc5efa9",
+        "sha256": "ba7da03f657bc43622ff5020e9c812e0cd4857c7f8d635108fa0ddfab655e85c",
+        "size": 44331,
+        "source_path": ".",
+        "tree_sha256": "f7aea8c97f2a5863283f1a9ae281b861b872ade0e244673261e72344445adc5b",
+        "url": "https://api.github.com/repos/blooesky/lg-thinq-4-domoticz/zipball/dc5efa95e1dc2354146fca185273abf0a19c192f"
+      },
+      "certified_identity": {
+        "domoticz_key": "LGThinq4Domoticz",
+        "plugin_py_sha256": "6452612d17fc0c54c90305faccbd77dda985e51fef793ff2cdf2617c98c1c3f7"
+      },
+      "commit": "dc5efa95e1dc2354146fca185273abf0a19c192f",
+      "package_id": "lg-thinq-4-domoticz",
+      "provider": "github",
+      "release_id": "github:blooesky/lg-thinq-4-domoticz:v1.0.20",
+      "released_at": "2026-09-08T06:42:04Z",
+      "repository_identity": "github.com/blooesky/lg-thinq-4-domoticz",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v1.0.20",
+      "version": "1.0.20"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
         "root_prefix": "Rouzax-luxtronik-domoticz-plugin-v2-9c8e22c",
         "sha256": "dfe848cadb2e70ec0c29768945b4a6e074c898b41b71aacc4f5926e1dfea80dc",
         "size": 74985,
@@ -1693,7 +1856,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 15,
+  "sequence": 16,
   "tombstones": [
     {
       "last_revision": 1,
