@@ -441,8 +441,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -941,6 +941,36 @@
       "policy_action": "kept_low_confidence_new",
       "registry_platforms": [],
       "repository": "domoticz-aqi-poland",
+      "reviewed": false,
+      "source": "unknown"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/galadril/domoticz-awtrixng-plugin@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: uses shell commands",
+          "CLAUDE.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 4,
+          "windows": 0
+        }
+      },
+      "owner": "galadril",
+      "package_id": "Domoticz-AWTRIXNG-Plugin",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Domoticz-AWTRIXNG-Plugin",
       "reviewed": false,
       "source": "unknown"
     },
@@ -2414,29 +2444,25 @@
       "evidence_class": "explicit_both",
       "identity": "github.com/janreimen/domoticz-meteoalarmeu-atom@master",
       "last_detection": {
-        "confidence": "high",
-        "evidence_class": "explicit_both",
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
         "platforms": [
-          "linux",
-          "windows"
+          "linux"
         ],
         "reasons": [
-          "README.md: mentions Linux and Windows support",
-          "README.md: mentions Raspberry Pi/Raspbian",
-          "README.md: uses apt package installation",
-          "README.md: uses sudo",
-          "README.md: uses shell commands",
-          "plugin.py: uses Windows drive paths"
+          "DEPLOY.md: uses sudo",
+          "DEPLOY.md: uses systemd",
+          "DEPLOY.md: uses shell commands"
         ],
         "scores": {
-          "both": 8,
-          "linux": 11,
-          "windows": 5
+          "both": 0,
+          "linux": 8,
+          "windows": 0
         }
       },
       "owner": "janreimen",
       "package_id": "Domoticz-MeteoAlarmEU-Atom",
-      "policy_action": "unchanged",
+      "policy_action": "kept_existing_requires_high_confidence",
       "registry_platforms": [
         "linux",
         "windows"
@@ -2602,17 +2628,14 @@
           "linux"
         ],
         "reasons": [
-          "README.md: uses sudo",
-          "README.md: uses systemd",
           "README.md: uses shell commands",
-          "SECURITY.md: uses shell commands",
           "DEPLOY.md: uses sudo",
           "DEPLOY.md: uses systemd",
           "DEPLOY.md: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 18,
+          "linux": 10,
           "windows": 0
         }
       },
@@ -6916,8 +6939,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -8055,8 +8078,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -8524,8 +8547,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -8731,11 +8754,13 @@
         "reasons": [
           "README.md: uses sudo",
           "README.md: uses systemd",
-          "README.md: uses shell commands"
+          "README.md: uses shell commands",
+          ".claude/hooks/session-start.sh: Linux-oriented file name",
+          ".claude/hooks/session-start.sh: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 8,
+          "linux": 13,
           "windows": 0
         }
       },
@@ -9079,38 +9104,6 @@
         "windows"
       ],
       "repository": "Zigbee2Tasmoticz",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
-      "branch": "master",
-      "confidence": "medium",
-      "evidence_class": "linux_evidence",
-      "identity": "github.com/frepke/zonneplan-domoticz-plugin@master",
-      "last_detection": {
-        "confidence": "medium",
-        "evidence_class": "linux_evidence",
-        "platforms": [
-          "linux"
-        ],
-        "reasons": [
-          "README.md: uses sudo",
-          "README.md: uses systemd",
-          "README.md: uses shell commands"
-        ],
-        "scores": {
-          "both": 0,
-          "linux": 8,
-          "windows": 0
-        }
-      },
-      "owner": "frepke",
-      "package_id": "Zonneplan-Domoticz-Plugin",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux"
-      ],
-      "repository": "Zonneplan-Domoticz-Plugin",
       "reviewed": false,
       "source": "detected"
     }

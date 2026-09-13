@@ -370,6 +370,28 @@
       }
     },
     {
+      "package_id": "Domoticz-AWTRIXNG-Plugin",
+      "domoticz_key": "AWTRIXNG",
+      "description": "Domoticz python plugin to connect / integrate with AWTRIX NG",
+      "repository": {
+        "url": "https://github.com/galadril/Domoticz-AWTRIXNG-Plugin",
+        "branch": "main"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-Aldes",
       "domoticz_key": "AldesTOneAir",
       "description": "Domoticz plugin for Aldes T One Air product",
@@ -4069,30 +4091,6 @@
       "platforms": [
         "linux",
         "windows"
-      ],
-      "delivery": {
-        "preferred": "release_if_indexed",
-        "git_supported": true,
-        "release": {
-          "provider": "github",
-          "channel": "stable",
-          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
-          "artifact": "source_zip",
-          "source_path": ".",
-          "mutable_paths": []
-        }
-      }
-    },
-    {
-      "package_id": "Zonneplan-Domoticz-Plugin",
-      "domoticz_key": "zonneplan-prices",
-      "description": "Zonneplan-Domoticz-Plugin plugin for Domoticz",
-      "repository": {
-        "url": "https://github.com/frepke/Zonneplan-Domoticz-Plugin",
-        "branch": "master"
-      },
-      "platforms": [
-        "linux"
       ],
       "delivery": {
         "preferred": "release_if_indexed",
