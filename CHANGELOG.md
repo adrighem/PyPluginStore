@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.2](https://github.com/adrighem/PyPluginStore/compare/v2.30.1...v2.30.2) (2026-09-13)
+
+
+### Bug Fixes
+
+* **registry:** add Domoticz-AWTRIXNG-Plugin; remove Zonneplan-Domoticz-Plugin ([efbd1ae](https://github.com/adrighem/PyPluginStore/commit/efbd1ae94d81e791e5dec8badfec9993e59ddf73))
+
 ## [2.30.1](https://github.com/adrighem/PyPluginStore/compare/v2.30.0...v2.30.1) (2026-09-06)
 
 
