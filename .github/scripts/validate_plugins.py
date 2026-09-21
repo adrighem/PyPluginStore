@@ -23,6 +23,12 @@ GIT_REMOTE_TIMEOUT_SECONDS = 30
 ROOT_PLUGIN_MAX_ATTEMPTS = 3
 ROOT_PLUGIN_RETRY_DELAY_SECONDS = 1
 
+import io
+import urllib.error
+import urllib.parse
+import urllib.request
+import zipfile
+
 try:
     from detect_plugin_platforms import (
         get_registry_entry_platforms,
@@ -37,6 +43,7 @@ try:
 except ImportError:
     check_root_plugin_py = None
 
+from package_identity import MAX_PLUGIN_SOURCE_BYTES, certify_plugin_py
 from registry_records import (
     RegistryRecord,
     load_registry_file,
@@ -67,7 +74,8 @@ def load_registry():
             "repository": record.repository,
             "description": record.description,
             "branch": record.branch,
-            "domoticz_key": data["domoticz_key"],
+            "domoticz_key": data["domoticz_key"] if isinstance(data, dict) and "domoticz_key" in data else "",
+            "record": record,
         }
     return plugin_data
 
@@ -254,6 +262,105 @@ def validate_root_plugin_py(
     return False
 
 
+def load_release_index(index_path=RELEASE_INDEX_FILE_PATH):
+    if not os.path.isfile(index_path):
+        return {}
+    with open(index_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        return {}
+    releases_by_pkg = {}
+    for release in data.get("releases", []):
+        if isinstance(release, dict) and "package_id" in release:
+            releases_by_pkg[release["package_id"]] = release
+    return releases_by_pkg
+
+
+def validate_release_archive(
+    key,
+    record,
+    release_entry,
+    opener=None,
+    timeout=30,
+):
+    artifact = release_entry.get("artifact", {})
+    url = artifact.get("url")
+    expected_sha256 = artifact.get("sha256")
+    if not url or not expected_sha256:
+        print(f"Release artifact for {key} missing url or sha256.")
+        return False
+
+    headers = {"User-Agent": "PyPluginStore-Release-Scanner"}
+    host = urllib.parse.urlparse(url).hostname or ""
+    if host in {"api.github.com", "raw.githubusercontent.com", "github.com"}:
+        token = os.environ.get("GITHUB_TOKEN")
+        if token:
+            headers["Authorization"] = f"token {token}"
+    elif host == "gitlab.com":
+        token = os.environ.get("GITLAB_TOKEN")
+        if token:
+            headers["PRIVATE-TOKEN"] = token
+
+    request = urllib.request.Request(url, headers=headers)
+    opener = opener or urllib.request.urlopen
+
+    try:
+        with opener(request, timeout=timeout) as response:
+            content = response.read()
+    except Exception as e:
+        print(f"Failed downloading release artifact for {key}: {e}")
+        return False
+
+    actual_sha256 = hashlib.sha256(content).hexdigest()
+    if actual_sha256 != expected_sha256:
+        print(f"SHA-256 mismatch for release artifact {key}: {actual_sha256} != {expected_sha256}")
+        return False
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(content), "r") as zf:
+            namelist = zf.namelist()
+            source_path = artifact.get("source_path", ".")
+            root_prefix = artifact.get("root_prefix", "")
+            plugin_py_entry = None
+            for name in namelist:
+                parts = name.strip("/").split("/")
+                if root_prefix and parts and parts[0] == root_prefix:
+                    parts = parts[1:]
+                subpath = "/".join(parts)
+                if source_path == "." and subpath == "plugin.py":
+                    plugin_py_entry = name
+                    break
+                elif source_path != "." and subpath == f"{source_path}/plugin.py":
+                    plugin_py_entry = name
+                    break
+                elif subpath.endswith("plugin.py"):
+                    if not plugin_py_entry:
+                        plugin_py_entry = name
+
+            if not plugin_py_entry:
+                print(f"plugin.py not found in release archive for {key}")
+                return False
+
+            plugin_py_bytes = zf.read(plugin_py_entry)
+            identity = certify_plugin_py(plugin_py_bytes)
+            expected_identity = release_entry.get("certified_identity", {})
+            if expected_identity.get("domoticz_key") and identity.domoticz_key != expected_identity["domoticz_key"]:
+                print(
+                    f"Certified domoticz_key mismatch for {key}: {identity.domoticz_key} != {expected_identity['domoticz_key']}"
+                )
+                return False
+            if expected_identity.get("plugin_py_sha256") and identity.plugin_py_sha256 != expected_identity["plugin_py_sha256"]:
+                print(
+                    f"Certified plugin_py_sha256 mismatch for {key}: {identity.plugin_py_sha256} != {expected_identity['plugin_py_sha256']}"
+                )
+                return False
+    except Exception as e:
+        print(f"Failed verifying release archive zip for {key}: {e}")
+        return False
+
+    return True
+
+
 def validate_theme_entry(key, data):
     if not isinstance(data, dict):
         raise ValueError(f"Theme '{key}' must be an object.")
@@ -327,25 +434,46 @@ def main():
         print("No plugin or theme data found, exiting.")
         sys.exit(1)
 
+    indexed_releases = load_release_index()
+
     all_valid = True
     for key, data in plugin_data.items():
-        print(f"Validating repository for plugin: {key}")
-        repository_is_valid = validate_repository(data["author"], data["repository"], data["branch"])
-        plugin_file_is_valid = False
-        if repository_is_valid:
-            plugin_file_is_valid = validate_root_plugin_py(
-                key,
-                data["author"],
-                data["repository"],
-                data["branch"],
-                data["domoticz_key"],
-            )
+        record = data.get("record")
+        is_release_based = record is not None and (
+            record.delivery.preferred == "release" or not record.delivery.git_supported
+        )
 
-        if repository_is_valid and plugin_file_is_valid:
-            print(f"✅ Repository {data['author']}/{data['repository']} on branch {data['branch']} is valid.")
+        if is_release_based:
+            print(f"Validating release archive for plugin: {key}")
+            release_entry = indexed_releases.get(key)
+            if not release_entry:
+                print(f"❌ Release-based plugin {key} has no indexed releases in release_index.json.")
+                all_valid = False
+                continue
+            archive_is_valid = validate_release_archive(key, record, release_entry)
+            if archive_is_valid:
+                print(f"✅ Release archive for {key} is valid.")
+            else:
+                print(f"❌ Release archive for {key} is invalid.")
+                all_valid = False
         else:
-            print(f"❌ Repository {data['author']}/{data['repository']} on branch {data['branch']} is invalid.")
-            all_valid = False
+            print(f"Validating repository for plugin: {key}")
+            repository_is_valid = validate_repository(data["author"], data["repository"], data["branch"])
+            plugin_file_is_valid = False
+            if repository_is_valid:
+                plugin_file_is_valid = validate_root_plugin_py(
+                    key,
+                    data["author"],
+                    data["repository"],
+                    data["branch"],
+                    data["domoticz_key"],
+                )
+
+            if repository_is_valid and plugin_file_is_valid:
+                print(f"✅ Repository {data['author']}/{data['repository']} on branch {data['branch']} is valid.")
+            else:
+                print(f"❌ Repository {data['author']}/{data['repository']} on branch {data['branch']} is invalid.")
+                all_valid = False
 
     for key, data in theme_data.items():
         print(f"Validating repository for theme: {key}")

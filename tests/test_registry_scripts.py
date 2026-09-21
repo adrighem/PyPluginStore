@@ -793,6 +793,8 @@ def test_scanner_filters_github_search_results_without_root_plugin_py(scan_plugi
             return FakeResponse(
                 b'"""<plugin key="GOOD" name="Good"></plugin>"""\n'
             )
+        if url.endswith("/wiki/releases?per_page=100"):
+            return FakeResponse(json.dumps([]).encode())
         if url.endswith("/wiki/main/plugin.py"):
             raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
         raise AssertionError(f"Unexpected URL: {url}")
@@ -803,8 +805,9 @@ def test_scanner_filters_github_search_results_without_root_plugin_py(scan_plugi
     assert len(results) == 1
     assert results[0]["full_name"] == good_repo["full_name"]
     assert fetched_plugin_urls == [
-        "https://raw.githubusercontent.com/owner/good-plugin/main/plugin.py",
         "https://api.github.com/repos/owner/good-plugin/releases?per_page=100",
+        "https://raw.githubusercontent.com/owner/good-plugin/main/plugin.py",
+        "https://api.github.com/repos/owner/wiki/releases?per_page=100",
         "https://raw.githubusercontent.com/owner/wiki/main/plugin.py",
     ]
     assert results[0][scan_plugins_module.RELEASE_TAG_PATTERN_FIELD] == (
@@ -1456,7 +1459,7 @@ def test_scanner_updates_default_policy_when_existing_plugin_starts_releasing(
     )
 
 
-def test_scanner_never_updates_existing_registry_branch(scan_plugins_module, tmp_path, monkeypatch):
+def test_scanner_updates_existing_registry_branch_when_default_changes(scan_plugins_module, tmp_path, monkeypatch):
     registry_file = tmp_path / "registry.json"
     update_times_file = tmp_path / "update_times.json"
     metadata_file = tmp_path / "platform_detection.json"
@@ -1506,13 +1509,13 @@ def test_scanner_never_updates_existing_registry_branch(scan_plugins_module, tmp
     registry = saved_packages(registry_file)
     metadata = saved_platform_entries(metadata_file)
 
-    assert seen_branches == ["dist"]
+    assert seen_branches == ["main"]
     assert registry["luxtronikex"]["description"] == "updated description"
-    assert registry["luxtronikex"]["repository"]["branch"] == "dist"
+    assert registry["luxtronikex"]["repository"]["branch"] == "main"
     assert registry["luxtronikex"]["platforms"] == ["linux", "windows"]
-    assert metadata["luxtronikex"]["branch"] == "dist"
+    assert metadata["luxtronikex"]["branch"] == "main"
     assert metadata["luxtronikex"]["identity"] == (
-        "github.com/rouzax/luxtronik-domoticz-plugin-v2@dist"
+        "github.com/rouzax/luxtronik-domoticz-plugin-v2@main"
     )
 
 
@@ -2143,3 +2146,91 @@ def test_load_themes_validates_json_file(validate_plugins_module, tmp_path, monk
     loaded = validate_plugins_module.load_themes()
     assert "valid-theme" in loaded
     assert loaded["valid-theme"]["display_name"] == "Valid Theme"
+
+
+def test_registry_record_with_branch():
+    from registry_records import RegistryRecord
+    record = RegistryRecord.from_entry("TestPlugin", ["owner", "repo", "desc", "master"])
+    updated = record.with_branch("main")
+    assert updated.branch == "main"
+    assert updated.to_document() == ["owner", "repo", "desc", "main"]
+
+
+def test_scan_existing_plugins_handles_branch_changes_and_missing_root_plugin(
+    scan_plugins_module, monkeypatch, tmp_path
+):
+    reg_file = tmp_path / "registry.json"
+    times_file = tmp_path / "update_times.json"
+    plat_file = tmp_path / "platform_detection.json"
+
+    registry = {
+        "BranchChangePlugin": registry_package("BranchChangePlugin", ["owner", "branch-repo", "desc", "master"]),
+        "MissingPlugin": registry_package("MissingPlugin", ["owner", "missing-repo", "desc", "master"]),
+    }
+    update_times = {"BranchChangePlugin": "2026-01-01T00:00:00Z", "MissingPlugin": "2026-01-01T00:00:00Z"}
+    platform_metadata = {"version": 1, "entries": {}}
+
+    scan_plugins_module.save_registry_file(str(reg_file), registry)
+    scan_plugins_module.save_update_times_file(str(times_file), update_times)
+    scan_plugins_module.save_platform_metadata(platform_metadata, str(plat_file))
+
+    monkeypatch.setattr(scan_plugins_module, "REGISTRY_FILE", str(reg_file))
+    monkeypatch.setattr(scan_plugins_module, "UPDATE_TIMES_FILE", str(times_file))
+    monkeypatch.setattr(scan_plugins_module, "PLATFORM_METADATA_FILE", str(plat_file))
+    monkeypatch.setattr(scan_plugins_module, "search_github", lambda: [])
+    monkeypatch.setattr(scan_plugins_module, "search_gitlab", lambda: [])
+    monkeypatch.setattr(scan_plugins_module, "search_codeberg", lambda: [])
+
+    def fake_get_repo_info(owner, repo):
+        if repo == "branch-repo":
+            return {
+                "description": "desc",
+                "default_branch": "main",
+                "pushed_at": "2026-01-02T00:00:00Z",
+            }
+        if repo == "missing-repo":
+            return {
+                "description": "desc",
+                "default_branch": "main",
+                "pushed_at": "2026-01-02T00:00:00Z",
+            }
+        return None
+
+    def fake_has_root_plugin_py(repo):
+        if repo["name"] == "branch-repo" and repo["default_branch"] == "main":
+            repo[scan_plugins_module.ROOT_PLUGIN_IDENTITY_FIELD] = {
+                "domoticz_key": "BRANCH_KEY",
+                "plugin_py_sha256": "0" * 64,
+            }
+            return True
+        return False
+
+    monkeypatch.setattr(scan_plugins_module, "get_repo_info", fake_get_repo_info)
+    monkeypatch.setattr(scan_plugins_module, "has_root_plugin_py", fake_has_root_plugin_py)
+    monkeypatch.setattr(scan_plugins_module, "detect_platforms_for_repo", lambda *args, **kwargs: None)
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    scan_plugins_module.main()
+
+    scanned_registry = scan_plugins_module.load_registry_file(str(reg_file))
+    assert scanned_registry["BranchChangePlugin"]["repository"]["branch"] == "main"
+    assert scanned_registry["MissingPlugin"]["repository"]["branch"] == "main"
+
+    import cleanup_registry
+
+    def fake_check_root_plugin_py(key, data, opener=None):
+        if key == "BranchChangePlugin":
+            return cleanup_registry.CheckResult(key, "present", domoticz_key="BRANCH_KEY", plugin_py_sha256="0" * 64)
+        return cleanup_registry.CheckResult(key, "missing", reason="HTTP 404")
+
+    monkeypatch.setattr(cleanup_registry, "check_root_plugin_py", fake_check_root_plugin_py)
+    cleanup_registry.cleanup_registry_files(
+        registry_file=str(reg_file),
+        update_times_file=str(times_file),
+        platform_metadata_file=str(plat_file),
+        apply_changes=True,
+    )
+
+    cleaned_registry = scan_plugins_module.load_registry_file(str(reg_file))
+    assert "MissingPlugin" not in cleaned_registry
+    assert "BranchChangePlugin" in cleaned_registry
+    assert cleaned_registry["BranchChangePlugin"]["repository"]["branch"] == "main"

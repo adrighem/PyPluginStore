@@ -1,3 +1,4 @@
+import io
 import json
 import os
 import sys
@@ -7,6 +8,7 @@ from urllib.error import HTTPError
 import time
 from datetime import datetime, timezone
 import re
+import zipfile
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
@@ -28,6 +30,7 @@ from detect_plugin_platforms import (
 from package_identity import MAX_PLUGIN_SOURCE_BYTES, certify_plugin_py
 from registry_records import (
     DEFAULT_STABLE_TAG_PATTERN,
+    PUBLIC_FORGE_PROVIDERS,
     RegistryRecord,
     build_package_document,
     load_registry_file,
@@ -48,6 +51,9 @@ ROOT_PLUGIN_CHECKED_FIELD = "_pypluginstore_root_plugin_py_checked"
 ROOT_PLUGIN_IDENTITY_FIELD = "_pypluginstore_root_plugin_identity"
 RELEASE_TAG_PATTERN_CHECKED_FIELD = "_pypluginstore_release_tag_pattern_checked"
 RELEASE_TAG_PATTERN_FIELD = "_pypluginstore_release_tag_pattern"
+DISCOVERED_DELIVERY_FIELD = "_pypluginstore_discovered_delivery"
+DISCOVERED_IDENTITY_FIELD = "_pypluginstore_discovered_identity"
+DEFAULT_MAX_ARCHIVE_SIZE = 50 * 1024 * 1024
 REQUEST_TIMEOUT_SECONDS = 20
 DOTTED_V_STABLE_TAG_PATTERN = r"^v\.[0-9]+(?:\.[0-9]+){1,3}$"
 RECOGNIZED_STABLE_TAG_PATTERNS = (
@@ -137,6 +143,7 @@ def build_registry_entry(
     platforms=None,
     release_tag_pattern="",
     requires_python="",
+    delivery=None,
 ):
     return build_package_document(
         package_id,
@@ -148,6 +155,7 @@ def build_registry_entry(
         platforms,
         release_tag_pattern,
         requires_python=requires_python,
+        delivery=delivery,
     )
 
 
@@ -291,6 +299,8 @@ def _release_collection_url(repo):
 
 def annotate_release_tag_pattern(repo):
     """Attach a finite inferred stable-tag policy to repository metadata."""
+    if repo.get(RELEASE_TAG_PATTERN_CHECKED_FIELD):
+        return repo
     repo[RELEASE_TAG_PATTERN_CHECKED_FIELD] = True
     url, headers = _release_collection_url(repo)
     if not url:
@@ -409,14 +419,184 @@ def has_root_plugin_py(repo):
         return False
 
 
+def download_archive_bytes(url, headers=None, opener=None):
+    req = urllib.request.Request(url, headers=headers or generic_headers())
+    try:
+        if opener is not None:
+            open_call = opener.open if hasattr(opener, "open") else opener
+        else:
+            open_call = urllib.request.urlopen
+        with open_call(req, timeout=REQUEST_TIMEOUT_SECONDS) as response:
+            data = response.read(DEFAULT_MAX_ARCHIVE_SIZE + 1)
+        if len(data) > DEFAULT_MAX_ARCHIVE_SIZE:
+            return None
+        return data
+    except Exception:
+        return None
+
+
+def find_plugin_in_zip(archive_bytes, is_source_zip=False):
+    if not isinstance(archive_bytes, (bytes, bytearray)) or not archive_bytes:
+        return None, None
+    try:
+        with zipfile.ZipFile(io.BytesIO(archive_bytes), "r") as archive:
+            infos = archive.infolist()
+            plugin_infos = []
+            for info in infos:
+                name = info.filename.replace("\\", "/")
+                parts = [part for part in name.split("/") if part]
+                if not parts:
+                    continue
+                if parts[-1].lower() == "plugin.py":
+                    if any(part.startswith(".") or part == "__MACOSX" for part in parts):
+                        continue
+                    plugin_infos.append((name, parts, info))
+            if not plugin_infos:
+                return None, None
+            plugin_infos.sort(key=lambda item: len(item[1]))
+            _name, parts, chosen_info = plugin_infos[0]
+            if chosen_info.file_size <= 0 or chosen_info.file_size > MAX_PLUGIN_SOURCE_BYTES:
+                return None, None
+            content = archive.read(chosen_info)
+            if is_source_zip and len(parts) > 1:
+                rel_parts = parts[1:-1]
+            else:
+                rel_parts = parts[:-1]
+            source_path = "/".join(rel_parts) if rel_parts else "."
+            return content, source_path
+    except Exception:
+        return None, None
+
+
+def certify_release_asset_plugin(repo, opener=None):
+    url, headers = _release_collection_url(repo)
+    if not url:
+        return False
+    releases = fetch_json(url, headers)
+    if not isinstance(releases, list) or not releases:
+        return False
+
+    pattern = infer_stable_tag_pattern(releases)
+    repo[RELEASE_TAG_PATTERN_CHECKED_FIELD] = True
+    repo[RELEASE_TAG_PATTERN_FIELD] = pattern
+    compiled_pattern = re.compile(pattern) if pattern else None
+
+    candidates = []
+    for position, rel in enumerate(releases):
+        if not isinstance(rel, dict):
+            continue
+        if rel.get("draft") is True or rel.get("prerelease") is True:
+            continue
+        tag = rel.get("tag_name")
+        if not isinstance(tag, str):
+            continue
+        matches = bool(compiled_pattern and compiled_pattern.fullmatch(tag))
+        candidates.append((matches, -position, rel))
+
+    if not candidates:
+        return False
+    candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    target_release = candidates[0][2]
+
+    assets = target_release.get("assets", [])
+    artifact_url = ""
+    artifact_kind = "source_zip"
+    asset_name = ""
+    if isinstance(assets, list):
+        for asset in assets:
+            if not isinstance(asset, dict):
+                continue
+            name = asset.get("name", "")
+            if name.lower().endswith(".zip"):
+                artifact_url = asset.get("browser_download_url") or asset.get("url")
+                artifact_kind = "asset_zip"
+                asset_name = name
+                break
+
+    if not artifact_url:
+        artifact_url = target_release.get("zipball_url")
+        artifact_kind = "source_zip"
+        asset_name = ""
+
+    if not artifact_url:
+        return False
+
+    host = repo.get("host", DEFAULT_GIT_HOST)
+    download_headers = (
+        github_headers()
+        if host == DEFAULT_GIT_HOST
+        else generic_headers()
+    )
+    archive_bytes = download_archive_bytes(artifact_url, download_headers, opener=opener)
+    if not archive_bytes:
+        return False
+
+    content, source_path = find_plugin_in_zip(
+        archive_bytes,
+        is_source_zip=(artifact_kind == "source_zip"),
+    )
+    if not content:
+        return False
+
+    try:
+        identity = certify_plugin_py(content)
+    except Exception:
+        return False
+
+    has_git = has_root_plugin_py(repo)
+    provider = PUBLIC_FORGE_PROVIDERS.get(host, "github")
+    release_policy = {
+        "provider": provider,
+        "channel": "stable",
+        "tag_pattern": pattern or DEFAULT_STABLE_TAG_PATTERN,
+        "artifact": artifact_kind,
+        "source_path": source_path,
+        "mutable_paths": [],
+    }
+    if asset_name and artifact_kind == "asset_zip":
+        release_policy["asset_name"] = asset_name
+
+    delivery = {
+        "schema_version": 1,
+        "preferred": "release",
+        "git_supported": has_git,
+        "release": release_policy,
+    }
+    identity_dict = {
+        "domoticz_key": identity.domoticz_key,
+        "plugin_py_sha256": identity.plugin_py_sha256,
+    }
+    repo[ROOT_PLUGIN_IDENTITY_FIELD] = identity_dict
+    repo[DISCOVERED_IDENTITY_FIELD] = identity_dict
+    repo[DISCOVERED_DELIVERY_FIELD] = delivery
+    repo[ROOT_PLUGIN_CHECKED_FIELD] = True
+    if pattern:
+        repo[RELEASE_TAG_PATTERN_CHECKED_FIELD] = True
+        repo[RELEASE_TAG_PATTERN_FIELD] = pattern
+    return True
+
+
+def discover_plugin_repo(repo, opener=None):
+    if repo.get(DISCOVERED_DELIVERY_FIELD) is not None:
+        return True
+    if certify_release_asset_plugin(repo, opener=opener):
+        return True
+    if has_root_plugin_py(repo):
+        repo[DISCOVERED_IDENTITY_FIELD] = repo.get(ROOT_PLUGIN_IDENTITY_FIELD)
+        repo[DISCOVERED_DELIVERY_FIELD] = None
+        repo[ROOT_PLUGIN_CHECKED_FIELD] = True
+        return True
+    return False
+
+
 def add_discovered_plugin_repo(all_items, seen_full_names, repo):
     full_name = repo.get('full_name')
     if not full_name or full_name in seen_full_names:
         return False
 
     seen_full_names.add(full_name)
-    if not has_root_plugin_py(repo):
-        print(f"[-] Skipping {full_name} (missing root plugin.py)")
+    if not discover_plugin_repo(repo):
+        print(f"[-] Skipping {full_name} (missing root plugin.py or release asset)")
         return False
 
     repo[ROOT_PLUGIN_CHECKED_FIELD] = True
@@ -426,11 +606,15 @@ def add_discovered_plugin_repo(all_items, seen_full_names, repo):
 
 
 def discovered_repo_has_root_plugin_py(repo):
-    return bool(repo.get(ROOT_PLUGIN_CHECKED_FIELD)) or has_root_plugin_py(repo)
+    return (
+        bool(repo.get(ROOT_PLUGIN_CHECKED_FIELD))
+        or bool(repo.get(DISCOVERED_DELIVERY_FIELD))
+        or discover_plugin_repo(repo)
+    )
 
 
 def discovered_repo_identity(repo):
-    identity = repo.get(ROOT_PLUGIN_IDENTITY_FIELD)
+    identity = repo.get(DISCOVERED_IDENTITY_FIELD) or repo.get(ROOT_PLUGIN_IDENTITY_FIELD)
     if not isinstance(identity, dict):
         return None
     domoticz_key = identity.get("domoticz_key")
@@ -613,10 +797,18 @@ def main():
                 remove_registry_entry(registry, update_times, platform_metadata, key, skip_reason)
                 stats["removed"] += 1
             else:
-                # Update metadata. Registry branches are curated and must not
-                # follow repository default-branch changes automatically.
+                info_default_branch = str(info.get('default_branch') or "").strip()
+                branch_changed = bool(
+                    info_default_branch
+                    and info_default_branch != registry_record.branch
+                )
+                registry_branch = (
+                    info_default_branch
+                    if branch_changed
+                    else registry_record.branch
+                )
+
                 updated_desc = info.get('description') or registry_record.description
-                registry_branch = registry_record.branch
                 updated_at = info.get('pushed_at') or info.get('updated_at')
                 if updated_at:
                     updated_at = normalize_update_timestamp(updated_at)
@@ -655,13 +847,18 @@ def main():
                 )
 
                 # Check if changed
-                if (updated_desc != registry_record.description or
+                if (branch_changed or
+                    updated_desc != registry_record.description or
                     update_times.get(key) != updated_at or
                     next_platforms != current_platforms or
                     release_pattern_changed or
                     requires_python_changed):
 
                     print(f"[*] Updating {key}")
+                    if branch_changed:
+                        print(
+                            f"    branch {registry_record.branch} -> {registry_branch}"
+                        )
                     if release_pattern_changed:
                         print(
                             "    stable release tag policy "
@@ -685,6 +882,10 @@ def main():
                             f"({decision_confidence(platform_decision)}, {platform_policy})"
                         )
                     updated_record = registry_record.with_description(updated_desc)
+                    if branch_changed:
+                        updated_record = updated_record.with_branch(
+                            registry_branch
+                        )
                     if next_platforms:
                         updated_record = updated_record.with_platforms(
                             next_platforms
@@ -757,7 +958,7 @@ def main():
                 continue
 
             if not discovered_repo_has_root_plugin_py(repo):
-                print(f"[-] Skipping {repo['full_name']} (missing root plugin.py)")
+                print(f"[-] Skipping {repo['full_name']} (missing root plugin.py or release asset)")
                 continue
             certified_identity = discovered_repo_identity(repo)
             if certified_identity is None:
@@ -800,6 +1001,7 @@ def main():
                 )
             elif platforms:
                 print(f"    platforms {platforms} ({decision_confidence(platform_decision)}, {platform_policy})")
+            delivery = repo.get(DISCOVERED_DELIVERY_FIELD)
             registry[key] = build_registry_entry(
                 key,
                 certified_identity["domoticz_key"],
@@ -814,6 +1016,7 @@ def main():
                     else ""
                 ),
                 requires_python=getattr(platform_decision, "requires_python", ""),
+                delivery=delivery,
             )
             if pushed_at:
                 update_times[key] = normalize_update_timestamp(pushed_at)

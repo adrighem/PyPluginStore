@@ -3914,39 +3914,6 @@
       "source": "detected"
     },
     {
-      "branch": "master",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/addiejanssen/domoticz-solaredge-modbustcp-plugin@master",
-      "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
-        "platforms": [
-          "linux",
-          "windows"
-        ],
-        "reasons": [
-          "README.md: uses sudo"
-        ],
-        "requires_python": ">=3.8",
-        "scores": {
-          "both": 0,
-          "linux": 2,
-          "windows": 0
-        }
-      },
-      "owner": "addiejanssen",
-      "package_id": "domoticz-solaredge-modbustcp-plugin",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "domoticz-solaredge-modbustcp-plugin",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
       "branch": "main",
       "confidence": "low",
       "evidence_class": "generic_python",

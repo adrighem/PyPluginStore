@@ -115,6 +115,9 @@ def check_root_plugin_py(key, data, opener=None):
     except ValueError as error:
         return CheckResult(key, "invalid-entry", reason=str(error))
 
+    if not record.delivery.git_supported or record.delivery.preferred == "release":
+        return CheckResult(key, "present", reason="release-based delivery")
+
     url = record.raw_plugin_url
     request = urllib.request.Request(url, headers=headers_for_url(url))
     opener = opener or urllib.request.urlopen

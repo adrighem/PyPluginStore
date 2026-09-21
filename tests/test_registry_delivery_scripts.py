@@ -1,9 +1,11 @@
 import copy
 import hashlib
+import io
 import json
 import re
 from pathlib import Path
 from types import SimpleNamespace
+import zipfile
 
 import pytest
 
@@ -641,7 +643,7 @@ def test_scanner_updates_object_description_and_platforms_without_losing_deliver
     assert saved["repository"]["url"] == (
         "https://github.com/owner/example-plugin"
     )
-    assert saved["repository"]["branch"] == "main"
+    assert saved["repository"]["branch"] == "trunk"
     assert saved["description"] == "Updated description"
     assert saved["platforms"] == ["windows"]
     expected_delivery = copy.deepcopy(original_entry["delivery"])
@@ -802,6 +804,7 @@ def test_validator_load_registry_normalizes_object_entry_for_existing_checks(
     )
 
     loaded = validate_plugins_module.load_registry()
+    entry_data = json.loads(registry_file.read_text(encoding="utf-8"))["packages"][0]
 
     assert loaded == {
         "ExamplePlugin": {
@@ -811,6 +814,10 @@ def test_validator_load_registry_normalizes_object_entry_for_existing_checks(
             "description": "Example plugin",
             "branch": "main",
             "domoticz_key": "EXAMPLE",
+            "record": validate_plugins_module.RegistryRecord.from_entry(
+                "ExamplePlugin",
+                entry_data,
+            ),
         }
     }
 
@@ -938,3 +945,286 @@ def test_weekly_workflow_uses_only_required_permissions_and_no_persisted_credent
         re.search(r"@[0-9a-f]{40}$", reference)
         for reference in action_references
     )
+
+
+def test_cleanup_check_root_plugin_py_accepts_release_based_package(
+    cleanup_registry_module,
+):
+    entry = object_entry(
+        delivery=delivery_policy("release", git_supported=False),
+    )
+    result = cleanup_registry_module.check_root_plugin_py("ExamplePlugin", entry)
+    assert result.status == "present"
+    assert result.reason == "release-based delivery"
+    assert not result.removable
+
+
+def test_validate_release_archive_success_and_failure(
+    validate_plugins_module,
+):
+    import io
+    import zipfile
+    from package_identity import certify_plugin_py
+
+    valid_py = '"""<plugin key="EXAMPLE" name="Example" author="owner" version="1.0.0"></plugin>"""\n'
+    valid_id = certify_plugin_py(valid_py.encode("utf-8"))
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zf:
+        zf.writestr("example-1.0.0/plugin.py", valid_py)
+    zip_bytes = zip_buffer.getvalue()
+    zip_sha256 = hashlib.sha256(zip_bytes).hexdigest()
+
+    class FakeResponse:
+        def __init__(self, data):
+            self.data = data
+
+        def read(self, *args, **kwargs):
+            return self.data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    def fake_opener(req, timeout=30):
+        return FakeResponse(zip_bytes)
+
+    release_entry = {
+        "package_id": "ExamplePlugin",
+        "tag": "v1.0.0",
+        "artifact": {
+            "url": "https://api.github.com/repos/owner/example/zipball/v1.0.0",
+            "sha256": zip_sha256,
+            "root_prefix": "example-1.0.0",
+            "source_path": ".",
+        },
+        "certified_identity": {
+            "domoticz_key": valid_id.domoticz_key,
+            "plugin_py_sha256": valid_id.plugin_py_sha256,
+        },
+    }
+    record = validate_plugins_module.RegistryRecord.from_entry(
+        "ExamplePlugin",
+        object_entry(delivery=delivery_policy("release", git_supported=False)),
+    )
+
+    # Success
+    assert validate_plugins_module.validate_release_archive(
+        "ExamplePlugin",
+        record,
+        release_entry,
+        opener=fake_opener,
+    ) is True
+
+    # SHA mismatch
+    bad_sha_entry = copy.deepcopy(release_entry)
+    bad_sha_entry["artifact"]["sha256"] = "0" * 64
+    assert validate_plugins_module.validate_release_archive(
+        "ExamplePlugin",
+        record,
+        bad_sha_entry,
+        opener=fake_opener,
+    ) is False
+
+    # Mismatched domoticz key
+    bad_key_entry = copy.deepcopy(release_entry)
+    bad_key_entry["certified_identity"]["domoticz_key"] = "WRONG_KEY"
+    assert validate_plugins_module.validate_release_archive(
+        "ExamplePlugin",
+        record,
+        bad_key_entry,
+        opener=fake_opener,
+    ) is False
+
+
+def test_validator_skips_git_tests_for_release_based_plugin(
+    validate_plugins_module,
+    monkeypatch,
+):
+    entry = object_entry(delivery=delivery_policy("release", git_supported=False))
+    record = validate_plugins_module.RegistryRecord.from_entry("ExamplePlugin", entry)
+
+    git_called = []
+
+    def fake_validate_repo(*args, **kwargs):
+        git_called.append("repo")
+        return True
+
+    def fake_validate_root(*args, **kwargs):
+        git_called.append("root")
+        return True
+
+    archive_called = []
+
+    def fake_validate_archive(*args, **kwargs):
+        archive_called.append("archive")
+        return True
+
+    monkeypatch.setattr(validate_plugins_module, "validate_repository", fake_validate_repo)
+    monkeypatch.setattr(validate_plugins_module, "validate_root_plugin_py", fake_validate_root)
+    monkeypatch.setattr(validate_plugins_module, "validate_release_archive", fake_validate_archive)
+    monkeypatch.setattr(
+        validate_plugins_module,
+        "load_registry",
+        lambda: {
+            "ExamplePlugin": {
+                "key": "ExamplePlugin",
+                "author": "owner",
+                "repository": "example-plugin",
+                "description": "Example plugin",
+                "branch": "main",
+                "domoticz_key": "EXAMPLE",
+                "record": record,
+            }
+        },
+    )
+    monkeypatch.setattr(validate_plugins_module, "load_themes", lambda: {})
+    monkeypatch.setattr(
+        validate_plugins_module,
+        "load_release_index",
+        lambda: {"ExamplePlugin": {"package_id": "ExamplePlugin"}},
+    )
+    monkeypatch.setattr(validate_plugins_module, "validate_release_index_binding", lambda: True)
+
+    validate_plugins_module.main()
+
+    assert not git_called
+    assert archive_called == ["archive"]
+
+
+def test_scanner_discovers_release_based_plugin_with_valid_archive(
+    scan_plugins_module,
+    monkeypatch,
+):
+    def make_zip(plugin_content, rel_path="plugin.py"):
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w") as zf:
+            zf.writestr(rel_path, plugin_content)
+        return buf.getvalue()
+
+    plugin_py_bytes = b'"""<plugin key="RELKEY" name="RelKey"></plugin>"""\n'
+    zip_bytes = make_zip(plugin_py_bytes, "src/plugin.py")
+
+    repo = {
+        "full_name": "owner/rel-plugin",
+        "owner": {"login": "owner"},
+        "name": "rel-plugin",
+        "default_branch": "main",
+        "host": "github.com",
+    }
+
+    releases = [{
+        "tag_name": "v1.0.0",
+        "published_at": "2026-08-01T10:00:00Z",
+        "draft": False,
+        "prerelease": False,
+        "assets": [{
+            "name": "rel-plugin-v1.0.0.zip",
+            "browser_download_url": "https://github.com/owner/rel-plugin/releases/download/v1.0.0/rel-plugin-v1.0.0.zip",
+        }],
+    }]
+
+    class FakeResponse:
+        def __init__(self, content):
+            self.content = content
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self, size=-1):
+            return self.content
+
+    def fake_urlopen(request, timeout=0):
+        url = request.full_url
+        if url.endswith("/releases?per_page=100"):
+            return FakeResponse(json.dumps(releases).encode())
+        if url.endswith(".zip"):
+            return FakeResponse(zip_bytes)
+        if url.endswith("/main/plugin.py"):
+            # Root plugin.py does not exist in git
+            import urllib.error
+            raise urllib.error.HTTPError(url, 404, "Not Found", {}, None)
+        raise AssertionError(f"Unexpected url: {url}")
+
+    monkeypatch.setattr(scan_plugins_module.urllib.request, "urlopen", fake_urlopen)
+
+    all_items = []
+    seen = set()
+    added = scan_plugins_module.add_discovered_plugin_repo(all_items, seen, repo)
+
+    assert added is True
+    assert len(all_items) == 1
+    discovered = all_items[0]
+    delivery = discovered.get(scan_plugins_module.DISCOVERED_DELIVERY_FIELD)
+    assert delivery is not None
+    assert delivery["preferred"] == "release"
+    assert delivery["git_supported"] is False
+    assert delivery["release"]["source_path"] == "src"
+    assert delivery["release"]["asset_name"] == "rel-plugin-v1.0.0.zip"
+    identity = scan_plugins_module.discovered_repo_identity(discovered)
+    assert identity["domoticz_key"] == "RELKEY"
+
+
+def test_scanner_rejects_corrupted_release_archive_and_falls_back_to_git(
+    scan_plugins_module,
+    monkeypatch,
+):
+    repo = {
+        "full_name": "owner/bad-release",
+        "owner": {"login": "owner"},
+        "name": "bad-release",
+        "default_branch": "main",
+        "host": "github.com",
+    }
+
+    releases = [{
+        "tag_name": "v1.0.0",
+        "draft": False,
+        "prerelease": False,
+        "assets": [{
+            "name": "bad.zip",
+            "browser_download_url": "https://github.com/owner/bad-release/releases/download/v1.0.0/bad.zip",
+        }],
+    }]
+
+    class FakeResponse:
+        def __init__(self, content):
+            self.content = content
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self, size=-1):
+            return self.content
+
+    def fake_urlopen(request, timeout=0):
+        url = request.full_url
+        if url.endswith("/releases?per_page=100"):
+            return FakeResponse(json.dumps(releases).encode())
+        if url.endswith(".zip"):
+            return FakeResponse(b"NOT A ZIP ARCHIVE")
+        if url.endswith("/main/plugin.py"):
+            return FakeResponse(b'"""<plugin key="GITKEY" name="GitKey"></plugin>"""\n')
+        raise AssertionError(f"Unexpected url: {url}")
+
+    monkeypatch.setattr(scan_plugins_module.urllib.request, "urlopen", fake_urlopen)
+
+    all_items = []
+    seen = set()
+    added = scan_plugins_module.add_discovered_plugin_repo(all_items, seen, repo)
+
+    assert added is True
+    assert len(all_items) == 1
+    discovered = all_items[0]
+    delivery = discovered.get(scan_plugins_module.DISCOVERED_DELIVERY_FIELD)
+    assert delivery is None  # Defaults to git delivery
+    identity = scan_plugins_module.discovered_repo_identity(discovered)
+    assert identity["domoticz_key"] == "GITKEY"

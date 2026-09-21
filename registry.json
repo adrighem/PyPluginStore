@@ -5405,32 +5405,6 @@
       }
     },
     {
-      "package_id": "domoticz-solaredge-modbustcp-plugin",
-      "domoticz_key": "SolarEdge_ModbusTCP",
-      "description": "A Domoticz plugin to collect data from SolarEdge power inverters over ModbusTCP.",
-      "repository": {
-        "url": "https://github.com/addiejanssen/domoticz-solaredge-modbustcp-plugin",
-        "branch": "master"
-      },
-      "platforms": [
-        "linux",
-        "windows"
-      ],
-      "delivery": {
-        "preferred": "release_if_indexed",
-        "git_supported": true,
-        "release": {
-          "provider": "github",
-          "channel": "stable",
-          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
-          "artifact": "source_zip",
-          "source_path": ".",
-          "mutable_paths": []
-        }
-      },
-      "requires_python": ">=3.8"
-    },
-    {
       "package_id": "domoticz-tailscale-plugin",
       "domoticz_key": "Tailscale",
       "description": "Tailscale Integration",

@@ -554,9 +554,13 @@ def build_package_document(
     platforms=None,
     release_tag_pattern="",
     requires_python="",
+    delivery=None,
 ):
     repository_url = build_repository_url(owner, repository)
-    delivery = default_delivery_for_repository(repository_url)
+    if delivery is None:
+        delivery = default_delivery_for_repository(repository_url)
+    else:
+        delivery = copy.deepcopy(delivery)
     if release_tag_pattern:
         release_tag_pattern = _require_string(
             release_tag_pattern,
@@ -1147,4 +1151,27 @@ class RegistryRecord:
                 document["requires_python"] = requires_python
             else:
                 document.pop("requires_python", None)
+        return type(self).from_entry(self.key, document)
+
+    def with_branch(self, branch):
+        """Return this package record with an updated branch."""
+        branch = _require_string(branch, "Branch")
+        document = self.to_document()
+        if isinstance(document, dict) and "package_id" in document:
+            repository = document.get("repository")
+            if isinstance(repository, dict):
+                repository["branch"] = branch
+        elif self.is_legacy:
+            if len(document) > 3:
+                document[3] = branch
+            else:
+                while len(document) < 3:
+                    document.append("")
+                document.append(branch)
+        else:
+            if "branch" in document:
+                document["branch"] = branch
+            repository = document.get("repository")
+            if isinstance(repository, dict):
+                repository["branch"] = branch
         return type(self).from_entry(self.key, document)

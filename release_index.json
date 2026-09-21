@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-09-29T08:44:56Z",
-  "generated_at": "2026-09-13T08:44:56Z",
-  "registry_sha256": "c926888456071c8f6cc130b15fdba7c02e51578f864bf9f25ebfbf92b6e42188",
+  "expires_at": "2026-10-07T06:12:06Z",
+  "generated_at": "2026-09-21T06:12:06Z",
+  "registry_sha256": "0703353a1ea79ecdd12a62fafd2afeb250e796282b7ed2a38b06881e9e95637b",
   "releases": [
     {
       "artifact": {
@@ -1497,36 +1497,6 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "addiejanssen-domoticz-solaredge-modbustcp-plugin-126d018",
-        "sha256": "ec65535f98960bfe0341d0adea2239c5543a4fd21be8ad3cc74adbf395736d3a",
-        "size": 10696,
-        "source_path": ".",
-        "tree_sha256": "8ef9b10f96c208227cece2f2f37ba5ae1610da7fe0b82f69be895ea7f7fbbd60",
-        "url": "https://api.github.com/repos/addiejanssen/domoticz-solaredge-modbustcp-plugin/zipball/126d018d87e95045e581dc03273e17babbef376d"
-      },
-      "certified_identity": {
-        "domoticz_key": "SolarEdge_ModbusTCP",
-        "plugin_py_sha256": "7243c5bf321a8ffc36ace92131d00aa7d0a9f86b4013c32ccbd5a2cde6fd9aee"
-      },
-      "commit": "126d018d87e95045e581dc03273e17babbef376d",
-      "package_id": "domoticz-solaredge-modbustcp-plugin",
-      "provider": "github",
-      "release_id": "github:addiejanssen/domoticz-solaredge-modbustcp-plugin:v1.1.1",
-      "released_at": "2022-10-02T15:01:41Z",
-      "repository_identity": "github.com/addiejanssen/domoticz-solaredge-modbustcp-plugin",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v1.1.1",
-      "version": "1.1.1"
-    },
-    {
-      "artifact": {
-        "kind": "source_zip",
-        "migration": {
-          "evidence": "commit_source_archive",
-          "mode": "automatic"
-        },
-        "provenance": "forge_source_archive",
         "root_prefix": "galadril-domoticz-theme-manager-413167d",
         "sha256": "da6808a9c7dc9992bc80c5cc27509412ee09f3ba609beba89ca8da1fe30ab38d",
         "size": 19988,
@@ -1856,7 +1826,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 16,
+  "sequence": 17,
   "tombstones": [
     {
       "last_revision": 1,
@@ -1865,6 +1835,14 @@
       "release_id": "github:mibeus/domoticz-gpio-debian-13:v1.0.0",
       "removed_at": "2026-07-21T13:22:16Z",
       "repository_identity": "github.com/mibeus/domoticz-gpio-debian-13"
+    },
+    {
+      "last_revision": 1,
+      "package_id": "domoticz-solaredge-modbustcp-plugin",
+      "reason": "Registry cleanup removed this package because its configured root plugin.py is missing (HTTP 404).",
+      "release_id": "github:addiejanssen/domoticz-solaredge-modbustcp-plugin:v1.1.1",
+      "removed_at": "2026-09-21T06:12:06Z",
+      "repository_identity": "github.com/addiejanssen/domoticz-solaredge-modbustcp-plugin"
     },
     {
       "last_revision": 1,
