@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.3](https://github.com/adrighem/PyPluginStore/compare/v2.30.2...v2.30.3) (2026-09-21)
+
+
+### Bug Fixes
+
+* **registry:** handle default branch updates and prioritize release assets in discovery ([c5e1ff8](https://github.com/adrighem/PyPluginStore/commit/c5e1ff82853851f70d9f4ba2b49756e08f8a35a8))
+
 ## [2.30.2](https://github.com/adrighem/PyPluginStore/compare/v2.30.1...v2.30.2) (2026-09-13)
 
 
