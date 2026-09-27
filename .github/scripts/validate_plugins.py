@@ -29,6 +29,8 @@ import urllib.parse
 import urllib.request
 import zipfile
 
+from archive_inspect import extract_plugin_from_zip
+
 try:
     from detect_plugin_platforms import (
         get_registry_entry_platforms,
@@ -317,43 +319,33 @@ def validate_release_archive(
         return False
 
     try:
-        with zipfile.ZipFile(io.BytesIO(content), "r") as zf:
-            namelist = zf.namelist()
-            source_path = artifact.get("source_path", ".")
-            root_prefix = artifact.get("root_prefix", "")
-            plugin_py_entry = None
-            for name in namelist:
-                parts = name.strip("/").split("/")
-                if root_prefix and parts and parts[0] == root_prefix:
-                    parts = parts[1:]
-                subpath = "/".join(parts)
-                if source_path == "." and subpath == "plugin.py":
-                    plugin_py_entry = name
-                    break
-                elif source_path != "." and subpath == f"{source_path}/plugin.py":
-                    plugin_py_entry = name
-                    break
-                elif subpath.endswith("plugin.py"):
-                    if not plugin_py_entry:
-                        plugin_py_entry = name
+        source_path = artifact.get("source_path", ".")
+        root_prefix = artifact.get("root_prefix", "")
+        is_source_zip = artifact.get("kind") == "source_zip"
 
-            if not plugin_py_entry:
-                print(f"plugin.py not found in release archive for {key}")
-                return False
+        plugin_py_bytes, _extracted_source_path = extract_plugin_from_zip(
+            content,
+            is_source_zip=is_source_zip,
+            expected_source_path=source_path,
+            root_prefix=root_prefix,
+        )
 
-            plugin_py_bytes = zf.read(plugin_py_entry)
-            identity = certify_plugin_py(plugin_py_bytes)
-            expected_identity = release_entry.get("certified_identity", {})
-            if expected_identity.get("domoticz_key") and identity.domoticz_key != expected_identity["domoticz_key"]:
-                print(
-                    f"Certified domoticz_key mismatch for {key}: {identity.domoticz_key} != {expected_identity['domoticz_key']}"
-                )
-                return False
-            if expected_identity.get("plugin_py_sha256") and identity.plugin_py_sha256 != expected_identity["plugin_py_sha256"]:
-                print(
-                    f"Certified plugin_py_sha256 mismatch for {key}: {identity.plugin_py_sha256} != {expected_identity['plugin_py_sha256']}"
-                )
-                return False
+        if plugin_py_bytes is None:
+            print(f"plugin.py not found or invalid in release archive for {key}")
+            return False
+
+        identity = certify_plugin_py(plugin_py_bytes)
+        expected_identity = release_entry.get("certified_identity", {})
+        if expected_identity.get("domoticz_key") and identity.domoticz_key != expected_identity["domoticz_key"]:
+            print(
+                f"Certified domoticz_key mismatch for {key}: {identity.domoticz_key} != {expected_identity['domoticz_key']}"
+            )
+            return False
+        if expected_identity.get("plugin_py_sha256") and identity.plugin_py_sha256 != expected_identity["plugin_py_sha256"]:
+            print(
+                f"Certified plugin_py_sha256 mismatch for {key}: {identity.plugin_py_sha256} != {expected_identity['plugin_py_sha256']}"
+            )
+            return False
     except Exception as e:
         print(f"Failed verifying release archive zip for {key}: {e}")
         return False
