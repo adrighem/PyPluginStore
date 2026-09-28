@@ -14,6 +14,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
+from archive_inspect import extract_plugin_from_zip
 from detect_plugin_platforms import (
     choose_platforms_for_registry,
     detect_platforms_for_repo,
@@ -436,36 +437,7 @@ def download_archive_bytes(url, headers=None, opener=None):
 
 
 def find_plugin_in_zip(archive_bytes, is_source_zip=False):
-    if not isinstance(archive_bytes, (bytes, bytearray)) or not archive_bytes:
-        return None, None
-    try:
-        with zipfile.ZipFile(io.BytesIO(archive_bytes), "r") as archive:
-            infos = archive.infolist()
-            plugin_infos = []
-            for info in infos:
-                name = info.filename.replace("\\", "/")
-                parts = [part for part in name.split("/") if part]
-                if not parts:
-                    continue
-                if parts[-1].lower() == "plugin.py":
-                    if any(part.startswith(".") or part == "__MACOSX" for part in parts):
-                        continue
-                    plugin_infos.append((name, parts, info))
-            if not plugin_infos:
-                return None, None
-            plugin_infos.sort(key=lambda item: len(item[1]))
-            _name, parts, chosen_info = plugin_infos[0]
-            if chosen_info.file_size <= 0 or chosen_info.file_size > MAX_PLUGIN_SOURCE_BYTES:
-                return None, None
-            content = archive.read(chosen_info)
-            if is_source_zip and len(parts) > 1:
-                rel_parts = parts[1:-1]
-            else:
-                rel_parts = parts[:-1]
-            source_path = "/".join(rel_parts) if rel_parts else "."
-            return content, source_path
-    except Exception:
-        return None, None
+    return extract_plugin_from_zip(archive_bytes, is_source_zip=is_source_zip)
 
 
 def certify_release_asset_plugin(repo, opener=None):
