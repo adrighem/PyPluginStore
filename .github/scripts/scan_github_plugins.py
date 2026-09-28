@@ -46,7 +46,24 @@ from registry_records import (
 
 REGISTRY_FILE = os.path.join(SCRIPT_DIR, '../../registry.json')
 UPDATE_TIMES_FILE = os.path.join(SCRIPT_DIR, '../../update_times.json')
+RELEASE_INDEX_FILE = os.path.join(SCRIPT_DIR, '../../release_index.json')
 PLATFORM_METADATA_FILE = os.path.join(SCRIPT_DIR, '../../.github/platform_detection.json')
+
+
+def load_tombstone_release_ids():
+    if not os.path.isfile(RELEASE_INDEX_FILE):
+        return set()
+    try:
+        with open(RELEASE_INDEX_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {
+            str(item["release_id"]).casefold()
+            for item in data.get("tombstones", [])
+            if isinstance(item, dict) and "release_id" in item
+        }
+    except Exception:
+        return set()
+
 DEFAULT_GIT_HOST = "github.com"
 SUPPORTED_GIT_HOSTS = ("github.com", "gitlab.com", "codeberg.org")
 ROOT_PLUGIN_CHECKED_FIELD = "_pypluginstore_root_plugin_py_checked"
@@ -461,7 +478,17 @@ def certify_release_asset_plugin(repo, opener=None):
     pattern = infer_stable_tag_pattern(releases)
     repo[RELEASE_TAG_PATTERN_CHECKED_FIELD] = True
     repo[RELEASE_TAG_PATTERN_FIELD] = pattern
-    compiled_pattern = re.compile(pattern) if pattern else None
+    effective_pattern = pattern or DEFAULT_STABLE_TAG_PATTERN
+    try:
+        compiled_pattern = re.compile(effective_pattern)
+    except re.error:
+        return False
+
+    host = repo.get("host", DEFAULT_GIT_HOST)
+    provider = PUBLIC_FORGE_PROVIDERS.get(host, "github")
+    owner = repo["owner"]["login"] if isinstance(repo.get("owner"), dict) else str(repo.get("owner") or "")
+    repo_name = repo.get("name") or repo.get("full_name", "").split("/")[-1]
+    tombstone_ids = load_tombstone_release_ids()
 
     candidates = []
     for position, rel in enumerate(releases):
@@ -472,13 +499,17 @@ def certify_release_asset_plugin(repo, opener=None):
         tag = rel.get("tag_name")
         if not isinstance(tag, str):
             continue
-        matches = bool(compiled_pattern and compiled_pattern.fullmatch(tag))
-        candidates.append((matches, -position, rel))
+        if not compiled_pattern.fullmatch(tag):
+            continue
+        release_id = f"{provider}:{owner}/{repo_name}:{tag}".casefold()
+        if release_id in tombstone_ids:
+            continue
+        candidates.append((-position, rel))
 
     if not candidates:
         return False
-    candidates.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    target_release = candidates[0][2]
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    target_release = candidates[0][1]
 
     assets = target_release.get("assets", [])
     artifact_url = ""
