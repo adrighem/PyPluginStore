@@ -1038,6 +1038,20 @@ def test_validate_release_archive_success_and_failure(
         opener=fake_opener,
     ) is False
 
+    # Oversized archive exceeds limit
+    oversized_data = b"x" * (validate_plugins_module.DEFAULT_MAX_ARCHIVE_SIZE + 10)
+    def oversized_opener(req, timeout=30):
+        return FakeResponse(oversized_data)
+
+    oversized_entry = copy.deepcopy(release_entry)
+    oversized_entry["artifact"]["sha256"] = hashlib.sha256(oversized_data).hexdigest()
+    assert validate_plugins_module.validate_release_archive(
+        "ExamplePlugin",
+        record,
+        oversized_entry,
+        opener=oversized_opener,
+    ) is False
+
 
 def test_validator_skips_git_tests_for_release_based_plugin(
     validate_plugins_module,

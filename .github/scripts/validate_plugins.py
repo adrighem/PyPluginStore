@@ -22,6 +22,7 @@ VALID_PLATFORM_METADATA_CONFIDENCE = {"unknown", "low", "medium", "high"}
 GIT_REMOTE_TIMEOUT_SECONDS = 30
 ROOT_PLUGIN_MAX_ATTEMPTS = 3
 ROOT_PLUGIN_RETRY_DELAY_SECONDS = 1
+DEFAULT_MAX_ARCHIVE_SIZE = 50 * 1024 * 1024
 
 import io
 import urllib.error
@@ -308,9 +309,15 @@ def validate_release_archive(
 
     try:
         with opener(request, timeout=timeout) as response:
-            content = response.read()
+            content = response.read(DEFAULT_MAX_ARCHIVE_SIZE + 1)
     except Exception as e:
         print(f"Failed downloading release artifact for {key}: {e}")
+        return False
+
+    if len(content) > DEFAULT_MAX_ARCHIVE_SIZE:
+        print(
+            f"Release artifact for {key} exceeds maximum archive size ({len(content)} > {DEFAULT_MAX_ARCHIVE_SIZE} bytes)."
+        )
         return False
 
     actual_sha256 = hashlib.sha256(content).hexdigest()
