@@ -1307,11 +1307,20 @@ def test_scanner_discovered_release_delivery_passes_registry_validation(
         "SAMPLE",
         "owner",
         "sample-plugin",
-        "Sample plugin",
+        "  Sample plugin \r\n with spaces \t and emoji \U0001F600  ",
         "main",
         ["linux"],
         delivery=delivery,
     )
     assert entry["delivery"]["preferred"] == "release"
     assert "schema_version" not in entry["delivery"]
+    assert entry["description"] == "Sample plugin with spaces and emoji \U0001F600"
+
+
+def test_clean_description(scan_plugins_module):
+    assert scan_plugins_module.clean_description("  hello \n world  ") == "hello world"
+    assert scan_plugins_module.clean_description("", "fallback") == "fallback"
+    assert scan_plugins_module.clean_description(None, "fallback") == "fallback"
+    assert scan_plugins_module.clean_description(" \t \r\n ", "fallback") == "fallback"
+
 

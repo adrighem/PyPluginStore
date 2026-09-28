@@ -2,6 +2,7 @@ import io
 import json
 import os
 import sys
+import unicodedata
 import urllib.request
 import urllib.parse
 from urllib.error import HTTPError
@@ -134,6 +135,14 @@ def prune_stale_update_times(update_times, registry):
     return stale_keys
 
 
+def clean_description(value, fallback=""):
+    if not isinstance(value, str):
+        return fallback
+    normalized = unicodedata.normalize("NFC", value)
+    cleaned = " ".join("".join(c for c in normalized if ord(c) >= 32 and ord(c) != 127).split())
+    return cleaned or fallback
+
+
 def build_registry_entry(
     package_id,
     domoticz_key,
@@ -146,12 +155,13 @@ def build_registry_entry(
     requires_python="",
     delivery=None,
 ):
+    fallback_desc = f"{repo_name} plugin for Domoticz"
     return build_package_document(
         package_id,
         domoticz_key,
         owner,
         repo_name,
-        description,
+        clean_description(description, fallback_desc),
         branch,
         platforms,
         release_tag_pattern,
@@ -779,7 +789,12 @@ def main():
                     else registry_record.branch
                 )
 
-                updated_desc = info.get('description') or registry_record.description
+                raw_desc = info.get('description')
+                updated_desc = (
+                    clean_description(raw_desc, registry_record.description)
+                    if raw_desc
+                    else registry_record.description
+                )
                 updated_at = info.get('pushed_at') or info.get('updated_at')
                 if updated_at:
                     updated_at = normalize_update_timestamp(updated_at)
@@ -939,7 +954,10 @@ def main():
                 )
                 continue
 
-            description = repo['description'] or f"{repo_name} plugin for Domoticz"
+            description = clean_description(
+                repo.get('description'),
+                f"{repo_name} plugin for Domoticz",
+            )
             default_branch = repo['default_branch']
             pushed_at = repo.get('pushed_at') or repo.get('updated_at')
             platform_decision = detect_platforms_for_repo(registry_owner, repo_name, default_branch, repo)
