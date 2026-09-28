@@ -1277,3 +1277,97 @@ def test_scanner_rejects_corrupted_release_archive_and_falls_back_to_git(
     assert delivery is None  # Defaults to git delivery
     identity = scan_plugins_module.discovered_repo_identity(discovered)
     assert identity["domoticz_key"] == "GITKEY"
+
+
+def test_scanner_discovered_release_delivery_passes_registry_validation(
+    scan_plugins_module,
+    monkeypatch,
+):
+    import io
+    import zipfile
+    from package_registry import PackageDelivery
+
+    repo = {
+        "id": 99999,
+        "name": "sample-plugin",
+        "full_name": "owner/sample-plugin",
+        "default_branch": "main",
+        "description": "Sample plugin",
+        "owner": {"login": "owner"},
+        "host": "github.com",
+    }
+    releases = [{
+        "tag_name": "v1.0.0",
+        "prerelease": False,
+        "draft": False,
+        "assets": [{
+            "name": "sample.zip",
+            "browser_download_url": "https://github.com/owner/sample-plugin/releases/download/v1.0.0/sample.zip",
+        }],
+    }]
+
+    valid_py = '"""<plugin key="SAMPLE" name="Sample" author="owner" version="1.0.0"></plugin>"""\n'
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w") as zf:
+        zf.writestr("sample/plugin.py", valid_py)
+    zip_bytes = zip_buffer.getvalue()
+
+    class FakeResponse:
+        def __init__(self, content):
+            self.content = content
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            return False
+
+        def read(self, size=-1):
+            return self.content
+
+    def fake_urlopen(request, timeout=0):
+        url = request.full_url
+        if url.endswith("/releases?per_page=100"):
+            return FakeResponse(json.dumps(releases).encode())
+        if url.endswith(".zip"):
+            return FakeResponse(zip_bytes)
+        if url.endswith("/main/plugin.py"):
+            return FakeResponse(valid_py.encode())
+        raise AssertionError(f"Unexpected url: {url}")
+
+    monkeypatch.setattr(scan_plugins_module.urllib.request, "urlopen", fake_urlopen)
+
+    all_items = []
+    seen = set()
+    added = scan_plugins_module.add_discovered_plugin_repo(all_items, seen, repo)
+
+    assert added is True
+    assert len(all_items) == 1
+    discovered = all_items[0]
+    delivery = discovered.get(scan_plugins_module.DISCOVERED_DELIVERY_FIELD)
+    assert delivery is not None
+    # Must validate cleanly against PackageDelivery and build_registry_entry
+    package_delivery = PackageDelivery.from_document(delivery)
+    assert package_delivery.preferred == "release"
+    assert "schema_version" not in delivery
+
+    entry = scan_plugins_module.build_registry_entry(
+        "sample-plugin",
+        "SAMPLE",
+        "owner",
+        "sample-plugin",
+        "  Sample plugin \r\n with spaces \t and emoji \U0001F600  ",
+        "main",
+        ["linux"],
+        delivery=delivery,
+    )
+    assert entry["delivery"]["preferred"] == "release"
+    assert "schema_version" not in entry["delivery"]
+    assert entry["description"] == "Sample plugin with spaces and emoji \U0001F600"
+
+
+def test_clean_description(scan_plugins_module):
+    assert scan_plugins_module.clean_description("  hello \n world  ") == "hello world"
+    assert scan_plugins_module.clean_description("", "fallback") == "fallback"
+    assert scan_plugins_module.clean_description(None, "fallback") == "fallback"
+    assert scan_plugins_module.clean_description(" \t \r\n ", "fallback") == "fallback"
