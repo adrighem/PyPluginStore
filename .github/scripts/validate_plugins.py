@@ -15,6 +15,7 @@ THEMES_FILE_PATH = os.path.join(SCRIPT_DIR, '../../themes.json')
 UPDATE_TIMES_FILE_PATH = os.path.join(SCRIPT_DIR, '../../update_times.json')
 PLATFORM_METADATA_FILE_PATH = os.path.join(SCRIPT_DIR, '../../.github/platform_detection.json')
 RELEASE_INDEX_FILE_PATH = os.path.join(SCRIPT_DIR, '../../release_index.json')
+RELEASE_INDEX_REPORT_PATH = os.environ.get("RELEASE_INDEX_REPORT_PATH", "")
 DEFAULT_GIT_HOST = "github.com"
 SUPPORTED_GIT_HOSTS = ("github.com", "gitlab.com", "codeberg.org")
 VALID_PLATFORM_METADATA_SOURCES = {"unknown", "legacy_detected", "detected", "reviewed"}
@@ -279,6 +280,24 @@ def load_release_index(index_path=RELEASE_INDEX_FILE_PATH):
     return releases_by_pkg
 
 
+def load_release_index_report(report_path=RELEASE_INDEX_REPORT_PATH):
+    """Load per-plugin release-index generation outcomes, if available.
+
+    Populated only when generate_release_index.py is run with
+    --report-output; used to distinguish a plugin that has no indexed
+    release because the provider rate-limited it (transient, retry next
+    run) from one that is genuinely invalid.
+    """
+    if not report_path or not os.path.isfile(report_path):
+        return {}
+    with open(report_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        return {}
+    plugins = data.get("plugins", {})
+    return plugins if isinstance(plugins, dict) else {}
+
+
 def validate_release_archive(
     key,
     record,
@@ -434,6 +453,7 @@ def main():
         sys.exit(1)
 
     indexed_releases = load_release_index()
+    release_index_report = load_release_index_report()
 
     all_valid = True
     for key, data in plugin_data.items():
@@ -446,6 +466,15 @@ def main():
             print(f"Validating release archive for plugin: {key}")
             release_entry = indexed_releases.get(key)
             if not release_entry:
+                plugin_report = release_index_report.get(key, {})
+                if plugin_report.get("transient") is True:
+                    print(
+                        f"⚠️  Release-based plugin {key} has no indexed release "
+                        f"yet because its provider was rate-limited during this "
+                        f"run ({plugin_report.get('detail', 'transient failure')}); "
+                        "deferring to the next scan."
+                    )
+                    continue
                 print(f"❌ Release-based plugin {key} has no indexed releases in release_index.json.")
                 all_valid = False
                 continue

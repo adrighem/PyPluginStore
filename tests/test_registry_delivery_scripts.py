@@ -876,9 +876,6 @@ def test_weekly_workflow_generates_report_and_index_after_registry_mutation():
     scanner_position = workflow.index(
         "python .github/scripts/scan_github_plugins.py"
     )
-    report_position = workflow.index(
-        "python .github/scripts/generate_release_index.py --report-only"
-    )
     update_position = workflow.index(
         "python .github/scripts/generate_release_index.py --update"
     )
@@ -896,9 +893,10 @@ def test_weekly_workflow_generates_report_and_index_after_registry_mutation():
         for command in mutation_commands
         if command in workflow
     )
-    assert scanner_position <= final_mutation_position < report_position
-    assert report_position < update_position < pull_request_position
+    assert scanner_position <= final_mutation_position < update_position
+    assert update_position < pull_request_position
     assert "release_index.json" in workflow[pull_request_position:]
+    assert "--report-only" not in workflow
     summarizer_path = REPO_ROOT / ".github" / "scripts" / "summarize_registry_changes.py"
     summarizer = summarizer_path.read_text(encoding="utf-8")
     assert "certified Domoticz runtime key" in summarizer

@@ -2148,6 +2148,54 @@ def test_load_themes_validates_json_file(validate_plugins_module, tmp_path, monk
     assert loaded["valid-theme"]["display_name"] == "Valid Theme"
 
 
+def test_load_release_index_report_returns_empty_when_path_unset(validate_plugins_module):
+    assert validate_plugins_module.load_release_index_report("") == {}
+
+
+def test_load_release_index_report_returns_empty_when_file_missing(
+    validate_plugins_module, tmp_path
+):
+    missing_file = tmp_path / "release-index-report.json"
+    assert validate_plugins_module.load_release_index_report(str(missing_file)) == {}
+
+
+def test_load_release_index_report_returns_empty_for_non_object_json(
+    validate_plugins_module, tmp_path
+):
+    report_file = tmp_path / "release-index-report.json"
+    report_file.write_text(json.dumps(["not", "an", "object"]), encoding="utf-8")
+    assert validate_plugins_module.load_release_index_report(str(report_file)) == {}
+
+
+def test_load_release_index_report_returns_plugin_outcomes(
+    validate_plugins_module, tmp_path
+):
+    report_file = tmp_path / "release-index-report.json"
+    report_file.write_text(
+        json.dumps(
+            {
+                "plugins": {
+                    "rate-limited-plugin": {
+                        "status": "provider_failed",
+                        "transient": True,
+                        "detail": "HTTP provider rate limit was exceeded.",
+                    },
+                    "broken-plugin": {
+                        "status": "provider_failed",
+                        "transient": False,
+                        "detail": "Certification failed.",
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = validate_plugins_module.load_release_index_report(str(report_file))
+    assert report["rate-limited-plugin"]["transient"] is True
+    assert report["broken-plugin"]["transient"] is False
+
+
 def test_registry_record_with_branch():
     from registry_records import RegistryRecord
     record = RegistryRecord.from_entry("TestPlugin", ["owner", "repo", "desc", "master"])
