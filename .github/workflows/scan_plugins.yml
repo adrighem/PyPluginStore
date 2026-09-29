@@ -49,16 +49,6 @@ jobs:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: python .github/scripts/detect_plugin_platforms.py
 
-      - name: Preview release certification
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-        run: >-
-          python .github/scripts/generate_release_index.py --report-only
-          --cache "${{ runner.temp }}/release-candidate-cache.json"
-          --tombstone-requests
-          "${{ runner.temp }}/release-tombstone-requests.json"
-
       - name: Update release index
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -68,8 +58,11 @@ jobs:
           --cache "${{ runner.temp }}/release-candidate-cache.json"
           --tombstone-requests
           "${{ runner.temp }}/release-tombstone-requests.json"
+          --report-output "${{ runner.temp }}/release-index-report.json"
 
       - name: Validate registry and release-index binding
+        env:
+          RELEASE_INDEX_REPORT_PATH: "${{ runner.temp }}/release-index-report.json"
         run: python .github/scripts/validate_plugins.py
 
       - name: Summarize registry changes

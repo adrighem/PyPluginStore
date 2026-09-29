@@ -97,18 +97,32 @@ def test_release_publish_job_can_finalize_the_release_pull_request():
     assert "permissions:\n      contents: write\n      pull-requests: write\n" in publish
 
 
-def test_weekly_cleanup_shares_temp_tombstone_requests_with_both_index_passes():
+def test_weekly_cleanup_shares_temp_tombstone_requests_with_the_index_update():
     workflow = _workflow_text("scan_plugins.yml")
     request_path = '${{ runner.temp }}/release-tombstone-requests.json'
 
-    assert workflow.count(f'"{request_path}"') == 3
+    assert workflow.count(f'"{request_path}"') == 2
     assert "--tombstone-requests-output" in workflow
-    assert workflow.count("--tombstone-requests\n") == 2
+    assert workflow.count("--tombstone-requests\n") == 1
+    assert "--report-only" not in workflow
     cleanup_position = workflow.index("--tombstone-requests-output")
-    preview_position = workflow.index(
-        "python .github/scripts/generate_release_index.py --report-only"
-    )
     update_position = workflow.index(
         "python .github/scripts/generate_release_index.py --update"
     )
-    assert cleanup_position < preview_position < update_position
+    assert cleanup_position < update_position
+
+
+def test_weekly_release_index_update_reports_transient_failures_to_validation():
+    workflow = _workflow_text("scan_plugins.yml")
+    report_path = '${{ runner.temp }}/release-index-report.json'
+
+    assert f'--report-output "{report_path}"' in workflow
+    update_position = workflow.index(
+        "python .github/scripts/generate_release_index.py --update"
+    )
+    validate_position = workflow.index("validate_plugins.py")
+    assert update_position < validate_position
+    validate_block = _job_block(workflow, "scan-and-pr").split(
+        "Validate registry and release-index binding", 1
+    )[1]
+    assert f"RELEASE_INDEX_REPORT_PATH: \"{report_path}\"" in validate_block
