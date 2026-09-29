@@ -529,7 +529,6 @@ def certify_release_asset_plugin(repo, opener=None):
         release_policy["asset_name"] = asset_name
 
     delivery = {
-        "schema_version": 1,
         "preferred": "release",
         "git_supported": has_git,
         "release": release_policy,
