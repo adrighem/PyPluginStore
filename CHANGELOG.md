@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.30.3](https://github.com/adrighem/PyPluginStore/compare/v2.30.2...v2.30.3) (2026-09-29)
+
+
+### Bug Fixes
+
+* **ci:** deduplicate and harden zip inspection across scanner and validator ([9218eba](https://github.com/adrighem/PyPluginStore/commit/9218eba924e86b22e2626d1b2db3f8baac13387c))
+* **ci:** deduplicate and harden zip inspection across scanner and validator (fixes [#179](https://github.com/adrighem/PyPluginStore/issues/179)) ([b44ff0f](https://github.com/adrighem/PyPluginStore/commit/b44ff0f53cbea0ca357d9cf3be8824b1e52df01e))
+* **ci:** enforce maximum archive download size in validate_plugins.py ([78454ef](https://github.com/adrighem/PyPluginStore/commit/78454eff313b80aba31ba83ff6a1db9f1606c3cb))
+* **ci:** enforce maximum archive download size in validate_plugins.py (fixes [#178](https://github.com/adrighem/PyPluginStore/issues/178)) ([3ffc821](https://github.com/adrighem/PyPluginStore/commit/3ffc821cdb32370a7a3d20626b6e92ebce8cf6a8))
+* **ci:** tolerate transient rate limits in weekly plugin scan validation ([#182](https://github.com/adrighem/PyPluginStore/issues/182)) ([e518c70](https://github.com/adrighem/PyPluginStore/commit/e518c70e5cab9e4505b7720fca8c0157a6d105dc))
+* **registry:** add Domoticz-EUEnergyMarkets, Domoticz-EUFuelprices, Domoticz-Inondations-Lux and others; remove Domoticz-TinyTUYA-Local-Plugin; update Domoticz-MySkodaAPI, Domoticz-Synology-Plugin, Zigate and others ([1cf1d52](https://github.com/adrighem/PyPluginStore/commit/1cf1d526b11241d63e3b181c4ef04f46312ce4d1))
+* **registry:** handle default branch updates and prioritize release assets in discovery ([c5e1ff8](https://github.com/adrighem/PyPluginStore/commit/c5e1ff82853851f70d9f4ba2b49756e08f8a35a8))
+* **scanner:** drop stray delivery.schema_version stamped on discovery ([#183](https://github.com/adrighem/PyPluginStore/issues/183)) ([464ca18](https://github.com/adrighem/PyPluginStore/commit/464ca18c8d2c302447f9e1d3a1644b5164696960))
+* **scanner:** sanitize descriptions and harden release-candidate selection ([#184](https://github.com/adrighem/PyPluginStore/issues/184)) ([bffddc1](https://github.com/adrighem/PyPluginStore/commit/bffddc1114d52ac0e2a794c54ca9fea20e2372a2))
+
 ## [2.30.2](https://github.com/adrighem/PyPluginStore/compare/v2.30.1...v2.30.2) (2026-09-13)
 
 
