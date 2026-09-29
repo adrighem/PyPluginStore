@@ -498,10 +498,10 @@
       "source": "detected"
     },
     {
-      "branch": "dist",
-      "confidence": "unknown",
-      "evidence_class": "manual_registry_edit",
-      "identity": "github.com/rouzax/dell-idrac-domoticz-plugin@dist",
+      "branch": "main",
+      "confidence": "low",
+      "evidence_class": "generic_python",
+      "identity": "github.com/rouzax/dell-idrac-domoticz-plugin@main",
       "last_detection": {
         "confidence": "low",
         "evidence_class": "generic_python",
@@ -512,6 +512,7 @@
         "reasons": [
           "README.md: uses shell commands"
         ],
+        "requires_python": ">=3.11",
         "scores": {
           "both": 0,
           "linux": 2,
@@ -520,14 +521,14 @@
       },
       "owner": "Rouzax",
       "package_id": "dell-idrac",
-      "policy_action": "kept_reviewed",
+      "policy_action": "unchanged",
       "registry_platforms": [
         "linux",
         "windows"
       ],
       "repository": "dell-idrac-domoticz-plugin",
-      "reviewed": true,
-      "source": "reviewed"
+      "reviewed": false,
+      "source": "detected"
     },
     {
       "branch": "master",
@@ -783,6 +784,35 @@
       "repository": "domoticz-airly",
       "reviewed": false,
       "source": "detected"
+    },
+    {
+      "branch": "master",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/kofec/domoticz-airpurifier@master",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "generic: no Linux-only or Windows-only evidence found"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 0,
+          "windows": 0
+        }
+      },
+      "owner": "kofec",
+      "package_id": "domoticz-AirPurifier",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "domoticz-AirPurifier",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "main",
@@ -1223,6 +1253,49 @@
       "branch": "main",
       "confidence": "medium",
       "evidence_class": "linux_evidence",
+      "identity": "github.com/blooesky/domoticz-camera-bridge@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands",
+          "plugin.py: uses shell commands",
+          "camera_bridge.py: uses shell commands",
+          "CONTRIBUTING.md: mentions Raspberry Pi/Raspbian",
+          "CONTRIBUTING.md: uses shell commands",
+          "install.sh: Linux-oriented file name",
+          "install.sh: mentions Raspberry Pi/Raspbian",
+          "install.sh: uses apt package installation",
+          "install.sh: uses sudo",
+          "install.sh: uses Unix system paths",
+          "install.sh: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 38,
+          "windows": 0
+        }
+      },
+      "owner": "blooesky",
+      "package_id": "domoticz-camera-bridge",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "domoticz-camera-bridge",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
       "identity": "github.com/jgaalen/domoticz-cupra-plugin@main",
       "last_detection": {
         "confidence": "medium",
@@ -1359,6 +1432,39 @@
       "source": "detected"
     },
     {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/hb787/domoticz-domoticz-smartgateways-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands",
+          "Plugin_ScreenShot_Devices.png: mentions Raspberry Pi/Raspbian"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 11,
+          "windows": 0
+        }
+      },
+      "owner": "HB787",
+      "package_id": "Domoticz-domoticz-smartgateways-plugin",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-domoticz-smartgateways-plugin",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "master",
       "confidence": "high",
       "evidence_class": "explicit_both",
@@ -1489,14 +1595,19 @@
           "linux"
         ],
         "reasons": [
+          "README.md: uses Unix system paths",
+          "README.md: uses shell commands",
           "plugin.py: mentions Raspberry Pi/Raspbian",
-          "enigma2_monitor.sh: Linux-oriented file name",
-          "enigma2_monitor.sh: uses Unix system paths",
-          "enigma2_monitor.sh: uses shell commands"
+          "plugin.py: uses shell commands",
+          "nbox/nbox_sygnal.py: uses Unix system paths",
+          "nbox/nbox_sygnal.py: imports Linux-specific module fcntl",
+          "nbox/nbox_monitor.sh: Linux-oriented file name",
+          "nbox/nbox_monitor.sh: uses Unix system paths",
+          "nbox/nbox_monitor.sh: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 12,
+          "linux": 32,
           "windows": 0
         }
       },
@@ -1570,6 +1681,105 @@
         "windows"
       ],
       "repository": "domoticz-eSterownik_v3.5",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/blooesky/domoticz-eu-fuel-prices@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 11,
+          "windows": 0
+        }
+      },
+      "owner": "blooesky",
+      "package_id": "domoticz-eu-fuel-prices",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "domoticz-eu-fuel-prices",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/janreimen/domoticz-euenergymarkets@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "CONTRIBUTING.md: uses shell commands",
+          "DEPLOY.md: uses sudo",
+          "DEPLOY.md: uses systemd",
+          "DEPLOY.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 10,
+          "windows": 0
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-EUEnergyMarkets",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-EUEnergyMarkets",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/janreimen/domoticz-eufuelprices@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "CONTRIBUTING.md: uses shell commands",
+          "DEPLOY.md: uses sudo",
+          "DEPLOY.md: uses systemd",
+          "DEPLOY.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 10,
+          "windows": 0
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-EUFuelprices",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-EUFuelprices",
       "reviewed": false,
       "source": "detected"
     },
@@ -2244,6 +2454,42 @@
       "repository": "Domoticz-Indevolt-plugin",
       "reviewed": false,
       "source": "unknown"
+    },
+    {
+      "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/janreimen/domoticz-inondations-lux@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses shell commands",
+          "checklist.md: uses sudo",
+          "checklist.md: uses systemd",
+          "checklist.md: uses shell commands",
+          "DEPLOY.md: uses sudo",
+          "DEPLOY.md: uses systemd",
+          "DEPLOY.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 18,
+          "windows": 0
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-Inondations-Lux",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-Inondations-Lux",
+      "reviewed": false,
+      "source": "detected"
     },
     {
       "branch": "main",
@@ -3625,6 +3871,38 @@
     },
     {
       "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/blooesky/domoticz-pollen-forecast@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 8,
+          "windows": 0
+        }
+      },
+      "owner": "blooesky",
+      "package_id": "Domoticz-Pollen-Forecast",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-Pollen-Forecast",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "main",
       "confidence": "low",
       "evidence_class": "generic_python",
       "identity": "github.com/jgaalen/domoticz-powerview-plugin@main",
@@ -3948,6 +4226,38 @@
     },
     {
       "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/galadril/domoticz-stipple-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 8,
+          "windows": 0
+        }
+      },
+      "owner": "galadril",
+      "package_id": "Domoticz-Stipple-Plugin",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-Stipple-Plugin",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "main",
       "confidence": "low",
       "evidence_class": "generic_python",
       "identity": "codeberg.org/hoog/domoticz-stromer-plugin@main",
@@ -4210,38 +4520,6 @@
     },
     {
       "branch": "Master",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/xenomes/domoticz-tinytuya-local-plugin@master",
-      "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
-        "platforms": [
-          "linux",
-          "windows"
-        ],
-        "reasons": [
-          "README.md: uses sudo"
-        ],
-        "scores": {
-          "both": 0,
-          "linux": 2,
-          "windows": 0
-        }
-      },
-      "owner": "Xenomes",
-      "package_id": "Domoticz-TinyTUYA-Local-Plugin",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "Domoticz-TinyTUYA-Local-Plugin",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
-      "branch": "Master",
       "confidence": "medium",
       "evidence_class": "linux_evidence",
       "identity": "github.com/xenomes/domoticz-tinytuya-plugin@master",
@@ -4252,13 +4530,19 @@
           "linux"
         ],
         "reasons": [
-          "README.md: uses apt package installation",
           "README.md: uses sudo",
-          "README.md: uses shell commands"
+          "README.md: uses shell commands",
+          "examples/refresh-button/README.md: uses chmod",
+          "examples/refresh-button/README.md: uses Unix system paths",
+          "examples/refresh-button/README.md: uses shell commands",
+          "tools/tuya_inventory.py: uses Unix system paths",
+          "examples/refresh-button/tuya_refresh_events.sh: Linux-oriented file name",
+          "examples/refresh-button/tuya_refresh_events.sh: uses Unix system paths",
+          "examples/refresh-button/tuya_refresh_events.sh: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 8,
+          "linux": 26,
           "windows": 0
         }
       },
@@ -4737,6 +5021,36 @@
       "repository": "domoticz-wifitic",
       "reviewed": false,
       "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/sydspost/domoticz-wiz-connected-plugin@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses systemd"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 6,
+          "windows": 0
+        }
+      },
+      "owner": "sydspost",
+      "package_id": "Domoticz-WiZ-connected-plugin",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Domoticz-WiZ-connected-plugin",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "master",
@@ -5929,6 +6243,35 @@
       "repository": "ems-esp-domoticz-plugin",
       "reviewed": false,
       "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/szelessavalapitvany/ev_charge_control@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 2,
+          "windows": 0
+        }
+      },
+      "owner": "szelessavalapitvany",
+      "package_id": "EV_Charge_Control",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "EV_Charge_Control",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "main",
@@ -7189,10 +7532,10 @@
       "source": "detected"
     },
     {
-      "branch": "dist",
+      "branch": "main",
       "confidence": "unknown",
       "evidence_class": "legacy",
-      "identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@dist",
+      "identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@main",
       "last_detection": {
         "confidence": "medium",
         "evidence_class": "linux_evidence",
@@ -7202,11 +7545,15 @@
         "reasons": [
           "README.md: uses sudo",
           "README.md: uses systemd",
-          "README.md: uses shell commands"
+          "README.md: uses shell commands",
+          "migration/README.md: uses sudo",
+          "migration/README.md: uses systemd",
+          "migration/README.md: uses shell commands"
         ],
+        "requires_python": ">=3.11",
         "scores": {
           "both": 0,
-          "linux": 8,
+          "linux": 16,
           "windows": 0
         }
       },
@@ -7488,10 +7835,10 @@
       "source": "detected"
     },
     {
-      "branch": "dist",
-      "confidence": "unknown",
-      "evidence_class": "manual_registry_edit",
-      "identity": "github.com/rouzax/myenergi-domoticz-plugin@dist",
+      "branch": "main",
+      "confidence": "low",
+      "evidence_class": "generic_python",
+      "identity": "github.com/rouzax/myenergi-domoticz-plugin@main",
       "last_detection": {
         "confidence": "low",
         "evidence_class": "generic_python",
@@ -7502,6 +7849,7 @@
         "reasons": [
           "README.md: uses shell commands"
         ],
+        "requires_python": ">=3.9",
         "scores": {
           "both": 0,
           "linux": 2,
@@ -7510,14 +7858,14 @@
       },
       "owner": "Rouzax",
       "package_id": "myenergi",
-      "policy_action": "kept_reviewed",
+      "policy_action": "unchanged",
       "registry_platforms": [
         "linux",
         "windows"
       ],
       "repository": "myenergi-domoticz-plugin",
-      "reviewed": true,
-      "source": "reviewed"
+      "reviewed": false,
+      "source": "detected"
     },
     {
       "branch": "main",
@@ -8974,10 +9322,10 @@
       "source": "detected"
     },
     {
-      "branch": "stable8",
+      "branch": "stable9",
       "confidence": "high",
       "evidence_class": "explicit_both",
-      "identity": "github.com/zigbeefordomoticz/domoticz-zigbee@stable8",
+      "identity": "github.com/zigbeefordomoticz/domoticz-zigbee@stable9",
       "last_detection": {
         "confidence": "high",
         "evidence_class": "explicit_both",
@@ -8989,13 +9337,12 @@
           "readme.md: mentions Linux and Windows support",
           "readme.md: mentions Raspberry Pi/Raspbian",
           "plugin.py: uses Unix system paths",
-          "plugin.py: uses Linux device paths",
-          "plugin.py: uses shell commands"
+          "plugin.py: uses Linux device paths"
         ],
-        "requires_python": ">=3.11",
+        "requires_python": ">=3.13",
         "scores": {
           "both": 8,
-          "linux": 15,
+          "linux": 13,
           "windows": 0
         }
       },
