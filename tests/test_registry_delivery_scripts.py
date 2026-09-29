@@ -1178,8 +1178,45 @@ def test_scanner_discovers_release_based_plugin_with_valid_archive(
     assert delivery["git_supported"] is False
     assert delivery["release"]["source_path"] == "src"
     assert delivery["release"]["asset_name"] == "rel-plugin-v1.0.0.zip"
+    assert "schema_version" not in delivery
     identity = scan_plugins_module.discovered_repo_identity(discovered)
     assert identity["domoticz_key"] == "RELKEY"
+
+
+def test_scanner_discovered_release_delivery_builds_a_valid_registry_entry(
+    scan_plugins_module,
+):
+    # Regression test for a scan crash: the discovered delivery document
+    # (DISCOVERED_DELIVERY_FIELD, as produced by certify_release_asset_plugin)
+    # must be a document build_registry_entry can persist as-is. It previously
+    # carried a "schema_version" key that package_registry.py's strict v2
+    # delivery schema rejects as unknown, crashing the scanner the moment a
+    # newly discovered release-based plugin reached this path.
+    delivery = {
+        "preferred": "release",
+        "git_supported": False,
+        "release": {
+            "provider": "github",
+            "channel": "stable",
+            "tag_pattern": r"^v?[0-9]+(?:\.[0-9]+){1,3}$",
+            "artifact": "source_zip",
+            "source_path": ".",
+            "mutable_paths": [],
+        },
+    }
+
+    document = scan_plugins_module.build_registry_entry(
+        "ReleaseBasedPlugin",
+        "RELKEY",
+        "owner",
+        "rel-plugin",
+        "desc",
+        "main",
+        delivery=delivery,
+    )
+
+    assert document["delivery"]["preferred"] == "release"
+    assert "schema_version" not in document["delivery"]
 
 
 def test_scanner_rejects_corrupted_release_archive_and_falls_back_to_git(
