@@ -2468,16 +2468,13 @@
         ],
         "reasons": [
           "README.md: uses shell commands",
-          "checklist.md: uses sudo",
-          "checklist.md: uses systemd",
-          "checklist.md: uses shell commands",
           "DEPLOY.md: uses sudo",
           "DEPLOY.md: uses systemd",
           "DEPLOY.md: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 18,
+          "linux": 10,
           "windows": 0
         }
       },
@@ -2752,6 +2749,35 @@
     },
     {
       "branch": "master",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/kofec/domoticz-mideaac@master",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "tests/test_plugin.py: uses Unix system paths"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 4,
+          "windows": 0
+        }
+      },
+      "owner": "kofec",
+      "package_id": "Domoticz-MideaAC",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Domoticz-MideaAC",
+      "reviewed": false,
+      "source": "unknown"
+    },
+    {
+      "branch": "master",
       "confidence": "high",
       "evidence_class": "explicit_both",
       "identity": "github.com/janreimen/domoticz-motherboardmonitor@master",
@@ -2864,23 +2890,26 @@
     },
     {
       "branch": "master",
-      "confidence": "medium",
-      "evidence_class": "linux_evidence",
+      "confidence": "high",
+      "evidence_class": "explicit_both",
       "identity": "github.com/janreimen/domoticz-myskodaapi@master",
       "last_detection": {
-        "confidence": "medium",
-        "evidence_class": "linux_evidence",
+        "confidence": "high",
+        "evidence_class": "explicit_both",
         "platforms": [
-          "linux"
+          "linux",
+          "windows"
         ],
         "reasons": [
+          "README.md: mentions Linux and Windows support",
+          "README.md: mentions Windows and Linux support",
           "README.md: uses shell commands",
           "DEPLOY.md: uses sudo",
           "DEPLOY.md: uses systemd",
           "DEPLOY.md: uses shell commands"
         ],
         "scores": {
-          "both": 0,
+          "both": 16,
           "linux": 10,
           "windows": 0
         }
@@ -2889,7 +2918,8 @@
       "package_id": "Domoticz-MySkodaAPI",
       "policy_action": "unchanged",
       "registry_platforms": [
-        "linux"
+        "linux",
+        "windows"
       ],
       "repository": "Domoticz-MySkodaAPI",
       "reviewed": false,
@@ -3883,11 +3913,12 @@
         "reasons": [
           "README.md: uses sudo",
           "README.md: uses systemd",
-          "README.md: uses shell commands"
+          "README.md: uses shell commands",
+          "plugin.py: uses Unix system paths"
         ],
         "scores": {
           "both": 0,
-          "linux": 8,
+          "linux": 12,
           "windows": 0
         }
       },
@@ -4026,6 +4057,57 @@
         "linux"
       ],
       "repository": "Domoticz-RAVEn-Plugin",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/blooesky/domoticz-roborock-miio-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses apt package installation",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses chmod",
+          "README.md: uses shell commands",
+          "uninstall.sh: Linux-oriented file name",
+          "uninstall.sh: uses shell commands",
+          "update.sh: Linux-oriented file name",
+          "update.sh: uses sudo",
+          "update.sh: uses systemd",
+          "update.sh: uses shell commands",
+          "run_diagnostic.sh: Linux-oriented file name",
+          "run_diagnostic.sh: uses shell commands",
+          "install.sh: Linux-oriented file name",
+          "install.sh: mentions Raspberry Pi/Raspbian",
+          "install.sh: uses apt package installation",
+          "install.sh: uses sudo",
+          "install.sh: uses systemd",
+          "install.sh: uses chmod",
+          "install.sh: uses Unix system paths",
+          "install.sh: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 64,
+          "windows": 0
+        }
+      },
+      "owner": "blooesky",
+      "package_id": "Domoticz-Roborock-MiIO-Plugin",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-Roborock-MiIO-Plugin",
       "reviewed": false,
       "source": "detected"
     },
@@ -5051,38 +5133,6 @@
       "repository": "Domoticz-WiZ-connected-plugin",
       "reviewed": false,
       "source": "unknown"
-    },
-    {
-      "branch": "master",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/sjaakspiegels/domoticz-woonveilig-gate03@master",
-      "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
-        "platforms": [
-          "linux",
-          "windows"
-        ],
-        "reasons": [
-          "generic: no Linux-only or Windows-only evidence found"
-        ],
-        "scores": {
-          "both": 0,
-          "linux": 0,
-          "windows": 0
-        }
-      },
-      "owner": "sjaakspiegels",
-      "package_id": "domoticz-woonveilig-gate03",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "domoticz-woonveilig-gate03",
-      "reviewed": false,
-      "source": "detected"
     },
     {
       "branch": "main",
@@ -6579,11 +6629,12 @@
           "README.md: uses apt package installation",
           "README.md: uses sudo",
           "README.md: uses systemd",
-          "README.md: uses shell commands"
+          "README.md: uses shell commands",
+          "CONTRIBUTING.md: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 12,
+          "linux": 14,
           "windows": 0
         }
       },
@@ -7334,6 +7385,37 @@
       "repository": "Domoticz-Itho-Wifi-Plugin",
       "reviewed": false,
       "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/janreimen/domoticz-pollen-forecast@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "RELEASE.md: uses shell commands",
+          "DEPLOY.md: uses shell commands",
+          "TESTING.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 6,
+          "windows": 0
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "janreimen-Domoticz-Pollen-Forecast",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Domoticz-Pollen-Forecast",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "main",
@@ -8369,6 +8451,35 @@
     },
     {
       "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/d-escape/sofabaton-x2-plugin-for-domoticz-@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "generic: no Linux-only or Windows-only evidence found"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 0,
+          "windows": 0
+        }
+      },
+      "owner": "d-EScape",
+      "package_id": "Sofabaton-X2-plugin-for-Domoticz-",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Sofabaton-X2-plugin-for-Domoticz-",
+      "reviewed": false,
+      "source": "unknown"
+    },
+    {
+      "branch": "main",
       "confidence": "high",
       "evidence_class": "explicit_both",
       "identity": "github.com/voyo/sofar-modbus@main",
@@ -8592,11 +8703,12 @@
         "reasons": [
           "README.md: uses apt package installation",
           "README.md: uses sudo",
-          "README.md: uses systemd"
+          "README.md: uses systemd",
+          "README.md: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 10,
+          "linux": 12,
           "windows": 0
         }
       },

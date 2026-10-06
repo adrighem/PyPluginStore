@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-10-15T12:29:30Z",
-  "generated_at": "2026-09-29T12:29:30Z",
-  "registry_sha256": "9096c0062e84b65295321d3a453a8ad29a236e1b075bfdf519bfcfd23235a5d6",
+  "expires_at": "2026-10-20T10:24:56Z",
+  "generated_at": "2026-10-04T10:24:56Z",
+  "registry_sha256": "0f595469124df36fe1e869637afed3f070814a2eef73cb75b8bced9747f85d5c",
   "releases": [
     {
       "artifact": {
@@ -313,27 +313,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "janreimen-Domoticz-Inondations-Lux-9939ce8",
-        "sha256": "bbec03f4c5da1a606aa1ec96f1132004f2506dcf32ca3a89f58de687a8bccf2b",
-        "size": 55838,
+        "root_prefix": "janreimen-Domoticz-Inondations-Lux-a8f1926",
+        "sha256": "e7c6a446ee59f422ecd849cf1d428e1334afed2eb2d4c1422193ab2bede4a2f9",
+        "size": 61073,
         "source_path": ".",
-        "tree_sha256": "5bd519ac9dc11d87be0754e3370e10efa3e25fc155b07537012fdc3eb2ca9f36",
-        "url": "https://api.github.com/repos/janreimen/domoticz-inondations-lux/zipball/9939ce8ece3fc70b9943f2e700d679cf5596c7d3"
+        "tree_sha256": "3e81480aa4b296a66bdc00b96e7f73329eb71d776c3935ea2b95d2d00645e769",
+        "url": "https://api.github.com/repos/janreimen/domoticz-inondations-lux/zipball/a8f19266f717953eb6b30e89364745a0d70ab148"
       },
       "certified_identity": {
         "domoticz_key": "InondationsLux",
-        "plugin_py_sha256": "2b2f183a745536028c130769dd5f48ae5df5923209a31efc5df34d91cdd018cc"
+        "plugin_py_sha256": "eaf83d19ac72f396e6d5508ba604dea92ef9e229ac71db171beab75ca2ee7acc"
       },
-      "commit": "9939ce8ece3fc70b9943f2e700d679cf5596c7d3",
+      "commit": "a8f19266f717953eb6b30e89364745a0d70ab148",
       "package_id": "Domoticz-Inondations-Lux",
       "provider": "github",
-      "release_id": "github:janreimen/domoticz-inondations-lux:v0.1.1",
-      "released_at": "2026-09-29T08:04:43Z",
+      "release_id": "github:janreimen/domoticz-inondations-lux:v0.1.2",
+      "released_at": "2026-10-01T20:13:39Z",
       "repository_identity": "github.com/janreimen/domoticz-inondations-lux",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "v0.1.1",
-      "version": "0.1.1"
+      "revision": 2,
+      "supersedes": [
+        "github:janreimen/domoticz-inondations-lux:v0.1.1"
+      ],
+      "tag": "v0.1.2",
+      "version": "0.1.2"
     },
     {
       "artifact": {
@@ -405,30 +407,31 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "janreimen-Domoticz-MySkodaAPI-9e22915",
-        "sha256": "77198727937428f706487cdce9de691b2161f06973998abb72f279bca5fd5666",
-        "size": 48764,
+        "root_prefix": "janreimen-Domoticz-MySkodaAPI-1d07527",
+        "sha256": "29fb7e522423194fae980f7115913c44d8c1e9efbeadbd8c9cc9c4cf6135d923",
+        "size": 56986,
         "source_path": ".",
-        "tree_sha256": "b337c33ab28d6295dc99664725d6c2bcce80bca3e5d78ead6f82b75863b92c2e",
-        "url": "https://api.github.com/repos/janreimen/domoticz-myskodaapi/zipball/9e229159fa392d8c82d4a83df28e297386e1afb7"
+        "tree_sha256": "cfcd263fa169d9b64f413b8c00b06960532484db95e1faf7d963850aca9a0b10",
+        "url": "https://api.github.com/repos/janreimen/domoticz-myskodaapi/zipball/1d07527c667282b3896f4ab7dc56cc7e08c141e4"
       },
       "certified_identity": {
         "domoticz_key": "MySkodaAPI",
-        "plugin_py_sha256": "23893f55dbc72e3208cd748bfbea266bd511b8ff571dd37c55dbd3aca65910c8"
+        "plugin_py_sha256": "803ca47ed56d81f9be6fff076dceb49d4cd37ce7395d803a2f168a69a41ddb3c"
       },
-      "commit": "9e229159fa392d8c82d4a83df28e297386e1afb7",
+      "commit": "1d07527c667282b3896f4ab7dc56cc7e08c141e4",
       "package_id": "Domoticz-MySkodaAPI",
       "provider": "github",
-      "release_id": "github:janreimen/domoticz-myskodaapi:v0.4.3.1",
-      "released_at": "2026-09-19T11:03:18Z",
+      "release_id": "github:janreimen/domoticz-myskodaapi:v0.4.3.2",
+      "released_at": "2026-09-30T19:58:48Z",
       "repository_identity": "github.com/janreimen/domoticz-myskodaapi",
-      "revision": 3,
+      "revision": 4,
       "supersedes": [
         "github:janreimen/domoticz-myskodaapi:v0.4.1",
-        "github:janreimen/domoticz-myskodaapi:v0.4.2"
+        "github:janreimen/domoticz-myskodaapi:v0.4.2",
+        "github:janreimen/domoticz-myskodaapi:v0.4.3.1"
       ],
-      "tag": "v0.4.3.1",
-      "version": "0.4.3.1"
+      "tag": "v0.4.3.2",
+      "version": "0.4.3.2"
     },
     {
       "artifact": {
@@ -498,27 +501,59 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "blooesky-Domoticz-Pollen-Forecast-5b44d30",
-        "sha256": "a73ee55c1328a029927683804682682fb6cb297bfac7075eb827e0ce1dc80baa",
-        "size": 7045,
+        "root_prefix": "blooesky-Domoticz-Pollen-Forecast-3adc26b",
+        "sha256": "ce862ac88f945778b4376fe76ff0c1cf9553c67d4b295f1bd6cb387e9844a268",
+        "size": 12418,
         "source_path": ".",
-        "tree_sha256": "b514d4e80343d6cc55bae74c609319f36ebcd6837be8e91e4651b24fc3fdf361",
-        "url": "https://api.github.com/repos/blooesky/domoticz-pollen-forecast/zipball/5b44d300269a7894bf4f70c5e90fc747fa254b1d"
+        "tree_sha256": "308c0db00b036dae9caa6856015792936f8e8bc4df3f43ba4c5b82ee12b2535e",
+        "url": "https://api.github.com/repos/blooesky/domoticz-pollen-forecast/zipball/3adc26b79345d8dc12574f7925e664e91a48f4ec"
       },
       "certified_identity": {
         "domoticz_key": "PollenForecast",
-        "plugin_py_sha256": "07c54db9a08c88badbcb7f698ecfa7d25edb5987cdf553531751ee17d3f25f4e"
+        "plugin_py_sha256": "8035a426e7f96c53f4f0fe3682ab7bb49cf9370526fdaa740b0411f7bd4713d9"
       },
-      "commit": "5b44d300269a7894bf4f70c5e90fc747fa254b1d",
+      "commit": "3adc26b79345d8dc12574f7925e664e91a48f4ec",
       "package_id": "Domoticz-Pollen-Forecast",
       "provider": "github",
-      "release_id": "github:blooesky/domoticz-pollen-forecast:v1.1.0",
-      "released_at": "2026-09-29T07:08:43Z",
+      "release_id": "github:blooesky/domoticz-pollen-forecast:v1.2.4",
+      "released_at": "2026-10-01T06:06:25Z",
       "repository_identity": "github.com/blooesky/domoticz-pollen-forecast",
+      "revision": 2,
+      "supersedes": [
+        "github:blooesky/domoticz-pollen-forecast:v1.1.0"
+      ],
+      "tag": "v1.2.4",
+      "version": "1.2.4"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "blooesky-Domoticz-Roborock-MiIO-Plugin-b9a873a",
+        "sha256": "d510f13963b660f8fe1f9b8b6380d82fc788f6a22aec1b8e79bf4a8540afefe3",
+        "size": 28310,
+        "source_path": ".",
+        "tree_sha256": "6886c75d8c6aedbd5f7d6e845a2a3776c02223afec9c98f99c723261a17f51e2",
+        "url": "https://api.github.com/repos/blooesky/domoticz-roborock-miio-plugin/zipball/b9a873a11dc292e223bb268a3231e1e9e9720173"
+      },
+      "certified_identity": {
+        "domoticz_key": "RoborockLocal",
+        "plugin_py_sha256": "c8d98425b7573dc150b96b80105b8b937740cd94e61e210087999ee34e6df638"
+      },
+      "commit": "b9a873a11dc292e223bb268a3231e1e9e9720173",
+      "package_id": "Domoticz-Roborock-MiIO-Plugin",
+      "provider": "github",
+      "release_id": "github:blooesky/domoticz-roborock-miio-plugin:v1.0.4",
+      "released_at": "2026-09-29T18:29:34Z",
+      "repository_identity": "github.com/blooesky/domoticz-roborock-miio-plugin",
       "revision": 1,
       "supersedes": [],
-      "tag": "v1.1.0",
-      "version": "1.1.0"
+      "tag": "v1.0.4",
+      "version": "1.0.4"
     },
     {
       "artifact": {
@@ -990,31 +1025,32 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_HP_ilo-c2c622e",
-        "sha256": "4bad8b973a550fa78ee0a752518767ee69fc0d8682d3c5a59dd7b4720a0eacf8",
-        "size": 23369,
+        "root_prefix": "MadPatrick-domoticz_HP_ilo-4876902",
+        "sha256": "4e0df81668953739f34d7e4a64cf83ae8e592d7cf5c8e5f53b20dc2d0a451fac",
+        "size": 23956,
         "source_path": ".",
-        "tree_sha256": "bab9ae1960745e1ef6bbc97226c73402870f566bfa220b8015225f74bf2351aa",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_hp_ilo/zipball/c2c622e3ed4c745f1b421264ced66e06bf6d6440"
+        "tree_sha256": "2790acd7b7a5b6c127e194db469dfe51a9a3019b60e948b037bff06f0e04fd54",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_hp_ilo/zipball/48769027e7fc78134f35008bd50afcc13f59731c"
       },
       "certified_identity": {
         "domoticz_key": "hp_ilo",
-        "plugin_py_sha256": "e252465c0b622a7d9816627cbf50e26a41be2ef2d9a8bf84f03cadbef63fcff6"
+        "plugin_py_sha256": "379a21aa2da14fc49e81139d85661894866039ef7c73642327750b75b79264ba"
       },
-      "commit": "c2c622e3ed4c745f1b421264ced66e06bf6d6440",
+      "commit": "48769027e7fc78134f35008bd50afcc13f59731c",
       "package_id": "HP_iLo",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_hp_ilo:1.2.7",
-      "released_at": "2026-09-12T07:23:05Z",
+      "release_id": "github:madpatrick/domoticz_hp_ilo:1.2.8",
+      "released_at": "2026-09-29T17:49:42Z",
       "repository_identity": "github.com/madpatrick/domoticz_hp_ilo",
-      "revision": 4,
+      "revision": 5,
       "supersedes": [
         "github:madpatrick/domoticz_hp_ilo:1.0.1",
         "github:madpatrick/domoticz_hp_ilo:1.2.3",
-        "github:madpatrick/domoticz_hp_ilo:1.2.6"
+        "github:madpatrick/domoticz_hp_ilo:1.2.6",
+        "github:madpatrick/domoticz_hp_ilo:1.2.7"
       ],
-      "tag": "1.2.7",
-      "version": "1.2.7"
+      "tag": "1.2.8",
+      "version": "1.2.8"
     },
     {
       "artifact": {
@@ -1271,32 +1307,33 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_somfy-690f52c",
-        "sha256": "e1ce274f0bacf72c837fa9263ca122e589be7bd281461391fa483a11c955a6fd",
-        "size": 30760,
+        "root_prefix": "MadPatrick-domoticz_somfy-9a27ec1",
+        "sha256": "8bcb94cf56fc530291af595e14ac51edb4d2a506ea03117aa7a86e213ba26dae",
+        "size": 34844,
         "source_path": ".",
-        "tree_sha256": "8faa3674dc5d52a622a3813cd0166f09ecc54fece5ac5e66a846b60cc9df6a98",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_somfy/zipball/690f52c95f511ffbaa5dba7003f6f0ac6bd61901"
+        "tree_sha256": "0cd2d313af01d8944a81a4328d10b0b57a6b456c23a2be77c7a4a2208098f92b",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_somfy/zipball/9a27ec1e45ba7d3f75eacd00bd466a80632c9c8b"
       },
       "certified_identity": {
         "domoticz_key": "tahomaIO",
-        "plugin_py_sha256": "63121085be90e0c6e66c27f993829fc65055346207ec4649062176a8196a5b6a"
+        "plugin_py_sha256": "e37db0cdc2329fee6a9ad95676814809df44664380ad02749eb23d1b9c27a97a"
       },
-      "commit": "690f52c95f511ffbaa5dba7003f6f0ac6bd61901",
+      "commit": "9a27ec1e45ba7d3f75eacd00bd466a80632c9c8b",
       "package_id": "Somfy",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_somfy:5.4.4",
-      "released_at": "2026-09-14T11:05:34Z",
+      "release_id": "github:madpatrick/domoticz_somfy:5.4.7",
+      "released_at": "2026-10-04T06:34:26Z",
       "repository_identity": "github.com/madpatrick/domoticz_somfy",
-      "revision": 5,
+      "revision": 6,
       "supersedes": [
         "github:madpatrick/domoticz_somfy:5.3.1",
         "github:madpatrick/domoticz_somfy:5.3.2",
         "github:madpatrick/domoticz_somfy:5.3.6",
-        "github:madpatrick/domoticz_somfy:5.4.1"
+        "github:madpatrick/domoticz_somfy:5.4.1",
+        "github:madpatrick/domoticz_somfy:5.4.4"
       ],
-      "tag": "5.4.4",
-      "version": "5.4.4"
+      "tag": "5.4.7",
+      "version": "5.4.7"
     },
     {
       "artifact": {
@@ -1837,6 +1874,36 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
+        "root_prefix": "janreimen-Domoticz-Pollen-Forecast-9b11228",
+        "sha256": "712327255073fde1a2377d5360907e0dd59f52776176741aef352182e5b4ca3f",
+        "size": 28554,
+        "source_path": ".",
+        "tree_sha256": "e1dd6b4eec12f09a48b93e06e563c4d7f0fcf31bdcf4623ed702bd49b801f513",
+        "url": "https://api.github.com/repos/janreimen/domoticz-pollen-forecast/zipball/9b11228598b1c49d2d8eada4349549e06349e504"
+      },
+      "certified_identity": {
+        "domoticz_key": "PollenForecast",
+        "plugin_py_sha256": "904fec864bc5c757ae7853657e2a4718e291c214620748acd4774286648029dd"
+      },
+      "commit": "9b11228598b1c49d2d8eada4349549e06349e504",
+      "package_id": "janreimen-Domoticz-Pollen-Forecast",
+      "provider": "github",
+      "release_id": "github:janreimen/domoticz-pollen-forecast:v0.2.2",
+      "released_at": "2026-09-30T19:05:53Z",
+      "repository_identity": "github.com/janreimen/domoticz-pollen-forecast",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "v0.2.2",
+      "version": "0.2.2"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
         "root_prefix": "blooesky-lg-thinq-4-domoticz-dc5efa9",
         "sha256": "ba7da03f657bc43622ff5020e9c812e0cd4857c7f8d635108fa0ddfab655e85c",
         "size": 44331,
@@ -2011,7 +2078,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 18,
+  "sequence": 19,
   "tombstones": [
     {
       "last_revision": 1,
