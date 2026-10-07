@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.30.4](https://github.com/adrighem/PyPluginStore/compare/v2.30.3...v2.30.4) (2026-10-06)
+
+
+### Bug Fixes
+
+* **registry:** add Domoticz-MideaAC, Domoticz-Roborock-MiIO-Plugin, Sofabaton-X2-plugin-for-Domoticz- and others; remove domoticz-woonveilig-gate03; update Domoticz-MySkodaAPI ([ac063c6](https://github.com/adrighem/PyPluginStore/commit/ac063c6fa0d46d30e25f761333b51e29fb347896))
+
 ## [2.30.3](https://github.com/adrighem/PyPluginStore/compare/v2.30.2...v2.30.3) (2026-09-29)
 
 
