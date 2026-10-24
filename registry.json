@@ -4490,7 +4490,7 @@
       "description": "Domoticz plugin that monitors a Dell PowerEdge server over the iDRAC Redfish API: temperatures, fans, power, utilization, storage and health, with opt-in power control.",
       "repository": {
         "url": "https://github.com/Rouzax/dell-idrac-domoticz-plugin",
-        "branch": "main"
+        "branch": "dist"
       },
       "platforms": [
         "linux",
