@@ -441,8 +441,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -1631,13 +1631,16 @@
           "plugin.py: uses shell commands",
           "nbox/nbox_sygnal.py: uses Unix system paths",
           "nbox/nbox_sygnal.py: imports Linux-specific module fcntl",
+          "nbox/test_siec_brak.sh: Linux-oriented file name",
+          "nbox/test_siec_brak.sh: uses Unix system paths",
+          "nbox/test_siec_brak.sh: uses shell commands",
           "nbox/nbox_monitor.sh: Linux-oriented file name",
           "nbox/nbox_monitor.sh: uses Unix system paths",
           "nbox/nbox_monitor.sh: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 32,
+          "linux": 41,
           "windows": 0
         }
       },
@@ -3451,24 +3454,39 @@
       "evidence_class": "generic_python",
       "identity": "github.com/janreimen/domoticz-pihole-control@main",
       "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
         "platforms": [
-          "linux",
-          "windows"
+          "linux"
         ],
         "reasons": [
-          "README.MD: uses shell commands"
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands",
+          "tests/test_deploy.py: uses shell commands",
+          "checklist.md: uses shell commands",
+          "ROADMAP.md: uses shell commands",
+          "SECURITY.md: uses sudo",
+          "SECURITY.md: uses shell commands",
+          "CONTRIBUTING.md: uses shell commands",
+          "DEPLOY.md: uses sudo",
+          "DEPLOY.md: uses systemd",
+          "DEPLOY.md: uses shell commands",
+          "deploy.sh: Linux-oriented file name",
+          "deploy.sh: uses sudo",
+          "deploy.sh: uses systemd",
+          "deploy.sh: uses Unix system paths",
+          "deploy.sh: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 2,
+          "linux": 43,
           "windows": 0
         }
       },
       "owner": "janreimen",
       "package_id": "Domoticz-PiHole-Control",
-      "policy_action": "unchanged",
+      "policy_action": "kept_existing_requires_high_confidence",
       "registry_platforms": [
         "linux",
         "windows"
@@ -4344,6 +4362,42 @@
       "source": "detected"
     },
     {
+      "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/janreimen/domoticz-solarforecast@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses shell commands",
+          "SUPPORT.md: uses shell commands",
+          "CONTRIBUTING.md: uses shell commands",
+          "docs/RELEASING.md: uses shell commands",
+          "docs/DEVELOPMENT.md: uses shell commands",
+          "docs/TROUBLESHOOTING.md: uses shell commands",
+          "docs/CONFIGURATION.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 14,
+          "windows": 0
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-SolarForecast",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-SolarForecast",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "main",
       "confidence": "low",
       "evidence_class": "generic_python",
@@ -4492,9 +4546,9 @@
           "plugin.py: uses apt package installation",
           "plugin.py: uses sudo",
           "tests/test_deploy.py: uses shell commands",
+          "tests/mibdata.py: uses Unix system paths",
           "synoSNMP/snmpcli.py: uses apt package installation",
-          "synoSNMP/snmpcli.py: uses sudo",
-          "tests/mibdata.py: uses Unix system paths"
+          "synoSNMP/snmpcli.py: uses sudo"
         ],
         "scores": {
           "both": 0,
@@ -6891,6 +6945,38 @@
       "source": "detected"
     },
     {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/rouzax/home-connect-domoticz-plugin@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: uses shell commands"
+        ],
+        "requires_python": ">=3.11",
+        "scores": {
+          "both": 0,
+          "linux": 2,
+          "windows": 0
+        }
+      },
+      "owner": "Rouzax",
+      "package_id": "homeconnectex",
+      "policy_action": "kept_existing_requires_high_confidence",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "home-connect-domoticz-plugin",
+      "reviewed": false,
+      "source": "legacy_detected"
+    },
+    {
       "branch": "master",
       "confidence": "medium",
       "evidence_class": "linux_evidence",
@@ -7410,8 +7496,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -8039,12 +8125,13 @@
           "windows"
         ],
         "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
           "README.md: uses shell commands"
         ],
-        "requires_python": ">=3.9",
+        "requires_python": ">=3.11",
         "scores": {
           "both": 0,
-          "linux": 2,
+          "linux": 5,
           "windows": 0
         }
       },
@@ -8614,8 +8701,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -9084,8 +9171,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
