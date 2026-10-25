@@ -42,11 +42,10 @@ jobs:
       - name: Generate plugin.py
         run: python .github/scripts/generate_plugin.py
 
-      - name: Update release_index.json registry SHA-256 binding
-        run: python .github/scripts/bind_release_index.py
-
-      - name: Verify files are current
-        run: git diff --exit-code -- plugin.py release_index.json
+      # release_index.json is rebound by the generate job after merge, so
+      # parallel registry PRs do not conflict on registry_sha256.
+      - name: Verify plugin.py is current
+        run: git diff --exit-code -- plugin.py
 
   generate:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'

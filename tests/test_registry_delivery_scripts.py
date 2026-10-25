@@ -864,6 +864,31 @@ def test_release_index_binding_uses_exact_registry_file_bytes(
         )
 
 
+@pytest.mark.parametrize(
+    ("argv", "expected_calls"),
+    [([], 1), (["--skip-release-index-binding"], 0)],
+)
+def test_validate_main_release_index_binding_flag(
+    validate_plugins_module,
+    monkeypatch,
+    argv,
+    expected_calls,
+):
+    binding_calls = []
+    monkeypatch.setattr(validate_plugins_module, "load_registry", lambda: {})
+    monkeypatch.setattr(validate_plugins_module, "load_themes", lambda: {})
+    monkeypatch.setattr(
+        validate_plugins_module,
+        "validate_release_index_binding",
+        lambda: binding_calls.append(True),
+    )
+
+    with pytest.raises(SystemExit):
+        validate_plugins_module.main(argv)
+
+    assert len(binding_calls) == expected_calls
+
+
 def permission_blocks(workflow):
     return re.findall(
         r"(?m)^([ ]*)permissions:\s*\n((?:\1[ ]{2}.+\n)+)",

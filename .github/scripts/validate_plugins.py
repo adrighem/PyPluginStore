@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 import json
@@ -437,10 +438,24 @@ def load_themes():
     return themes_data
 
 
-def main():
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Validate registry and theme entries.")
+    parser.add_argument(
+        "--skip-release-index-binding",
+        action="store_true",
+        help=(
+            "Do not require release_index.json to bind registry.json. Pull "
+            "requests use this; master rebinds the index after merge."
+        ),
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args([] if argv is None else argv)
     print("Loading registry file...")
     plugin_data = load_registry()
-    if os.path.isfile(RELEASE_INDEX_FILE_PATH):
+    if not args.skip_release_index_binding and os.path.isfile(RELEASE_INDEX_FILE_PATH):
         validate_release_index_binding()
     print(f"Loaded {len(plugin_data)} plugins.")
 
@@ -517,4 +532,4 @@ def main():
         sys.exit(1)  # Exit with a non-zero code to indicate failure
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

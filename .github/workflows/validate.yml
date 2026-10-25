@@ -43,4 +43,5 @@ jobs:
         
     - name: Run validation script
       if: matrix.os == 'ubuntu-latest'
-      run: python .github/scripts/validate_plugins.py
+      # master rebinds release_index.json after merge (generate_plugin.yml).
+      run: python .github/scripts/validate_plugins.py --skip-release-index-binding

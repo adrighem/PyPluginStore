@@ -110,6 +110,11 @@ change is a compatibility change and needs explicit review. Repository identity
 uses one canonical, credential-free HTTPS web URL; use an empty `platforms`
 array when support is unknown.
 
+Registry pull requests change `registry.json` only. Do not edit
+`release_index.json` to rebind `registry_sha256`: after merge, the
+`generate_plugin.yml` workflow rebinds it to the merged `registry.json` bytes
+and raises `sequence` on `master`.
+
 ### Public Registry Field Reference (`registry.json`)
 
 The public registry format supports the following fields within the `packages` array:

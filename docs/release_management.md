@@ -209,7 +209,7 @@ The generated `release_index.json` acts as a credential-free delivery anchor, ca
 | `sequence` | Integer | Yes | Monotonically increasing generation number tracking public index updates. |
 | `expires_at` | String | Yes | ISO 8601 UTC timestamp when the metadata expires (valid for 16 days). |
 | `generated_at` | String | Yes | ISO 8601 UTC timestamp of metadata generation. |
-| `registry_sha256` | String | Yes | SHA-256 digest of the `registry.json` matching this release index snapshot. |
+| `registry_sha256` | String | Yes | SHA-256 digest of the `registry.json` matching this release index snapshot. Rebound automatically on `master` after merge; pull requests do not need to update it. |
 | `releases` | Array | Yes | Certified stable release candidate records. |
 | `tombstones` | Array | Yes | Pinned de-certified release records blocked from installation. |
 

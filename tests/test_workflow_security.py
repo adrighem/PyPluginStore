@@ -55,6 +55,7 @@ def test_plugin_generation_pr_job_is_read_only_and_checks_freshness():
     assert "persist-credentials: false" in verify
     assert "python .github/scripts/generate_plugin.py" in verify
     assert "git diff --exit-code -- plugin.py" in verify
+    assert "bind_release_index.py" not in verify
     assert "contents: write" not in verify
     assert "- 'plugin.py'" in workflow
     assert "- '.github/workflows/generate_plugin.yml'" in workflow
@@ -68,6 +69,7 @@ def test_plugin_generation_write_permission_is_limited_to_trusted_push_job():
     assert "permissions:\n      contents: write\n" in generate
     assert workflow.count("contents: write") == 1
     assert "git push" in generate
+    assert "bind_release_index.py --previous" in generate
 
 
 def test_pull_request_validation_does_not_persist_checkout_credentials():
