@@ -99,6 +99,20 @@ def test_release_publish_job_can_finalize_the_release_pull_request():
     assert "permissions:\n      contents: write\n      pull-requests: write\n" in publish
 
 
+def test_release_publish_runs_for_merge_squash_and_manual_dispatch():
+    workflow = _workflow_text("release-please.yml")
+    release_pr = _job_block(workflow, "release-pr", "publish-release")
+    publish = _job_block(workflow, "publish-release")
+
+    assert "workflow_dispatch:" in workflow
+    assert "github.event_name == 'workflow_dispatch'" in publish
+    assert "contains(github.event.head_commit.message, 'release-please--branches--master')" in publish
+    assert "startsWith(github.event.head_commit.message, 'chore(master): release ')" in publish
+    assert "!contains(github.event.head_commit.message, 'release-please--branches--master')" in release_pr
+    assert "!startsWith(github.event.head_commit.message, 'chore(master): release ')" in release_pr
+    assert "github.event_name == 'push'" in release_pr
+
+
 def test_weekly_cleanup_shares_temp_tombstone_requests_with_the_index_update():
     workflow = _workflow_text("scan_plugins.yml")
     request_path = '${{ runner.temp }}/release-tombstone-requests.json'
