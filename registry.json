@@ -1419,7 +1419,7 @@
     {
       "package_id": "Domoticz-PiHole-Control",
       "domoticz_key": "PiHole",
-      "description": "Domoticz Plugin to integrate PiHole with https Support, forked from",
+      "description": "Domoticz Plugin to integrate PiHole (with ssl support)",
       "repository": {
         "url": "https://github.com/janreimen/Domoticz-PiHole-Control",
         "branch": "main"
@@ -1599,6 +1599,30 @@
       ],
       "delivery": {
         "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "Domoticz-SolarForecast",
+      "domoticz_key": "SolarForecast",
+      "description": "Solar Prediction Sensors for Domoticz",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-SolarForecast",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release",
         "git_supported": true,
         "release": {
           "provider": "github",
@@ -4312,7 +4336,7 @@
     {
       "package_id": "Zigate",
       "domoticz_key": "Zigate",
-      "description": "Zigbee plugin for Domoticz. Allow to connect various zigbee controllers like Zigate but also Texas Instrument CC2531, CC13x2, CC26x2 ; Silicon-Labs; deConz based chipset to be connected to Domoticz",
+      "description": "Cloud-free Zigbee integration for Domoticz, built on zigpy. Supports Texas Instruments (ZNP), Silicon Labs (EZSP) and deCONZ (ConBee/RaspBee) coordinators, ~500 certified devices plus any Zigbee 3.0 device, with a web UI, OTA updates and network topology.",
       "repository": {
         "url": "https://github.com/zigbeefordomoticz/Domoticz-Zigbee",
         "branch": "stable9"
@@ -6493,7 +6517,7 @@
     {
       "package_id": "homeconnectex",
       "domoticz_key": "homeconnectex",
-      "description": "Domoticz plugin for Home Connect appliances (Bosch, Siemens, Neff, Gaggenau): live state, programs and remaining time from the event stream, washer energy and water meters, with opt-in control.",
+      "description": "Domoticz plugin for Home Connect appliances (Bosch, Siemens, Neff, Gaggenau): monitoring, control and meters",
       "repository": {
         "url": "https://github.com/Rouzax/home-connect-domoticz-plugin",
         "branch": "dist"
@@ -6658,7 +6682,7 @@
           "mutable_paths": []
         }
       },
-      "requires_python": ">=3.9"
+      "requires_python": ">=3.11"
     },
     {
       "package_id": "pzem016",
