@@ -1459,7 +1459,92 @@ def test_scanner_updates_default_policy_when_existing_plugin_starts_releasing(
     )
 
 
-def test_scanner_updates_existing_registry_branch_when_default_changes(scan_plugins_module, tmp_path, monkeypatch):
+def run_branch_scan(scan_plugins_module, tmp_path, monkeypatch, branch_exists):
+    registry_file = tmp_path / "registry.json"
+    update_times_file = tmp_path / "update_times.json"
+    metadata_file = tmp_path / "platform_detection.json"
+    registry_file.write_text(json.dumps({
+        "Idle": ["Idle", "Idle", "Idle", "master"],
+        "luxtronikex": [
+            "Rouzax",
+            "luxtronik-domoticz-plugin-v2",
+            "description",
+            "dist",
+            "",
+            ["linux", "windows"],
+        ],
+    }))
+    update_times_file.write_text(json.dumps({}))
+    repo_info = {
+        "archived": False,
+        "disabled": False,
+        "size": 100,
+        "full_name": "Rouzax/luxtronik-domoticz-plugin-v2",
+        "owner": {"login": "Rouzax"},
+        "name": "luxtronik-domoticz-plugin-v2",
+        "description": "description",
+        "default_branch": "main",
+        "pushed_at": "2026-07-02T11:45:18Z",
+    }
+    patch_scanner_paths(scan_plugins_module, monkeypatch, registry_file, update_times_file, metadata_file)
+    monkeypatch.setattr(scan_plugins_module, "get_repo_info", lambda owner, repo: repo_info)
+    monkeypatch.setattr(scan_plugins_module, "branch_exists", branch_exists)
+    monkeypatch.setattr(scan_plugins_module, "search_github", lambda: [])
+    monkeypatch.setattr(scan_plugins_module, "search_gitlab", lambda: [])
+    monkeypatch.setattr(scan_plugins_module, "search_codeberg", lambda: [])
+    monkeypatch.setattr(
+        scan_plugins_module,
+        "detect_platforms_for_repo",
+        lambda owner, repo, branch, repo_info=None: platform_decision(["linux", "windows"], confidence="high"),
+    )
+    monkeypatch.setenv("GITHUB_TOKEN", "test-token")
+    scan_plugins_module.main()
+    return saved_packages(registry_file)
+
+
+@pytest.mark.parametrize("exists", [True, None])
+def test_scanner_keeps_configured_branch_unless_confirmed_missing(
+    scan_plugins_module, tmp_path, monkeypatch, exists
+):
+    registry = run_branch_scan(
+        scan_plugins_module, tmp_path, monkeypatch, lambda owner, repo, branch: exists
+    )
+    assert registry["luxtronikex"]["repository"]["branch"] == "dist"
+
+
+def test_scanner_follows_default_branch_when_configured_branch_is_gone(
+    scan_plugins_module, tmp_path, monkeypatch
+):
+    registry = run_branch_scan(
+        scan_plugins_module, tmp_path, monkeypatch, lambda owner, repo, branch: False
+    )
+    assert registry["luxtronikex"]["repository"]["branch"] == "main"
+
+
+def test_branch_exists_maps_http_outcomes(scan_plugins_module, monkeypatch):
+    seen = []
+
+    def respond(result):
+        def fake_fetch(url, headers=None):
+            seen.append(url)
+            return result
+        return fake_fetch
+
+    for result, expected in (({"name": "dist"}, True), ("DELETED", False), (None, None)):
+        monkeypatch.setattr(scan_plugins_module, "fetch_json", respond(result))
+        assert scan_plugins_module.branch_exists("Rouzax", "repo", "dist") is expected
+    assert seen[0] == "https://api.github.com/repos/Rouzax/repo/branches/dist"
+
+
+def test_resolve_registry_branch_skips_lookup_when_already_default(scan_plugins_module, monkeypatch):
+    def fail(*args):
+        raise AssertionError("no lookup expected")
+
+    monkeypatch.setattr(scan_plugins_module, "branch_exists", fail)
+    assert scan_plugins_module.resolve_registry_branch("o", "r", "main", "main") == "main"
+
+
+def test_scanner_updates_existing_registry_branch_when_configured_branch_is_gone(scan_plugins_module, tmp_path, monkeypatch):
     registry_file = tmp_path / "registry.json"
     update_times_file = tmp_path / "update_times.json"
     metadata_file = tmp_path / "platform_detection.json"
@@ -1498,6 +1583,7 @@ def test_scanner_updates_existing_registry_branch_when_default_changes(scan_plug
 
     patch_scanner_paths(scan_plugins_module, monkeypatch, registry_file, update_times_file, metadata_file)
     monkeypatch.setattr(scan_plugins_module, "get_repo_info", lambda owner, repo: repo_info)
+    monkeypatch.setattr(scan_plugins_module, "branch_exists", lambda owner, repo, branch: False)
     monkeypatch.setattr(scan_plugins_module, "search_github", lambda: [])
     monkeypatch.setattr(scan_plugins_module, "search_gitlab", lambda: [])
     monkeypatch.setattr(scan_plugins_module, "search_codeberg", lambda: [])
@@ -2255,6 +2341,7 @@ def test_scan_existing_plugins_handles_branch_changes_and_missing_root_plugin(
 
     monkeypatch.setattr(scan_plugins_module, "get_repo_info", fake_get_repo_info)
     monkeypatch.setattr(scan_plugins_module, "has_root_plugin_py", fake_has_root_plugin_py)
+    monkeypatch.setattr(scan_plugins_module, "branch_exists", lambda owner, repo, branch: False)
     monkeypatch.setattr(scan_plugins_module, "detect_platforms_for_repo", lambda *args, **kwargs: None)
     monkeypatch.setenv("GITHUB_TOKEN", "test-token")
     scan_plugins_module.main()

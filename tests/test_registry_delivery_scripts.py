@@ -627,6 +627,7 @@ def test_scanner_updates_object_description_and_platforms_without_losing_deliver
         "get_repo_info",
         lambda owner, repository: repo_info,
     )
+    monkeypatch.setattr(scan_plugins_module, "branch_exists", lambda owner, repo, branch: False)
     monkeypatch.setattr(scan_plugins_module, "search_github", lambda: [])
     monkeypatch.setattr(scan_plugins_module, "search_gitlab", lambda: [])
     monkeypatch.setattr(scan_plugins_module, "search_codeberg", lambda: [])

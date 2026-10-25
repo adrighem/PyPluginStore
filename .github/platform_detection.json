@@ -7724,10 +7724,10 @@
       "source": "detected"
     },
     {
-      "branch": "main",
+      "branch": "dist",
       "confidence": "unknown",
       "evidence_class": "legacy",
-      "identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@main",
+      "identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@dist",
       "last_detection": {
         "confidence": "medium",
         "evidence_class": "linux_evidence",

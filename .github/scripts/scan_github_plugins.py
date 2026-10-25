@@ -677,6 +677,55 @@ def get_repo_info(owner, repo):
     print(f"Skipping metadata refresh for unsupported scanner host {host}")
     return None
 
+def branch_exists(owner: str, repo: str, branch: str) -> "bool | None":
+    """Return whether a branch exists, or None when that cannot be decided."""
+    host, owner_path = split_registry_owner(owner)
+    repo_path = "/".join(
+        urllib.parse.quote(part, safe="")
+        for part in (owner_path + "/" + repo).split("/")
+    )
+    if host == "gitlab.com":
+        project_path = urllib.parse.quote(owner_path + "/" + repo, safe="")
+        url = (
+            f"https://gitlab.com/api/v4/projects/{project_path}"
+            f"/repository/branches/{urllib.parse.quote(branch, safe='')}"
+        )
+        headers = gitlab_headers()
+    elif host == "codeberg.org":
+        url = (
+            f"https://codeberg.org/api/v1/repos/{repo_path}"
+            f"/branches/{urllib.parse.quote(branch, safe='/')}"
+        )
+        headers = generic_headers()
+    elif host == DEFAULT_GIT_HOST:
+        url = (
+            f"https://api.github.com/repos/{repo_path}"
+            f"/branches/{urllib.parse.quote(branch, safe='/')}"
+        )
+        headers = github_headers()
+    else:
+        return None
+    data = fetch_json(url, headers)
+    if data == "DELETED":
+        return False
+    return None if data is None else True
+
+
+def resolve_registry_branch(
+    owner: str, repo: str, configured: str, default_branch: str
+) -> str:
+    """Keep the configured branch unless it is gone; then follow the default.
+
+    Rate limits, server errors and other undecidable lookups keep the
+    configured branch so a deliberate choice is never reset by accident.
+    """
+    if not default_branch or default_branch == configured:
+        return configured
+    if branch_exists(owner, repo, configured) is False:
+        return default_branch
+    return configured
+
+
 def search_github():
     # Multiple queries to be more comprehensive
     queries = [
@@ -810,15 +859,13 @@ def main():
                 stats["removed"] += 1
             else:
                 info_default_branch = str(info.get('default_branch') or "").strip()
-                branch_changed = bool(
-                    info_default_branch
-                    and info_default_branch != registry_record.branch
+                registry_branch = resolve_registry_branch(
+                    owner,
+                    repo_name,
+                    registry_record.branch,
+                    info_default_branch,
                 )
-                registry_branch = (
-                    info_default_branch
-                    if branch_changed
-                    else registry_record.branch
-                )
+                branch_changed = registry_branch != registry_record.branch
 
                 raw_desc = info.get('description')
                 updated_desc = (
