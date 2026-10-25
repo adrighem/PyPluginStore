@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.31.2](https://github.com/adrighem/PyPluginStore/compare/v2.31.1...v2.31.2) (2026-10-25)
+
+
+### Bug Fixes
+
+* **registry:** add Domoticz-SolarForecast; update Domoticz-PiHole-Control, Zigate, homeconnectex ([#203](https://github.com/adrighem/PyPluginStore/issues/203)) ([fb2d266](https://github.com/adrighem/PyPluginStore/commit/fb2d266704c896ba6c753ff5fa4bbe6e7f451319))
+* **registry:** keep deliberately configured non-default branches in scan (fixes [#199](https://github.com/adrighem/PyPluginStore/issues/199)) ([#201](https://github.com/adrighem/PyPluginStore/issues/201)) ([fe777de](https://github.com/adrighem/PyPluginStore/commit/fe777de5d57a3f1c9f029783585d177677c0e200))
+
 ## [2.31.1](https://github.com/adrighem/PyPluginStore/compare/v2.31.0...v2.31.1) (2026-10-24)
 
 
