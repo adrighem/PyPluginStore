@@ -70,6 +70,9 @@ def test_plugin_generation_write_permission_is_limited_to_trusted_push_job():
     assert workflow.count("contents: write") == 1
     assert "git push" in generate
     assert "bind_release_index.py --previous" in generate
+    assert "group: generate-master" in generate
+    assert "cancel-in-progress: false" in generate
+    assert "ref: master" in generate
 
 
 def test_pull_request_validation_does_not_persist_checkout_credentials():

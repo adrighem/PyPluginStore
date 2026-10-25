@@ -51,10 +51,17 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     permissions:
       contents: write
+    # Back-to-back merges queue here; each run rebinds the latest master so
+    # the bot push never races a newer merge.
+    concurrency:
+      group: generate-master
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted branch
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: master
 
       - name: Set up Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
