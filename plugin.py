@@ -2114,6 +2114,45 @@ def _registry_entry_identity(data):
     return ""
 
 
+def registry_entry_repository_identities(entry):
+    """Return the registry identity followed by reviewed rename sources."""
+    current = normalize_repository_identity(entry.author, entry.repository)
+    if not current:
+        return ()
+    return (current,) + tuple(getattr(entry, "previous_identities", ()))
+
+
+def registry_entry_accepts_repository_identity(entry, identity):
+    """Accept indexed or installed state recorded before a reviewed rename."""
+    return bool(identity) and (
+        identity in registry_entry_repository_identities(entry)
+    )
+
+
+def _entry_channel_preference(service, entry):
+    """Read a channel choice, following reviewed repository renames."""
+    for identity in registry_entry_repository_identities(entry):
+        preference = service.get(identity)
+        if preference is not None:
+            return preference
+    return None
+
+
+def _previous_repository_identities(values):
+    """Normalize registry previous_identities or fail on malformed input."""
+    if not isinstance(values, list):
+        raise ValueError("repository.previous_identities must be an array.")
+    result = []
+    for value in values:
+        identity = normalize_repository_identity(value)
+        if not identity or identity != value or identity in result:
+            raise ValueError(
+                "repository.previous_identities contains an invalid identity."
+            )
+        result.append(identity)
+    return tuple(result)
+
+
 def _load_json_object(contents, label):
     """Load UTF-8 JSON while rejecting duplicate object keys."""
     if not isinstance(contents, (bytes, bytearray)):
@@ -3052,7 +3091,9 @@ class ReleaseIndex:
             package = packages.get(package_id)
             if package is None:
                 raise ValueError("Release index contains an unknown package.")
-            if descriptor.repository_identity != package.repository_identity:
+            if not package.accepts_repository_identity(
+                descriptor.repository_identity
+            ):
                 raise ValueError("Release repository does not match the registry.")
             if descriptor.domoticz_key != package.domoticz_key:
                 raise ValueError("Release Domoticz identity does not match the registry.")
@@ -3079,8 +3120,9 @@ class ReleaseIndex:
             package = packages.get(package_id)
             if (
                 package is not None
-                and tombstone.repository_identity
-                != package.repository_identity
+                and not package.accepts_repository_identity(
+                    tombstone.repository_identity
+                )
             ):
                 raise ValueError("Tombstone repository does not match the registry.")
             tombstones[package_id] = tombstone
@@ -5753,15 +5795,10 @@ class ReleaseArtifactValidationService:
             entry = self.plugin.get_registry_entry(key)
             if entry is None:
                 continue
-            identity = normalize_repository_identity(
-                entry.author,
-                entry.repository,
-            )
-            if not identity:
-                continue
-            lookup.setdefault(identity, [])
-            if key not in lookup[identity]:
-                lookup[identity].append(key)
+            for identity in registry_entry_repository_identities(entry):
+                lookup.setdefault(identity, [])
+                if key not in lookup[identity]:
+                    lookup[identity].append(key)
         return lookup
 
     def _identity_tier(self, candidates, plugin_key, source):
@@ -5812,9 +5849,8 @@ class ReleaseArtifactValidationService:
             normalized_identity = normalize_repository_identity(
                 repository_identity
             )
-            if (
-                not normalized_identity
-                or normalized_identity != configured_identity
+            if not registry_entry_accepts_repository_identity(
+                entry, normalized_identity
             ):
                 raise self._error(
                     "identity_mismatch",
@@ -6258,7 +6294,9 @@ class RuntimeReleaseCertificationService:
             raise ValueError(
                 "Provider candidate does not match the registry repository."
             )
-        if anchor["repository_identity"] != expected_identity:
+        if not registry_entry_accepts_repository_identity(
+            entry, anchor["repository_identity"]
+        ):
             raise ValueError(
                 "Runtime release anchor does not match the registry."
             )
@@ -6529,7 +6567,9 @@ class RuntimeReleaseDiscoveryService:
                 str(error),
                 now,
             )
-        if anchor["repository_identity"] != identity:
+        if not registry_entry_accepts_repository_identity(
+            entry, anchor["repository_identity"]
+        ):
             return self._observation(
                 "unavailable",
                 None,
@@ -13912,6 +13952,7 @@ class RegistryEntry:
         delivery=None,
         domoticz_key="",
         requires_python="",
+        previous_identities=(),
     ):
         self.package_id = str(key or "")
         self.key = self.package_id
@@ -13926,6 +13967,7 @@ class RegistryEntry:
         self.delivery = delivery or DeliveryPolicy.implicit()
         self.domoticz_key = str(domoticz_key or "")
         self.requires_python = str(requires_python or "").strip()
+        self.previous_identities = tuple(previous_identities)
 
     def to_legacy_list(self):
         entry = [self.author, self.repository, self.description, self.branch]
@@ -13940,10 +13982,16 @@ class RegistryEntry:
         branch=None,
         requires_python=None,
     ):
+        author = self.author if author is None else author
+        repository = self.repository if repository is None else repository
+        # Rename sources only vouch for the reviewed registry repository.
+        same_repository = normalize_repository_identity(
+            author, repository
+        ) == normalize_repository_identity(self.author, self.repository)
         return RegistryEntry(
             self.key,
-            self.author if author is None else author,
-            self.repository if repository is None else repository,
+            author,
+            repository,
             self.description,
             self.branch if branch is None else branch,
             self.updated_at,
@@ -13953,6 +14001,7 @@ class RegistryEntry:
             self.delivery,
             self.domoticz_key,
             self.requires_python if requires_python is None else requires_python,
+            self.previous_identities if same_repository else (),
         )
 
 
@@ -13964,6 +14013,7 @@ class RegistryService:
         platforms = ["unknown"]
         if isinstance(data, dict):
             explicit_repository = data.get("repository")
+            previous_identities = ()
             if "package_id" in data and isinstance(
                 explicit_repository, dict
             ):
@@ -13976,6 +14026,17 @@ class RegistryService:
                 repository = ""
                 branch = explicit_repository.get("branch", "master")
                 domoticz_key = data.get("domoticz_key", "")
+                if "previous_identities" in explicit_repository and not local:
+                    try:
+                        previous_identities = _previous_repository_identities(
+                            explicit_repository["previous_identities"]
+                        )
+                    except ValueError as error:
+                        Domoticz.Error(
+                            "Plugin '" + str(key) + "' has invalid repository "
+                            "rename metadata: " + str(error)
+                        )
+                        return None, ["unknown"]
             else:
                 author = data.get("author", data.get("owner", ""))
                 repository = data.get("repository", data.get("repo", ""))
@@ -14027,6 +14088,7 @@ class RegistryService:
                 delivery,
                 domoticz_key,
                 requires_python=requires_python,
+                previous_identities=previous_identities,
             )
         elif isinstance(data, list):
             raw_entry = list(data[:5])
@@ -15685,8 +15747,13 @@ class GitMigrationPreflight:
         release_commit,
         trigger,
         mutable_paths,
+        equivalent_identities=(),
     ):
-        """Return a migration decision without changing HEAD, index, or files."""
+        """Return a migration decision without changing HEAD, index, or files.
+
+        ``equivalent_identities`` lists reviewed registry names of the same
+        repository, so a checkout cloned before a rename still matches.
+        """
         if trigger not in self.TRIGGERS:
             raise ValueError("Migration trigger must be manual or automatic.")
         plugin_key = _require_plugin_key(plugin_key)
@@ -15696,6 +15763,9 @@ class GitMigrationPreflight:
             "release_commit",
         )
         expected_identity = normalize_repository_identity(repository_identity)
+        accepted_identities = {expected_identity}
+        if expected_identity in equivalent_identities:
+            accepted_identities.update(equivalent_identities)
         plugin_dir = os.path.abspath(os.fspath(plugin_dir))
         common = {
             "release_commit": release_commit,
@@ -15817,7 +15887,7 @@ class GitMigrationPreflight:
                 message="The installed repository identity is unknown.",
                 **identified,
             )
-        if not expected_identity or installed_identity != expected_identity:
+        if not expected_identity or installed_identity not in accepted_identities:
             return self._result(
                 status="mismatch",
                 reason="repository_mismatch",
@@ -16182,13 +16252,11 @@ class ReleaseInstallUpdateStrategy:
             raise ValueError(
                 "Release install metadata is unavailable or invalid."
             )
-        expected_identity = normalize_repository_identity(
-            entry.author, entry.repository
-        )
         if (
             metadata.plugin_key != entry.key
-            or not expected_identity
-            or metadata.repository_identity != expected_identity
+            or not registry_entry_accepts_repository_identity(
+                entry, metadata.repository_identity
+            )
         ):
             raise ValueError(
                 "Installed release metadata does not match the registry entry."
@@ -16525,10 +16593,16 @@ class ReleaseInstallUpdateStrategy:
         expected_identity = normalize_repository_identity(
             entry.author, entry.repository
         )
-        if (
-            not expected_identity
-            or release.repository_identity != expected_identity
-        ):
+        # Indexed releases may predate a reviewed rename; live ones may not.
+        identity_accepted = (
+            registry_entry_accepts_repository_identity(
+                entry, release.repository_identity
+            )
+            if release.authority == "release_index"
+            else bool(expected_identity)
+            and release.repository_identity == expected_identity
+        )
+        if not identity_accepted:
             return False, "Release repository identity does not match the registry."
 
         operation_id = ""
@@ -16737,6 +16811,7 @@ class ReleaseInstallUpdateStrategy:
             release_commit=release.commit,
             trigger=trigger,
             mutable_paths=mutable_paths,
+            equivalent_identities=registry_entry_repository_identities(entry),
         )
 
     def migrate(
@@ -18325,12 +18400,11 @@ class BasePlugin:
         if release_index is not None and not entry.local:
             release = release_index.plugins.get(entry.key)
             tombstone = release_index.tombstones.get(entry.key)
-            expected_identity = normalize_repository_identity(
-                entry.author, entry.repository
-            )
-            if release is not None and (
-                not expected_identity
-                or release.repository_identity != expected_identity
+            if (
+                release is not None
+                and not registry_entry_accepts_repository_identity(
+                    entry, release.repository_identity
+                )
             ):
                 return {
                     "error": "Release metadata does not match the registry repository.",
@@ -18416,8 +18490,9 @@ class BasePlugin:
                     )
                     or (
                         installed_repository_identity is not None
-                        and installed_repository_identity
-                        != expected_identity
+                        and not registry_entry_accepts_repository_identity(
+                            entry, installed_repository_identity
+                        )
                     )
                     or entry.local
                 ):
@@ -18464,8 +18539,8 @@ class BasePlugin:
         )
         if repository_identity and not entry.local:
             try:
-                preference = self.channel_preference_service.get(
-                    repository_identity
+                preference = _entry_channel_preference(
+                    self.channel_preference_service, entry
                 )
             except ValueError as error:
                 return {
@@ -18842,6 +18917,8 @@ class BasePlugin:
                 self.normalize_github_repo_identity(clone_url),
                 plugin_key,
             )
+            for identity in getattr(entry, "previous_identities", ()):
+                self.add_lookup_candidate(lookup, identity, plugin_key)
         return lookup
 
     def build_installed_plugin_lookup(self):
@@ -18870,7 +18947,10 @@ class BasePlugin:
             branch = entry.branch
             clone_url = self.build_git_clone_url(entry.author, repository)
             repo_folder = self.plugin_folder_name_from_clone_url(clone_url)
-            name_candidates = [repository, repo_folder]
+            previous_identities = getattr(entry, "previous_identities", ())
+            name_candidates = [repository, repo_folder] + [
+                identity.rsplit("/", 1)[-1] for identity in previous_identities
+            ]
 
             for candidate in name_candidates:
                 if not candidate:
@@ -18892,6 +18972,9 @@ class BasePlugin:
             self.add_lookup_candidate(remote_lookup, remote_key, plugin_key)
             repo_identity = self.normalize_github_repo_identity(clone_url)
             self.add_lookup_candidate(repo_identity_lookup, repo_identity, plugin_key)
+            for identity in previous_identities:
+                self.add_lookup_candidate(remote_lookup, identity, plugin_key)
+                self.add_lookup_candidate(repo_identity_lookup, identity, plugin_key)
 
         for lookup in (
             archive_name_lookup,
@@ -19143,13 +19226,8 @@ class BasePlugin:
 
         match["key"] = package_id
         errors = []
-        expected_identity = normalize_repository_identity(
-            entry.author,
-            entry.repository,
-        )
-        if (
-            not expected_identity
-            or metadata.repository_identity != expected_identity
+        if not registry_entry_accepts_repository_identity(
+            entry, metadata.repository_identity
         ):
             errors.append(
                 "Installed release metadata in folder "
@@ -19242,7 +19320,15 @@ class BasePlugin:
         configured_branch = configured.get("branch", "")
         installed_branch = installed.get("branch", "")
 
-        repo_mismatch = bool(configured_repo and installed_repo and configured_repo != installed_repo)
+        entry = self.get_registry_entry(plugin_key)
+        # A checkout cloned before a reviewed rename still names this package.
+        renamed_from = getattr(entry, "previous_identities", ())
+        repo_mismatch = bool(
+            configured_repo
+            and installed_repo
+            and configured_repo != installed_repo
+            and installed_repo not in renamed_from
+        )
         branch_mismatch = bool(configured_branch and installed_branch and configured_branch != installed_branch)
         if not repo_mismatch and not branch_mismatch:
             return {}
@@ -20919,7 +21005,9 @@ class BasePlugin:
             )
             if identity and not entry.local:
                 try:
-                    preference = self.channel_preference_service.get(identity)
+                    preference = _entry_channel_preference(
+                        self.channel_preference_service, entry
+                    )
                 except ValueError:
                     preference = None
             try:

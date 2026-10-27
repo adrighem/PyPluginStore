@@ -1115,6 +1115,39 @@ def test_github_repository_identity_must_match_configured_web_host(
         adapter.resolve(repository, policy, transport, now=NOW)
 
 
+def test_github_repository_id_reads_the_stable_numeric_id(
+    release_providers_module,
+):
+    adapter, repository, _policy, _transport, _ = github_case(
+        release_providers_module
+    )
+    repository_url = "https://api.github.com/repos/octo/example"
+    transport = FixtureTransport({repository_url: {"id": 1109940110}})
+
+    assert adapter.repository_id(repository, transport) == 1109940110
+    assert transport.requests == [repository_url]
+
+
+@pytest.mark.parametrize(
+    "document",
+    [[], {}, {"id": "1"}, {"id": 0}, {"id": True}],
+    ids=("array", "missing", "string", "zero", "boolean"),
+)
+def test_github_repository_id_rejects_malformed_documents(
+    release_providers_module,
+    document,
+):
+    adapter, repository, _policy, _transport, _ = github_case(
+        release_providers_module
+    )
+    transport = FixtureTransport(
+        {"https://api.github.com/repos/octo/example": document}
+    )
+
+    with pytest.raises(ValueError, match="GitHub repository"):
+        adapter.repository_id(repository, transport)
+
+
 def generic_case(module, manifest=None, manifest_url=None):
     manifest_url = manifest_url or (
         "https://downloads.example.test/example/release-manifest.json"

@@ -129,6 +129,10 @@ class TransientProviderError(RuntimeError):
     """A discovery failure that should retain an already accepted release."""
 
 
+class RepositoryRenameError(ValueError):
+    """A listed previous identity no longer names the registry repository."""
+
+
 @dataclass(frozen=True)
 class ReleaseIndexGenerationResult:
     """In-memory index/report result and whether a tracked index was written."""
@@ -1308,6 +1312,22 @@ def _entry_repository_identity(entry):
     return identity
 
 
+def _entry_previous_identities(entry):
+    """Return reviewed rename sources; registry v2 validated their shape."""
+    repository = entry.get("repository") if isinstance(entry, dict) else None
+    if not isinstance(repository, dict):
+        return ()
+    return tuple(repository.get("previous_identities", ()))
+
+
+def _entry_accepts_identity(entry, identity):
+    """Accept the current identity or one reviewed previous identity."""
+    return (
+        identity == _entry_repository_identity(entry)
+        or identity in _entry_previous_identities(entry)
+    )
+
+
 def _validate_previous_common(previous):
     _require_positive_integer(previous["sequence"], "previous sequence")
     _parse_utc(previous["generated_at"], "previous generated_at")
@@ -1365,9 +1385,9 @@ def _validate_legacy_previous(previous, registry, retiring_package_ids=None):
             LEGACY_RELEASE_ENTRY_FIELDS | {"source_revision"},
         ):
             raise ValueError("Legacy release entry has an unsupported shape.")
-        if key in registry and entry.get(
-            "repository_identity"
-        ) != _entry_repository_identity(registry[key]):
+        if key in registry and not _entry_accepts_identity(
+            registry[key], entry.get("repository_identity")
+        ):
             raise ValueError("Previous release repository no longer matches registry.")
         _require_positive_integer(entry.get("revision"), "previous revision")
         _require_string(entry.get("release_id"), "previous release_id")
@@ -1442,10 +1462,8 @@ def _validate_v2_previous(previous, registry, retiring_package_ids=None):
             and package_id not in retiring_package_ids
         ):
             raise ValueError("Previously accepted package disappeared from registry.")
-        if (
-            package_id in registry
-            and entry["repository_identity"]
-            != _entry_repository_identity(registry[package_id])
+        if package_id in registry and not _entry_accepts_identity(
+            registry[package_id], entry["repository_identity"]
         ):
             raise ValueError("Previous release repository no longer matches registry.")
         _require_positive_integer(entry["revision"], "previous revision")
@@ -1509,10 +1527,8 @@ def _validate_v2_previous(previous, registry, retiring_package_ids=None):
             raise ValueError("Previous package state is duplicated.")
         normalized = copy.deepcopy(tombstone)
         normalized.pop("package_id")
-        if (
-            package_id in registry
-            and normalized["repository_identity"]
-            != _entry_repository_identity(registry[package_id])
+        if package_id in registry and not _entry_accepts_identity(
+            registry[package_id], normalized["repository_identity"]
         ):
             raise ValueError("Previous tombstone repository no longer matches registry.")
         _require_positive_integer(
@@ -1847,6 +1863,34 @@ class ReleaseIndexGenerator:
             self.cache.put(key, snapshot)
         return candidate, False
 
+    def _verify_repository_rename(
+        self,
+        provider,
+        previous_identity,
+        repository,
+        policy,
+    ):
+        """Prove a listed previous identity names the same forge repository."""
+        repository_id = getattr(provider, "repository_id", None)
+        if not callable(repository_id):
+            # Forges without a stable repository ID rely on registry review.
+            return
+        host, *parts = previous_identity.split("/")
+        _provider_name, previous_repository = _repository_for_provider(
+            previous_identity, host, parts, policy
+        )
+        previous_id = repository_id(
+            copy.deepcopy(previous_repository), self.provider_transport
+        )
+        current_id = repository_id(
+            copy.deepcopy(repository), self.provider_transport
+        )
+        if previous_id != current_id:
+            raise RepositoryRenameError(
+                "Previous repository identity resolves to a different "
+                "repository."
+            )
+
     def _certify_artifact(
         self,
         plugin_key,
@@ -2132,6 +2176,33 @@ class ReleaseIndexGenerator:
                     "detail": str(error),
                 }
                 continue
+
+            if prior is not None and prior["repository_identity"] != identity:
+                try:
+                    self._verify_repository_rename(
+                        provider,
+                        prior["repository_identity"],
+                        repository,
+                        policy,
+                    )
+                except RepositoryRenameError as error:
+                    plugins[plugin_key] = copy.deepcopy(prior)
+                    reports[plugin_key] = {
+                        "status": "certification_failed",
+                        "detail": str(error),
+                        "cache_hit": False,
+                    }
+                    continue
+                except Exception as error:
+                    plugins[plugin_key] = copy.deepcopy(prior)
+                    reports[plugin_key] = {
+                        "status": "retained_provider_failure",
+                        "transient": (
+                            getattr(error, "reason", None) == "rate_limited"
+                        ),
+                        "detail": str(error),
+                    }
+                    continue
 
             try:
                 selected, candidate_cache_hit = self._resolve_candidate(

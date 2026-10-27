@@ -477,6 +477,84 @@ def test_registry_normalizer_consumes_strict_v2_package_records(
     assert platforms == {"SmaPackage": ["linux"]}
 
 
+def renamed_registry_document(previous_identities):
+    return {
+        "schema_version": 2,
+        "packages": [
+            {
+                "package_id": "SmaPackage",
+                "domoticz_key": "SMA",
+                "description": "SMA inverter",
+                "repository": {
+                    "url": "https://gitlab.com/group/sma-plugin",
+                    "branch": "main",
+                    "previous_identities": previous_identities,
+                },
+                "platforms": ["linux"],
+                "delivery": {"preferred": "git", "git_supported": True},
+            }
+        ],
+    }
+
+
+def test_registry_entry_accepts_only_reviewed_previous_identities(
+    plugin_core_module,
+):
+    plugin = plugin_core_module.BasePlugin()
+    plugin.normalize_registry(
+        renamed_registry_document(["gitlab.com/group/sma-plugin-v2"])
+    )
+    entry = plugin.registry_entries["SmaPackage"]
+    accepts = plugin_core_module.registry_entry_accepts_repository_identity
+
+    assert entry.previous_identities == ("gitlab.com/group/sma-plugin-v2",)
+    assert accepts(entry, "gitlab.com/group/sma-plugin")
+    assert accepts(entry, "gitlab.com/group/sma-plugin-v2")
+    assert not accepts(entry, "gitlab.com/group/other-plugin")
+    assert not accepts(entry, "")
+    assert entry.copy_with(branch="dev").previous_identities == (
+        entry.previous_identities
+    )
+    assert entry.copy_with(author="https://gitlab.com/group/fork").previous_identities == ()
+
+
+def test_registry_lookups_map_previous_identities_to_the_package(
+    plugin_core_module,
+):
+    plugin = plugin_core_module.BasePlugin()
+    registry, _platforms = plugin.normalize_registry(
+        renamed_registry_document(["gitlab.com/group/sma-plugin-v2"])
+    )
+    plugin.plugin_data = registry
+
+    identity_lookup = plugin.build_registry_repository_identity_lookup()
+    lookups = plugin.build_installed_plugin_lookup()
+
+    assert identity_lookup["gitlab.com/group/sma-plugin-v2"] == ["SmaPackage"]
+    assert lookups[4]["gitlab.com/group/sma-plugin-v2"] == ["SmaPackage"]
+    assert lookups[5]["gitlab.com/group/sma-plugin-v2"] == ["SmaPackage"]
+
+
+@pytest.mark.parametrize(
+    "previous_identities",
+    ["gitlab.com/group/sma-plugin-v2", ["GitLab.com/group/sma-plugin-v2"], [""]],
+    ids=("not-array", "not-normalized", "empty"),
+)
+def test_registry_entry_rejects_malformed_previous_identities(
+    plugin_core_module,
+    previous_identities,
+):
+    plugin = plugin_core_module.BasePlugin()
+    document = renamed_registry_document(previous_identities)
+
+    with pytest.raises(ValueError, match="previous_identities"):
+        plugin.normalize_registry(document)
+    entry, _platforms = plugin.registry_service.normalize_entry(
+        "SmaPackage", document["packages"][0]
+    )
+    assert entry is None
+
+
 def test_registry_entry_model_preserves_legacy_shape(plugin_core_module):
     plugin = plugin_core_module.BasePlugin()
 

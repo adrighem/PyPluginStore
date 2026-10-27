@@ -211,10 +211,14 @@ def registry_v2_bytes(
     package_id="ExamplePlugin",
     domoticz_key="EXAMPLE",
     repository_url="https://github.com/owner/example-plugin",
+    previous_identities=None,
 ):
     entry = registry_entry(domoticz_key=domoticz_key)
     delivery = copy.deepcopy(entry["delivery"])
     delivery.pop("schema_version", None)
+    repository = {"url": repository_url, "branch": entry["branch"]}
+    if previous_identities is not None:
+        repository["previous_identities"] = list(previous_identities)
     return (
         json.dumps(
             {
@@ -224,10 +228,7 @@ def registry_v2_bytes(
                         "package_id": package_id,
                         "domoticz_key": domoticz_key,
                         "description": entry["description"],
-                        "repository": {
-                            "url": repository_url,
-                            "branch": entry["branch"],
-                        },
+                        "repository": repository,
                         "platforms": ["linux", "windows"],
                         "delivery": delivery,
                     }
@@ -2331,3 +2332,175 @@ def test_secure_json_transport_scopes_authentication_to_exact_origin(
     assert client.calls[1][1]["headers"] == {
         "Accept": "application/json"
     }
+
+
+OLD_IDENTITY = "github.com/owner/example-plugin"
+RENAMED_IDENTITY = "github.com/owner/renamed-plugin"
+RENAMED_URL = "https://github.com/owner/renamed-plugin"
+
+
+class RenamedRepositoryProvider(RecordingProvider):
+    def __init__(self, outcomes, repository_ids):
+        super().__init__(outcomes)
+        self.repository_ids = dict(repository_ids)
+        self.id_calls = []
+
+    def repository_id(self, repository, transport):
+        identity = repository["repository_identity"]
+        self.id_calls.append(identity)
+        outcome = self.repository_ids[identity]
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+
+def renamed_previous(contents, archive):
+    prior = release_entry(
+        archive,
+        revision=2,
+        supersedes=["github:owner/example-plugin:v0.9.0"],
+    )
+    return prior, previous_index(contents, {"ExamplePlugin": prior})
+
+
+def renamed_candidate():
+    return candidate(
+        repository_identity=RENAMED_IDENTITY,
+        release_id="github:owner/renamed-plugin:v1.0.0",
+    )
+
+
+def generate_renamed(module, provider, contents, previous):
+    selected = renamed_candidate()
+    generator = make_generator(
+        module,
+        {"github": provider},
+        RecordingHttpClient({selected.artifact_url: [zip_archive()]}),
+    )
+    return generator.generate(
+        registry_bytes=contents,
+        previous_index=previous,
+        report_only=True,
+    )
+
+
+def test_listed_repository_rename_carries_lineage_to_the_new_identity(
+    release_index_generation_module,
+):
+    contents = registry_v2_bytes(
+        repository_url=RENAMED_URL,
+        previous_identities=[OLD_IDENTITY],
+    )
+    _prior, previous = renamed_previous(contents, zip_archive())
+    provider = RenamedRepositoryProvider(
+        {RENAMED_IDENTITY: [renamed_candidate()]},
+        {OLD_IDENTITY: 1109940110, RENAMED_IDENTITY: 1109940110},
+    )
+
+    result = generate_renamed(
+        release_index_generation_module, provider, contents, previous
+    )
+
+    entry = release_payload(result.document, "ExamplePlugin")
+    assert status(result) == "certified_update"
+    assert provider.id_calls == [OLD_IDENTITY, RENAMED_IDENTITY]
+    assert entry["repository_identity"] == RENAMED_IDENTITY
+    assert entry["release_id"] == "github:owner/renamed-plugin:v1.0.0"
+    assert entry["revision"] == 3
+    assert entry["supersedes"] == [
+        "github:owner/example-plugin:v0.9.0",
+        "github:owner/example-plugin:v1.0.0",
+    ]
+
+
+def test_unlisted_repository_identity_change_still_fails_generation(
+    release_index_generation_module,
+):
+    contents = registry_v2_bytes(repository_url=RENAMED_URL)
+    _prior, previous = renamed_previous(contents, zip_archive())
+    provider = RenamedRepositoryProvider({}, {})
+
+    with pytest.raises(ValueError, match="no longer matches registry"):
+        generate_renamed(
+            release_index_generation_module, provider, contents, previous
+        )
+    assert provider.calls == []
+    assert provider.id_calls == []
+
+
+def test_listed_rename_with_different_repository_id_retains_prior_release(
+    release_index_generation_module,
+):
+    contents = registry_v2_bytes(
+        repository_url=RENAMED_URL,
+        previous_identities=[OLD_IDENTITY],
+    )
+    prior, previous = renamed_previous(contents, zip_archive())
+    provider = RenamedRepositoryProvider(
+        {},
+        {OLD_IDENTITY: 1, RENAMED_IDENTITY: 2},
+    )
+
+    result = generate_renamed(
+        release_index_generation_module, provider, contents, previous
+    )
+
+    assert status(result) == "certification_failed"
+    assert "different repository" in result.report["plugins"][
+        "ExamplePlugin"
+    ]["detail"]
+    assert release_payload(result.document, "ExamplePlugin") == prior
+    assert provider.calls == []
+
+
+def test_rename_verification_rate_limit_is_a_transient_retention(
+    release_index_generation_module,
+):
+    class RateLimitedError(Exception):
+        reason = "rate_limited"
+
+    contents = registry_v2_bytes(
+        repository_url=RENAMED_URL,
+        previous_identities=[OLD_IDENTITY],
+    )
+    prior, previous = renamed_previous(contents, zip_archive())
+    provider = RenamedRepositoryProvider(
+        {},
+        {OLD_IDENTITY: RateLimitedError("provider quota exhausted")},
+    )
+
+    result = generate_renamed(
+        release_index_generation_module, provider, contents, previous
+    )
+
+    report = result.report["plugins"]["ExamplePlugin"]
+    assert report["status"] == "retained_provider_failure"
+    assert report["transient"] is True
+    assert release_payload(result.document, "ExamplePlugin") == prior
+
+
+def test_previous_tombstone_under_a_listed_identity_remains_valid(
+    release_index_generation_module,
+):
+    module = release_index_generation_module
+    contents = registry_v2_bytes(
+        repository_url=RENAMED_URL,
+        previous_identities=[OLD_IDENTITY],
+    )
+    tombstone = {
+        "repository_identity": OLD_IDENTITY,
+        "last_revision": 2,
+        "release_id": "github:owner/example-plugin:v1.0.0",
+        "reason": "withdrawn",
+        "removed_at": "2026-07-17T12:00:00Z",
+    }
+    previous = previous_index(
+        contents, {}, tombstones={"ExamplePlugin": tombstone}
+    )
+    registry = module._registry_records(
+        module._strict_json_object(contents, "registry")
+    )
+
+    validated = module._validate_previous(previous, registry)
+
+    assert validated["tombstones"]["ExamplePlugin"] == tombstone

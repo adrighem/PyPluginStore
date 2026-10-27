@@ -631,6 +631,26 @@ class GitHubReleaseAdapter(ReleaseProviderAdapter):
     def _get_json(self, transport, url):
         return _transport_get_json(transport, url, GITHUB_API_HEADERS)
 
+    def repository_id(self, repository, transport):
+        """Return GitHub's numeric repository ID, which survives renames."""
+        _identity, owner, name, api_base, _web_base = (
+            _require_github_repository(repository)
+        )
+        document = self._get_json(
+            transport,
+            api_base
+            + "/repos/"
+            + urllib.parse.quote(owner, safe="")
+            + "/"
+            + urllib.parse.quote(name, safe=""),
+        )
+        if not isinstance(document, dict):
+            raise ValueError("GitHub repository must be an object.")
+        repository_id = document.get("id")
+        if type(repository_id) is not int or repository_id <= 0:
+            raise ValueError("GitHub repository id must be a positive integer.")
+        return repository_id
+
     def _resolve_commit(self, transport, api_repository_url, tag):
         """Peel a lightweight or nested annotated tag to a bounded commit ID."""
         encoded_tag = urllib.parse.quote(tag, safe="")

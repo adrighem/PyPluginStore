@@ -64,7 +64,8 @@ PACKAGE_FIELDS = {
     "requires_python",
     "annotations",
 }
-REPOSITORY_FIELDS = {"url", "branch"}
+REPOSITORY_FIELDS = {"url", "branch", "previous_identities"}
+REQUIRED_REPOSITORY_FIELDS = {"url", "branch"}
 DELIVERY_FIELDS = {"preferred", "git_supported", "release"}
 RELEASE_FIELDS = {
     "provider",
@@ -177,6 +178,34 @@ def _repository_parts(url):
     return url, netloc, parts
 
 
+def _require_repository_identity(value, label):
+    """Return one canonical lowercase host/path repository identity."""
+    value = _require_string(value, label)
+    try:
+        _url, host, parts = _repository_parts("https://" + value)
+    except ValueError as error:
+        raise ValueError(label + " must be a canonical repository identity.") from error
+    if (host + "/" + "/".join(parts)).lower() != value:
+        raise ValueError(label + " must be a canonical repository identity.")
+    return value
+
+
+def _previous_identities(values, current_identity):
+    """Validate the reviewed identities a renamed repository used before."""
+    label = "repository.previous_identities"
+    if not isinstance(values, list) or not values:
+        raise ValueError(label + " must be a non-empty array.")
+    result = []
+    for value in values:
+        identity = _require_repository_identity(value, label + " entry")
+        if identity == current_identity:
+            raise ValueError(label + " must not contain the current identity.")
+        if identity in result:
+            raise ValueError(label + " contains a duplicate identity.")
+        result.append(identity)
+    return tuple(result)
+
+
 def _normalize_platforms(values):
     if not isinstance(values, list):
         raise ValueError("platforms must be a list.")
@@ -196,6 +225,7 @@ class PackageRepository:
     branch: str
     identity: str
     clone_url: str
+    previous_identities: tuple = ()
 
     @classmethod
     def from_document(cls, document):
@@ -203,15 +233,34 @@ class PackageRepository:
             document,
             "repository",
             REPOSITORY_FIELDS,
-            REPOSITORY_FIELDS,
+            REQUIRED_REPOSITORY_FIELDS,
         )
         url, host, parts = _repository_parts(document["url"])
         branch = _require_string(document["branch"], "repository.branch")
         identity = (host + "/" + "/".join(parts)).lower()
-        return cls(url=url, branch=branch, identity=identity, clone_url=url + ".git")
+        previous_identities = ()
+        if "previous_identities" in document:
+            previous_identities = _previous_identities(
+                document["previous_identities"], identity
+            )
+        return cls(
+            url=url,
+            branch=branch,
+            identity=identity,
+            clone_url=url + ".git",
+            previous_identities=previous_identities,
+        )
+
+    @property
+    def identities(self):
+        """Return the current identity followed by reviewed rename sources."""
+        return (self.identity,) + self.previous_identities
 
     def to_document(self):
-        return {"url": self.url, "branch": self.branch}
+        document = {"url": self.url, "branch": self.branch}
+        if self.previous_identities:
+            document["previous_identities"] = list(self.previous_identities)
+        return document
 
 
 @dataclass(frozen=True)
@@ -397,6 +446,14 @@ class PackageRecord:
         return self.repository.identity
 
     @property
+    def previous_identities(self):
+        return self.repository.previous_identities
+
+    def accepts_repository_identity(self, identity):
+        """Return whether identity names this repository before or after a rename."""
+        return identity in self.repository.identities
+
+    @property
     def clone_url(self):
         return self.repository.clone_url
 
@@ -536,11 +593,12 @@ class RegistryDocument:
             folded = unicodedata.normalize("NFC", package.package_id).casefold()
             if package.package_id in ids or folded in folded_ids:
                 raise ValueError("Registry contains a duplicate package_id.")
-            if package.repository_identity in repositories:
+            identities = package.repository.identities
+            if repositories.intersection(identities):
                 raise ValueError("Registry contains a duplicate repository identity.")
             ids.add(package.package_id)
             folded_ids.add(folded)
-            repositories.add(package.repository_identity)
+            repositories.update(identities)
             packages.append(package)
         return cls(packages)
 

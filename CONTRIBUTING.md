@@ -110,6 +110,13 @@ change is a compatibility change and needs explicit review. Repository identity
 uses one canonical, credential-free HTTPS web URL; use an empty `platforms`
 array when support is unknown.
 
+When an upstream repository is renamed or transferred, update `repository.url`
+and list the old identity in `repository.previous_identities`. Accepted
+releases and installed copies recorded under a listed identity keep their
+lineage; the next certified release moves to the new identity. For GitHub the
+release scanner first checks that both names resolve to the same repository
+ID. An identity change that is not listed still fails release generation.
+
 Registry pull requests change `registry.json` only. Do not edit
 `release_index.json` to rebind `registry_sha256`: after merge, the
 `generate_plugin.yml` workflow rebinds it to the merged `registry.json` bytes
@@ -127,6 +134,7 @@ The public registry format supports the following fields within the `packages` a
 | `repository` | Object | Yes | Repository configuration containing `url` and `branch`. |
 | `repository.url` | String | Yes | Canonical, credential-free HTTPS web URL to the source repository. |
 | `repository.branch` | String | Yes | Active development or build branch to monitor. |
+| `repository.previous_identities` | Array | No | Reviewed lowercase `host/owner/repository` identities this repository had before a forge rename (for example `github.com/owner/old-name`). Omit unless the repository was renamed. |
 | `platforms` | Array | Yes | Target operating systems. Supported: `"linux"`, `"windows"`. Empty `[]` means unknown. |
 | `delivery` | Object | Yes | Delivery policy setting rules for updates and channels. |
 | `delivery.preferred` | String | Yes | Preferred channel. One of: `"git"` (stay on Git branch), `"release"` (use release artifacts), `"release_if_indexed"` (use release if available, fallback to Git). |

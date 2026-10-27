@@ -116,6 +116,7 @@ def evaluate_preflight(
     repository_identity=GITHUB_IDENTITY,
     mutable_paths=(),
     plugin=None,
+    equivalent_identities=(),
 ):
     plugin = plugin or plugin_core_module.BasePlugin()
     preflight = plugin_core_module.GitMigrationPreflight(plugin)
@@ -126,6 +127,7 @@ def evaluate_preflight(
         release_commit=release_commit,
         trigger=trigger,
         mutable_paths=list(mutable_paths),
+        equivalent_identities=equivalent_identities,
     )
 
 
@@ -1101,6 +1103,32 @@ def test_repository_identity_mismatch_is_explicit_and_read_only(
         "gitlab.com/owner/example-plugin"
     )
     assert repository_snapshot(repository) == before
+
+
+@pytest.mark.parametrize(
+    ("equivalent_identities", "matches"),
+    [
+        (("github.com/owner/renamed-plugin", GITHUB_IDENTITY), True),
+        ((), False),
+        (("github.com/owner/other-plugin", GITHUB_IDENTITY), False),
+    ],
+    ids=("listed-rename", "no-rename", "release-not-listed"),
+)
+def test_checkout_cloned_before_a_reviewed_rename_matches_the_release(
+    plugin_core_module, tmp_path, equivalent_identities, matches
+):
+    repository, release_commit = initialize_repository(tmp_path / "plugin")
+
+    result = evaluate_preflight(
+        plugin_core_module,
+        repository,
+        release_commit,
+        repository_identity="github.com/owner/renamed-plugin",
+        equivalent_identities=equivalent_identities,
+    )
+
+    assert result.installed_repository_identity == GITHUB_IDENTITY
+    assert (result.reason != "repository_mismatch") is matches
 
 
 def test_unknown_repository_identity_is_not_treated_as_a_match(

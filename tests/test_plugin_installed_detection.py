@@ -194,6 +194,32 @@ def test_release_metadata_keeps_somfy_mapped_to_its_physical_folder(
     assert not (plugins_dir / "Somfy").exists()
 
 
+def test_release_metadata_from_a_listed_previous_identity_stays_managed(
+    plugin_core_module,
+    tmp_path,
+):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    plugin_dir = plugins_dir / "domoticz_somfy"
+    write_plugin_py(plugin_dir, key="tahomaIO", name="Somfy")
+    write_release_metadata(
+        plugin_dir,
+        repository_identity="github.com/madpatrick/old_somfy",
+    )
+    plugin = plugin_core_module.BasePlugin()
+    configure_somfy_registry(plugin_core_module, plugin)
+    plugin.registry_entries["Somfy"].previous_identities = (
+        "github.com/madpatrick/old_somfy",
+    )
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert "Somfy" in installed
+    detail = plugin.installed_plugin_match_details["Somfy"]
+    assert detail["source"] == "release install metadata"
+    assert detail["release_metadata_state"] != "repository_mismatch"
+    assert plugin.resolve_installed_plugin_dir("Somfy") == str(plugin_dir)
+
+
 def test_legacy_release_metadata_is_read_only_during_discovery(
     plugin_core_module,
     tmp_path,

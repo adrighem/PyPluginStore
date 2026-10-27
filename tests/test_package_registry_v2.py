@@ -303,6 +303,123 @@ def test_registry_v2_rejects_unknown_fields(
         plugin_core_module.PackageRegistry.from_document(document)
 
 
+RENAMED_URL = "https://gitlab.com/example-group/renamed-plugin"
+OLD_IDENTITY = "gitlab.com/example-group/example-plugin"
+
+
+def renamed_package_record(previous_identities, **overrides):
+    record = package_record(repository_url=RENAMED_URL, **overrides)
+    record["repository"]["previous_identities"] = previous_identities
+    return record
+
+
+def test_registry_v2_round_trips_reviewed_previous_identities(
+    plugin_core_module,
+):
+    document = registry_document([renamed_package_record([OLD_IDENTITY])])
+
+    registry = plugin_core_module.PackageRegistry.from_document(document)
+
+    package = registry.by_package_id["ExamplePlugin"]
+    assert package.repository_identity == (
+        "gitlab.com/example-group/renamed-plugin"
+    )
+    assert package.previous_identities == (OLD_IDENTITY,)
+    assert package.accepts_repository_identity(OLD_IDENTITY)
+    assert not package.accepts_repository_identity(
+        "gitlab.com/example-group/other-plugin"
+    )
+    assert registry.to_document() == document
+
+
+@pytest.mark.parametrize(
+    "previous_identities",
+    [
+        OLD_IDENTITY,
+        [],
+        [7],
+        ["GitLab.com/example-group/example-plugin"],
+        ["https://gitlab.com/example-group/example-plugin"],
+        ["gitlab.com/example-group/example-plugin.git"],
+        ["gitlab.com/example-plugin"],
+        ["gitlab.com/example-group/example-plugin/"],
+        ["gitlab.com/example-group/renamed-plugin"],
+        [OLD_IDENTITY, OLD_IDENTITY],
+    ],
+    ids=(
+        "not-array",
+        "empty",
+        "not-string",
+        "uppercase",
+        "url",
+        "git-suffix",
+        "no-owner",
+        "trailing-slash",
+        "self-reference",
+        "duplicate",
+    ),
+)
+def test_registry_v2_rejects_malformed_previous_identities(
+    plugin_core_module,
+    previous_identities,
+):
+    document = registry_document(
+        [renamed_package_record(previous_identities)]
+    )
+
+    with pytest.raises(ValueError, match="previous_identities"):
+        plugin_core_module.PackageRegistry.from_document(document)
+
+
+@pytest.mark.parametrize("collision", ["current", "previous"])
+def test_registry_v2_rejects_previous_identity_claimed_by_another_package(
+    plugin_core_module,
+    collision,
+):
+    other = package_record(
+        package_id="OtherPlugin",
+        domoticz_key="OTHER",
+        repository_url=(
+            "https://gitlab.com/example-group/example-plugin"
+            if collision == "current"
+            else "https://gitlab.com/example-group/other-plugin"
+        ),
+    )
+    if collision == "previous":
+        other["repository"]["previous_identities"] = [OLD_IDENTITY]
+    document = registry_document(
+        [renamed_package_record([OLD_IDENTITY]), other]
+    )
+
+    with pytest.raises(ValueError, match="duplicate repository identity"):
+        plugin_core_module.PackageRegistry.from_document(document)
+
+
+@pytest.mark.parametrize("listed", [True, False])
+def test_release_index_v2_accepts_only_listed_previous_identities(
+    plugin_core_module,
+    listed,
+):
+    record = (
+        renamed_package_record([OLD_IDENTITY])
+        if listed
+        else package_record(repository_url=RENAMED_URL)
+    )
+    registry_bytes = json_bytes(registry_document([record]))
+    document = release_index_document(registry_bytes)
+
+    if not listed:
+        with pytest.raises(ValueError, match="does not match the registry"):
+            plugin_core_module.ReleaseIndex.from_document(
+                document, registry_bytes=registry_bytes, now=NOW
+            )
+        return
+    index = plugin_core_module.ReleaseIndex.from_document(
+        document, registry_bytes=registry_bytes, now=NOW
+    )
+    assert index.releases["ExamplePlugin"].repository_identity == OLD_IDENTITY
+
+
 def test_release_index_v2_parses_release_and_tombstone_arrays(
     plugin_core_module,
 ):
