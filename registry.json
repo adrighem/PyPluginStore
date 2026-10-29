@@ -2121,6 +2121,30 @@
       }
     },
     {
+      "package_id": "Domoticz-WorldEarthquakes",
+      "domoticz_key": "Domoticz-WorldEarthquakes",
+      "description": "Get yourself aware about Earthquakes (data from seismicportal.eu)",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-WorldEarthquakes",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-Xiaomi-Mi-Air-Purifier-MIoT-Plugin",
       "domoticz_key": "Xiaomi-Mi-Air-Purifier-MIoT",
       "description": "A Python plugin for Domoticz to access Xiaomi Mi Air Purifier 3 / 3 H / Pro H",
@@ -5316,6 +5340,30 @@
       }
     },
     {
+      "package_id": "domoticz-modbus",
+      "domoticz_key": "Modbus2",
+      "description": "Domoticz RS485 Modbus Read/Write Plugins",
+      "repository": {
+        "url": "https://github.com/DomoticX/domoticz-modbus",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release",
+        "git_supported": false,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": "modbus-device",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "domoticz-mqtt-sync-plugin",
       "domoticz_key": "domoticz-mqtt-sync",
       "description": "Synchronizes (part of) devices of a master instance to a slave one",
@@ -6061,6 +6109,28 @@
         "linux",
         "windows"
       ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "domoticz-zlinky-p1-plugin",
+      "domoticz_key": "ZLinkyP1",
+      "description": "A plugin that reads HC/HP (off-peak/peak-hour) energy indexes from the ZLinky via MQTT and forwards them to a separate P1 meter in Domoticz.",
+      "repository": {
+        "url": "https://github.com/mlepannetier/domoticz-zlinky-p1-plugin",
+        "branch": "main"
+      },
+      "platforms": [],
       "delivery": {
         "preferred": "release_if_indexed",
         "git_supported": true,

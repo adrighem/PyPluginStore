@@ -441,8 +441,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -498,10 +498,10 @@
       "source": "detected"
     },
     {
-      "branch": "main",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/rouzax/dell-idrac-domoticz-plugin@main",
+      "branch": "dist",
+      "confidence": "unknown",
+      "evidence_class": "manual_registry_edit",
+      "identity": "github.com/rouzax/dell-idrac-domoticz-plugin@dist",
       "last_detection": {
         "confidence": "low",
         "evidence_class": "generic_python",
@@ -512,7 +512,6 @@
         "reasons": [
           "README.md: uses shell commands"
         ],
-        "requires_python": ">=3.11",
         "scores": {
           "both": 0,
           "linux": 2,
@@ -521,14 +520,14 @@
       },
       "owner": "Rouzax",
       "package_id": "dell-idrac",
-      "policy_action": "unchanged",
+      "policy_action": "kept_reviewed",
       "registry_platforms": [
         "linux",
         "windows"
       ],
       "repository": "dell-idrac-domoticz-plugin",
-      "reviewed": false,
-      "source": "detected"
+      "reviewed": true,
+      "source": "reviewed"
     },
     {
       "branch": "master",
@@ -2845,6 +2844,42 @@
     },
     {
       "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/domoticx/domoticz-modbus@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses sudo",
+          "README.md: uses shell commands",
+          "modbus-device/plugin.py: mentions Raspberry Pi/Raspbian",
+          "modbus-device/plugin.py: uses sudo",
+          "modbus-write/plugin.py: uses sudo",
+          "modbus-read/plugin.py: uses sudo"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 16,
+          "windows": 0
+        }
+      },
+      "owner": "DomoticX",
+      "package_id": "domoticz-modbus",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "domoticz-modbus",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "master",
       "confidence": "high",
       "evidence_class": "explicit_both",
       "identity": "github.com/janreimen/domoticz-motherboardmonitor@master",
@@ -3465,10 +3500,10 @@
           "README.md: uses shell commands",
           "tests/test_deploy.py: uses shell commands",
           "checklist.md: uses shell commands",
-          "ROADMAP.md: uses shell commands",
+          "CONTRIBUTING.md: uses shell commands",
           "SECURITY.md: uses sudo",
           "SECURITY.md: uses shell commands",
-          "CONTRIBUTING.md: uses shell commands",
+          "ROADMAP.md: uses shell commands",
           "DEPLOY.md: uses sudo",
           "DEPLOY.md: uses systemd",
           "DEPLOY.md: uses shell commands",
@@ -5334,6 +5369,38 @@
       "branch": "master",
       "confidence": "medium",
       "evidence_class": "linux_evidence",
+      "identity": "github.com/janreimen/domoticz-worldearthquakes@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 8,
+          "windows": 0
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-WorldEarthquakes",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-WorldEarthquakes",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
       "identity": "github.com/mvdklip/domoticz-wthermostatbeca@master",
       "last_detection": {
         "confidence": "medium",
@@ -5538,6 +5605,35 @@
       "repository": "Domoticz-Zigpy",
       "reviewed": false,
       "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/mlepannetier/domoticz-zlinky-p1-plugin@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "generic: no Linux-only or Windows-only evidence found"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 0,
+          "windows": 0
+        }
+      },
+      "owner": "mlepannetier",
+      "package_id": "domoticz-zlinky-p1-plugin",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "domoticz-zlinky-p1-plugin",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "main",
@@ -7495,8 +7591,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -7811,35 +7907,34 @@
     {
       "branch": "dist",
       "confidence": "unknown",
-      "evidence_class": "legacy",
-      "identity": "github.com/rouzax/luxtronik-domoticz-plugin-v2@dist",
+      "evidence_class": "manual_registry_edit",
+      "identity": "github.com/rouzax/luxtronik-domoticz-plugin@dist",
       "last_detection": {
-        "confidence": "medium",
-        "evidence_class": "linux_evidence",
+        "confidence": "low",
+        "evidence_class": "generic_python",
         "platforms": [
-          "linux"
+          "linux",
+          "windows"
         ],
         "reasons": [
-          "README.md: uses sudo",
-          "README.md: uses systemd",
           "README.md: uses shell commands"
         ],
         "scores": {
           "both": 0,
-          "linux": 8,
+          "linux": 2,
           "windows": 0
         }
       },
       "owner": "Rouzax",
       "package_id": "luxtronikex",
-      "policy_action": "kept_existing_requires_high_confidence",
+      "policy_action": "kept_reviewed",
       "registry_platforms": [
         "linux",
         "windows"
       ],
-      "repository": "luxtronik-domoticz-plugin-v2",
-      "reviewed": false,
-      "source": "legacy_detected"
+      "repository": "luxtronik-domoticz-plugin",
+      "reviewed": true,
+      "source": "reviewed"
     },
     {
       "branch": "main",
@@ -8108,10 +8203,10 @@
       "source": "detected"
     },
     {
-      "branch": "main",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/rouzax/myenergi-domoticz-plugin@main",
+      "branch": "dist",
+      "confidence": "unknown",
+      "evidence_class": "manual_registry_edit",
+      "identity": "github.com/rouzax/myenergi-domoticz-plugin@dist",
       "last_detection": {
         "confidence": "low",
         "evidence_class": "generic_python",
@@ -8123,7 +8218,6 @@
           "README.md: mentions Raspberry Pi/Raspbian",
           "README.md: uses shell commands"
         ],
-        "requires_python": ">=3.11",
         "scores": {
           "both": 0,
           "linux": 5,
@@ -8132,14 +8226,14 @@
       },
       "owner": "Rouzax",
       "package_id": "myenergi",
-      "policy_action": "unchanged",
+      "policy_action": "kept_reviewed",
       "registry_platforms": [
         "linux",
         "windows"
       ],
       "repository": "myenergi-domoticz-plugin",
-      "reviewed": false,
-      "source": "detected"
+      "reviewed": true,
+      "source": "reviewed"
     },
     {
       "branch": "main",
@@ -8696,8 +8790,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
@@ -9166,8 +9260,8 @@
           "serial/serialwin32.py: uses Windows serial port names",
           "serial/serialposix.py: uses Unix system paths",
           "serial/serialposix.py: uses Linux device paths",
-          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/serialposix.py: imports Linux-specific module fcntl",
+          "serial/serialposix.py: imports Linux-specific module termios",
           "serial/rfc2217.py: uses Unix system paths",
           "serial/rfc2217.py: uses Linux device paths"
         ],
