@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.32.0](https://github.com/adrighem/PyPluginStore/compare/v2.31.2...v2.32.0) (2026-10-29)
+
+
+### Features
+
+* **registry:** support verified repository renames ([#209](https://github.com/adrighem/PyPluginStore/issues/209)) ([353a448](https://github.com/adrighem/PyPluginStore/commit/353a448613ddbc7ffb27b7d1264d5ea5ac12282b)), closes [#208](https://github.com/adrighem/PyPluginStore/issues/208)
+
+
+### Bug Fixes
+
+* **registry:** add Domoticz-WorldEarthquakes, domoticz-modbus, domoticz-zlinky-p1-plugin ([4635781](https://github.com/adrighem/PyPluginStore/commit/46357812afe787c174bd9cfbf65c1577f646cc89))
+* **registry:** install dell-idrac from its dist branch ([19da74e](https://github.com/adrighem/PyPluginStore/commit/19da74e9246c733d3b26f054e191bda563c1e4e6))
+* **registry:** install myenergi from its dist branch ([2004d1a](https://github.com/adrighem/PyPluginStore/commit/2004d1aeb4f7e78ae84d753f7de926635cf0cbab))
+* **registry:** myenergi requires Python 3.11 from v1.1.0 ([2004d1a](https://github.com/adrighem/PyPluginStore/commit/2004d1aeb4f7e78ae84d753f7de926635cf0cbab))
+* **registry:** update luxtronikex repository URL after rename ([#208](https://github.com/adrighem/PyPluginStore/issues/208)) ([8ce68d1](https://github.com/adrighem/PyPluginStore/commit/8ce68d1c834a85c6dea64bab6fb3eef15b790683))
+
 ## [2.31.2](https://github.com/adrighem/PyPluginStore/compare/v2.31.1...v2.31.2) (2026-10-25)
 
 
