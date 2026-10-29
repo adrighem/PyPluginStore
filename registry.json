@@ -6637,8 +6637,11 @@
       "domoticz_key": "luxtronikex",
       "description": "Domoticz plugin for Luxtronik heat pump controllers - COP tracking, multi-instance support, write protection, 5 languages",
       "repository": {
-        "url": "https://github.com/Rouzax/luxtronik-domoticz-plugin-v2",
-        "branch": "dist"
+        "url": "https://github.com/Rouzax/luxtronik-domoticz-plugin",
+        "branch": "dist",
+        "previous_identities": [
+          "github.com/rouzax/luxtronik-domoticz-plugin-v2"
+        ]
       },
       "platforms": [
         "linux",
