@@ -1075,6 +1075,30 @@
       }
     },
     {
+      "package_id": "Domoticz-LUAlert",
+      "domoticz_key": "LUAlert",
+      "description": "Domoticz Plugin handling the Luxemburgish LU-Alert. Thank you @koosoli for the HomeAssistant Idea",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-LUAlert",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-MCP-Plugin",
       "domoticz_key": "Domoticz-MCP-Server",
       "description": "Domoticz-MCP-Plugin plugin for Domoticz",
@@ -2840,6 +2864,30 @@
       "platforms": [
         "linux",
         "windows"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "GrdfGazparDomoticz",
+      "domoticz_key": "GrdfGazpar",
+      "description": "Plugin Domoticz : import automatique des consommations Gazpar",
+      "repository": {
+        "url": "https://github.com/Electrocut/GrdfGazparDomoticz",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
       ],
       "delivery": {
         "preferred": "release_if_indexed",
@@ -4996,6 +5044,28 @@
       }
     },
     {
+      "package_id": "domoticz-easycontrol-plugin",
+      "domoticz_key": "domoticz-easycontrol-plugin",
+      "description": "Domoticz plugin for the Bosch Easycontrol CT200 Thermostat",
+      "repository": {
+        "url": "https://github.com/ggraat/domoticz-easycontrol-plugin",
+        "branch": "master"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "domoticz-emmeti-eq2021",
       "domoticz_key": "EmmetiMiraiEQ2021",
       "description": "Emmeti EQ 2021 amd EQ 3021 ES hot water heat pumps",
@@ -5226,6 +5296,30 @@
       "platforms": [
         "linux",
         "windows"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "domoticz-ipmi-plugin",
+      "domoticz_key": "ipmi-bmc",
+      "description": "IPMI Plugin for Domoticz",
+      "repository": {
+        "url": "https://github.com/obedouet/domoticz-ipmi-plugin",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
       ],
       "delivery": {
         "preferred": "release_if_indexed",
@@ -5850,6 +5944,30 @@
           "mutable_paths": []
         }
       }
+    },
+    {
+      "package_id": "domoticz-solaredge-modbustcp-plugin",
+      "domoticz_key": "SolarEdge_ModbusTCP",
+      "description": "A Domoticz plugin to collect data from SolarEdge power inverters over ModbusTCP.",
+      "repository": {
+        "url": "https://github.com/addiejanssen/domoticz-solaredge-modbustcp-plugin",
+        "branch": "main"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release",
+        "git_supported": false,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "asset_zip",
+          "source_path": ".",
+          "mutable_paths": [],
+          "asset_name": "domoticz-solaredge-modbustcp-plugin.2.0.8.zip"
+        }
+      },
+      "requires_python": ">=3.8"
     },
     {
       "package_id": "domoticz-tailscale-plugin",
@@ -6993,6 +7111,28 @@
         "linux",
         "windows"
       ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "vevor-plugin",
+      "domoticz_key": "vevor-ws",
+      "description": "Vevor plugin for Domoticz",
+      "repository": {
+        "url": "https://github.com/obedouet/vevor-plugin",
+        "branch": "main"
+      },
+      "platforms": [],
       "delivery": {
         "preferred": "release_if_indexed",
         "git_supported": true,
