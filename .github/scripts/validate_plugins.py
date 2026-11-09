@@ -4,6 +4,7 @@ import sys
 import json
 import hashlib
 import re
+import socket
 import subprocess
 import time
 
@@ -24,6 +25,8 @@ VALID_PLATFORM_METADATA_CONFIDENCE = {"unknown", "low", "medium", "high"}
 GIT_REMOTE_TIMEOUT_SECONDS = 30
 ROOT_PLUGIN_MAX_ATTEMPTS = 3
 ROOT_PLUGIN_RETRY_DELAY_SECONDS = 1
+RELEASE_ARCHIVE_MAX_ATTEMPTS = 3
+RELEASE_ARCHIVE_RETRY_DELAY_SECONDS = 1
 DEFAULT_MAX_ARCHIVE_SIZE = 50 * 1024 * 1024
 
 import io
@@ -66,7 +69,7 @@ def load_registry():
 
     validate_platform_metadata(registry_data)
     validate_update_times(registry_data)
-        
+
     plugin_data = {}
     for key, data in registry_data.items():
         if key == "Idle":
@@ -305,6 +308,7 @@ def validate_release_archive(
     release_entry,
     opener=None,
     timeout=30,
+    sleeper=time.sleep,
 ):
     artifact = release_entry.get("artifact", {})
     url = artifact.get("url")
@@ -327,12 +331,35 @@ def validate_release_archive(
     request = urllib.request.Request(url, headers=headers)
     opener = opener or urllib.request.urlopen
 
-    try:
-        with opener(request, timeout=timeout) as response:
-            content = response.read(DEFAULT_MAX_ARCHIVE_SIZE + 1)
-    except Exception as e:
-        print(f"Failed downloading release artifact for {key}: {e}")
-        return False
+    content = None
+    for attempt in range(1, RELEASE_ARCHIVE_MAX_ATTEMPTS + 1):
+        try:
+            with opener(request, timeout=timeout) as response:
+                content = response.read(DEFAULT_MAX_ARCHIVE_SIZE + 1)
+            break
+        except urllib.error.HTTPError as e:
+            if e.code in (429, 500, 502, 503, 504) and attempt < RELEASE_ARCHIVE_MAX_ATTEMPTS:
+                print(
+                    f"Download attempt {attempt} for {key} failed with HTTP {e.code}; "
+                    f"retrying in {RELEASE_ARCHIVE_RETRY_DELAY_SECONDS * attempt}s..."
+                )
+                sleeper(RELEASE_ARCHIVE_RETRY_DELAY_SECONDS * attempt)
+                continue
+            print(f"Failed downloading release artifact for {key}: {e}")
+            return False
+        except (urllib.error.URLError, TimeoutError, ConnectionError, socket.timeout) as e:
+            if attempt < RELEASE_ARCHIVE_MAX_ATTEMPTS:
+                print(
+                    f"Download attempt {attempt} for {key} failed with network error ({e}); "
+                    f"retrying in {RELEASE_ARCHIVE_RETRY_DELAY_SECONDS * attempt}s..."
+                )
+                sleeper(RELEASE_ARCHIVE_RETRY_DELAY_SECONDS * attempt)
+                continue
+            print(f"Failed downloading release artifact for {key}: {e}")
+            return False
+        except Exception as e:
+            print(f"Failed downloading release artifact for {key}: {e}")
+            return False
 
     if len(content) > DEFAULT_MAX_ARCHIVE_SIZE:
         print(

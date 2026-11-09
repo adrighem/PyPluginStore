@@ -5,6 +5,7 @@ import json
 import re
 from pathlib import Path
 from types import SimpleNamespace
+import urllib.error
 import zipfile
 
 import pytest
@@ -1075,6 +1076,48 @@ def test_validate_release_archive_success_and_failure(
         oversized_entry,
         opener=oversized_opener,
     ) is False
+
+    # Transient 503 retries and succeeds
+    attempts = [0]
+    sleeps = []
+
+    def flaky_503_opener(req, timeout=30):
+        attempts[0] += 1
+        if attempts[0] < 2:
+            raise urllib.error.HTTPError(
+                req.full_url, 503, "Service Unavailable", {}, None
+            )
+        return FakeResponse(zip_bytes)
+
+    assert validate_plugins_module.validate_release_archive(
+        "ExamplePlugin",
+        record,
+        release_entry,
+        opener=flaky_503_opener,
+        sleeper=sleeps.append,
+    ) is True
+    assert attempts[0] == 2
+    assert sleeps == [1]
+
+    # Non-transient 404 fails immediately without retrying
+    attempts_404 = [0]
+    sleeps_404 = []
+
+    def not_found_opener(req, timeout=30):
+        attempts_404[0] += 1
+        raise urllib.error.HTTPError(
+            req.full_url, 404, "Not Found", {}, None
+        )
+
+    assert validate_plugins_module.validate_release_archive(
+        "ExamplePlugin",
+        record,
+        release_entry,
+        opener=not_found_opener,
+        sleeper=sleeps_404.append,
+    ) is False
+    assert attempts_404[0] == 1
+    assert sleeps_404 == []
 
 
 def test_validator_skips_git_tests_for_release_based_plugin(

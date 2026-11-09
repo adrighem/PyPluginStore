@@ -233,8 +233,8 @@ Each object in the `releases` array represents a certified stable release of a p
 | `certified_identity.domoticz_key` | String | Yes | The certified `<plugin key="...">` parsed from the file. |
 | `certified_identity.plugin_py_sha256` | String | Yes | SHA-256 hash value of `plugin.py` to assert integrity at runtime. |
 | `artifact` | Object | Yes | Pinned download asset metadata. |
-| `artifact.kind` | String | Yes | Download category type (typically `"source_zip"`). |
-| `artifact.provenance` | String | Yes | Origin category type (typically `"forge_source_archive"`). |
+| `artifact.kind` | String | Yes | Download category type (`"source_zip"` or `"asset_zip"`). |
+| `artifact.provenance` | String | Yes | Origin category type (`"forge_source_archive"` or `"attached_asset"`). |
 | `artifact.url` | String | Yes | Absolute source download endpoint. |
 | `artifact.size` | Integer | Yes | File content size in bytes. |
 | `artifact.sha256` | String | Yes | SHA-256 digest of the downloaded archive. |

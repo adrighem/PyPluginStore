@@ -325,6 +325,32 @@ def test_self_hosted_web_base_does_not_allow_runtime_redirects(
     assert strategy._allowed_origins(entry, release) == []
 
 
+def test_github_release_asset_allowed_origins_include_githubusercontent(
+    plugin_core_module, tmp_path
+):
+    plugin, strategy, _manager, _http, _dependencies = make_strategy(
+        plugin_core_module,
+        tmp_path,
+    )
+    entry = plugin.get_registry_entry("ExamplePlugin")
+    release = replace(
+        descriptor(plugin_core_module),
+        provider="github",
+        artifact=replace(
+            descriptor(plugin_core_module).artifact,
+            kind="asset_zip",
+            provenance="attached_asset",
+            url="https://github.com/owner/example-plugin/releases/download/v1.0.0/example-plugin.1.0.0.zip",
+        ),
+    )
+
+    assert strategy._allowed_origins(entry, release) == [
+        "https://objects.githubusercontent.com",
+        "https://release-assets.githubusercontent.com",
+        "https://github-releases.githubusercontent.com",
+    ]
+
+
 def test_release_failure_aborts_without_falling_back_to_git(
     plugin_core_module, tmp_path
 ):

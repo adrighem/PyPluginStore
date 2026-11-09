@@ -1303,6 +1303,37 @@ def _artifact_allowed_origins(candidate, reviewed_origins):
         codeload_origin = "https://codeload.github.com"
         if codeload_origin not in result:
             result.append(codeload_origin)
+    github_attached_asset = (
+        candidate.provider == "github"
+        and candidate.artifact_kind == "asset_zip"
+        and candidate.artifact_provenance == "attached_asset"
+        and parsed.scheme == "https"
+        and parsed.hostname in {"github.com", "api.github.com"}
+        and parsed.port in (None, 443)
+        and (
+            (
+                parsed.hostname == "github.com"
+                and len(path_parts) >= 6
+                and path_parts[3] == "releases"
+                and path_parts[4] == "download"
+            )
+            or (
+                parsed.hostname == "api.github.com"
+                and len(path_parts) == 7
+                and path_parts[1] == "repos"
+                and path_parts[4] == "releases"
+                and path_parts[5] == "assets"
+            )
+        )
+    )
+    if github_attached_asset:
+        for asset_origin in (
+            "https://objects.githubusercontent.com",
+            "https://release-assets.githubusercontent.com",
+            "https://github-releases.githubusercontent.com",
+        ):
+            if asset_origin not in result:
+                result.append(asset_origin)
     return result
 
 

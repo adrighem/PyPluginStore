@@ -1012,6 +1012,28 @@ def test_github_api_commit_source_allows_only_the_codeload_redirect(
     ]
 
 
+def test_github_release_asset_allows_githubusercontent_redirects(
+    release_index_generation_module,
+):
+    selected = candidate(
+        artifact_kind="asset_zip",
+        artifact_provenance="attached_asset",
+        artifact_url="https://github.com/owner/example-plugin/releases/download/v1.0.0/example-plugin.1.0.0.zip",
+    )
+
+    _, _, http_client = generate_single(
+        release_index_generation_module,
+        selected,
+        zip_archive(),
+    )
+
+    assert http_client.calls[0]["allowed_origins"] == [
+        "https://objects.githubusercontent.com",
+        "https://release-assets.githubusercontent.com",
+        "https://github-releases.githubusercontent.com",
+    ]
+
+
 def test_new_releases_get_monotonic_revision_and_complete_lineage(
     release_index_generation_module,
 ):
