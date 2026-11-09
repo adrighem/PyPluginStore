@@ -59,7 +59,7 @@
     },
     {
       "package_id": "dell-idrac",
-      "updated_at": "2026-10-28T03:35:03Z"
+      "updated_at": "2026-11-04T03:35:07Z"
     },
     {
       "package_id": "Denon4306",
@@ -171,11 +171,15 @@
     },
     {
       "package_id": "Domoticz-DSVT",
-      "updated_at": "2026-10-21T02:12:13Z"
+      "updated_at": "2026-11-08T06:50:03Z"
     },
     {
       "package_id": "domoticz-dts238",
       "updated_at": "2025-11-10T17:38:49Z"
+    },
+    {
+      "package_id": "domoticz-easycontrol-plugin",
+      "updated_at": "2026-11-04T15:05:42Z"
     },
     {
       "package_id": "domoticz-emmeti-eq2021",
@@ -187,7 +191,7 @@
     },
     {
       "package_id": "Domoticz-Enigma2",
-      "updated_at": "2026-10-22T10:59:32Z"
+      "updated_at": "2026-11-02T16:13:18Z"
     },
     {
       "package_id": "domoticz-espnowserial-plugin",
@@ -290,6 +294,10 @@
       "updated_at": "2026-10-01T20:13:03Z"
     },
     {
+      "package_id": "domoticz-ipmi-plugin",
+      "updated_at": "2026-11-09T13:32:03Z"
+    },
+    {
       "package_id": "domoticz-ir-climate-controller",
       "updated_at": "2026-10-14T15:42:23Z"
     },
@@ -299,7 +307,7 @@
     },
     {
       "package_id": "domoticz-kpn-experia-v10",
-      "updated_at": "2026-10-25T18:12:26Z"
+      "updated_at": "2026-11-08T19:39:12Z"
     },
     {
       "package_id": "Domoticz-LGTV-WebOS-Plugin",
@@ -308,6 +316,10 @@
     {
       "package_id": "domoticz-logmonitor-plugin",
       "updated_at": "2026-05-25T07:09:13Z"
+    },
+    {
+      "package_id": "Domoticz-LUAlert",
+      "updated_at": "2026-11-05T05:31:00Z"
     },
     {
       "package_id": "domoticz-marstek-venus3.0E",
@@ -319,7 +331,7 @@
     },
     {
       "package_id": "Domoticz-MeteoAlarmEU-Atom",
-      "updated_at": "2026-09-11T14:49:46Z"
+      "updated_at": "2026-11-07T08:02:38Z"
     },
     {
       "package_id": "Domoticz-MG-Plugin",
@@ -510,6 +522,10 @@
       "updated_at": "2023-11-03T21:14:55Z"
     },
     {
+      "package_id": "domoticz-solaredge-modbustcp-plugin",
+      "updated_at": "2026-11-05T16:53:28Z"
+    },
+    {
       "package_id": "Domoticz-SolarForecast",
       "updated_at": "2026-10-19T18:36:37Z"
     },
@@ -531,7 +547,7 @@
     },
     {
       "package_id": "Domoticz-Synology-SNMP",
-      "updated_at": "2026-10-27T10:32:43Z"
+      "updated_at": "2026-11-05T11:31:02Z"
     },
     {
       "package_id": "domoticz-tailscale-plugin",
@@ -555,11 +571,11 @@
     },
     {
       "package_id": "domoticz-tinycontrol",
-      "updated_at": "2023-08-30T17:24:38Z"
+      "updated_at": "2026-11-02T16:13:36Z"
     },
     {
       "package_id": "Domoticz-TinyTUYA-Plugin",
-      "updated_at": "2026-10-28T18:45:08Z"
+      "updated_at": "2026-11-06T21:25:01Z"
     },
     {
       "package_id": "Domoticz-TPLinkRouter",
@@ -775,7 +791,7 @@
     },
     {
       "package_id": "F1_race",
-      "updated_at": "2026-10-25T09:46:45Z"
+      "updated_at": "2026-11-01T18:40:35Z"
     },
     {
       "package_id": "fmi",
@@ -807,15 +823,19 @@
     },
     {
       "package_id": "GoodWeAPI",
-      "updated_at": "2026-10-26T18:21:20Z"
+      "updated_at": "2026-11-06T13:26:24Z"
     },
     {
       "package_id": "GoveeDiscovery",
       "updated_at": "2025-01-06T09:03:27Z"
     },
     {
+      "package_id": "GrdfGazparDomoticz",
+      "updated_at": "2026-11-01T00:02:33Z"
+    },
+    {
       "package_id": "ha-domoticz-sync",
-      "updated_at": "2026-10-26T09:37:31Z"
+      "updated_at": "2026-11-02T05:44:40Z"
     },
     {
       "package_id": "Hisense-AirCon-Domoticz",
@@ -827,7 +847,7 @@
     },
     {
       "package_id": "homeconnectex",
-      "updated_at": "2026-10-27T12:25:30Z"
+      "updated_at": "2026-11-08T11:11:26Z"
     },
     {
       "package_id": "Homewizard",
@@ -875,7 +895,7 @@
     },
     {
       "package_id": "HyundaiKiaConnect",
-      "updated_at": "2026-04-16T15:40:32Z"
+      "updated_at": "2026-11-06T14:18:54Z"
     },
     {
       "package_id": "iDetect",
@@ -927,7 +947,7 @@
     },
     {
       "package_id": "luxtronikex",
-      "updated_at": "2026-10-29T17:45:20Z"
+      "updated_at": "2026-11-07T16:33:34Z"
     },
     {
       "package_id": "Lyrion",
@@ -963,7 +983,7 @@
     },
     {
       "package_id": "myenergi",
-      "updated_at": "2026-10-24T12:54:35Z"
+      "updated_at": "2026-10-30T12:34:43Z"
     },
     {
       "package_id": "NEDsolarForecast",
@@ -1027,7 +1047,7 @@
     },
     {
       "package_id": "Sofabaton-X2-plugin-for-Domoticz-",
-      "updated_at": "2026-10-24T12:04:59Z"
+      "updated_at": "2026-10-29T19:18:11Z"
     },
     {
       "package_id": "Sofar-modbus",
@@ -1055,7 +1075,7 @@
     },
     {
       "package_id": "Somfy",
-      "updated_at": "2026-10-29T18:22:46Z"
+      "updated_at": "2026-11-01T16:31:16Z"
     },
     {
       "package_id": "sonoff-domoticz-plugin",
@@ -1091,7 +1111,7 @@
     },
     {
       "package_id": "Toon_Thermostat",
-      "updated_at": "2026-10-23T11:01:37Z"
+      "updated_at": "2026-11-07T18:05:55Z"
     },
     {
       "package_id": "tuyaha",
@@ -1104,6 +1124,10 @@
     {
       "package_id": "TWC",
       "updated_at": "2026-08-14T10:36:53Z"
+    },
+    {
+      "package_id": "vevor-plugin",
+      "updated_at": "2026-11-03T09:11:07Z"
     },
     {
       "package_id": "WAN-IP-CHECKER",
@@ -1143,7 +1167,7 @@
     },
     {
       "package_id": "Zigate",
-      "updated_at": "2026-10-28T20:03:17Z"
+      "updated_at": "2026-11-08T16:27:18Z"
     },
     {
       "package_id": "Zigbee2Mqtt",
