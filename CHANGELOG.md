@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.32.1](https://github.com/adrighem/PyPluginStore/compare/v2.32.0...v2.32.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* allow githubusercontent redirect origins for release assets ([527e477](https://github.com/adrighem/PyPluginStore/commit/527e477f534712c273acfbe67594d0a68b6c2850))
+* **registry:** add Domoticz-LUAlert, GrdfGazparDomoticz, domoticz-easycontrol-plugin and others ([6f6b462](https://github.com/adrighem/PyPluginStore/commit/6f6b462a0ee8a4fb941482d77bba1c5169bfb6bb))
+
 ## [2.32.0](https://github.com/adrighem/PyPluginStore/compare/v2.31.2...v2.32.0) (2026-10-29)
 
 
