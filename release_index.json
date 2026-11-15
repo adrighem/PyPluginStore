@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-11-25T21:38:16Z",
-  "generated_at": "2026-11-09T21:38:16Z",
-  "registry_sha256": "577f585e7a0574297b7981cb243d538911a0b44dfb595729ac930e3b86d89d5a",
+  "expires_at": "2026-12-01T11:40:12Z",
+  "generated_at": "2026-11-15T11:40:12Z",
+  "registry_sha256": "27529136fa5ced07a4590ce2bcb3e8d2f6f94b80b8b3fa050a5fbbc0bcabe824",
   "releases": [
     {
       "artifact": {
@@ -1099,29 +1099,30 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "MadPatrick-domoticz_garbage-56d8fad",
-        "sha256": "e2a8e926feddccdbd9c9e2e90a884b9b91ae34587fd17ca914e3a518874918cf",
-        "size": 42582,
+        "root_prefix": "MadPatrick-domoticz_garbage-fb50deb",
+        "sha256": "16d31b64c3549a371b90be3c3c0438abc1e8972a612e8689d3a49efffd9292bb",
+        "size": 48277,
         "source_path": ".",
-        "tree_sha256": "78d3fcfeebee62c3650c346cccd21d9f7b41ce8d807f6fe787e5e872c3b4e4b6",
-        "url": "https://api.github.com/repos/madpatrick/domoticz_garbage/zipball/56d8fad4c47eb1ca1b029834af6dc3f6583de2bf"
+        "tree_sha256": "47c4c2e3a205574bc0b551ebaa0d661f0a566d552c27cb5f6810e3c7f9191157",
+        "url": "https://api.github.com/repos/madpatrick/domoticz_garbage/zipball/fb50deb5b95b41b59adca50936f426af2349470e"
       },
       "certified_identity": {
         "domoticz_key": "GarbageCalendar",
-        "plugin_py_sha256": "c5557d5c131917e1b45249894ea611f709ffd0f8aa20949a71f5a2d90a10ac8b"
+        "plugin_py_sha256": "5fcf6fe7a957d9dbace9d26e37f41d43712aeca389e66c5407210620fd62e650"
       },
-      "commit": "56d8fad4c47eb1ca1b029834af6dc3f6583de2bf",
+      "commit": "fb50deb5b95b41b59adca50936f426af2349470e",
       "package_id": "Garbage",
       "provider": "github",
-      "release_id": "github:madpatrick/domoticz_garbage:1.1.1",
-      "released_at": "2026-07-23T16:49:26Z",
+      "release_id": "github:madpatrick/domoticz_garbage:1.2.1",
+      "released_at": "2026-11-10T18:02:28Z",
       "repository_identity": "github.com/madpatrick/domoticz_garbage",
-      "revision": 2,
+      "revision": 3,
       "supersedes": [
-        "github:madpatrick/domoticz_garbage:1.0.0"
+        "github:madpatrick/domoticz_garbage:1.0.0",
+        "github:madpatrick/domoticz_garbage:1.1.1"
       ],
-      "tag": "1.1.1",
-      "version": "1.1.1"
+      "tag": "1.2.1",
+      "version": "1.2.1"
     },
     {
       "artifact": {
@@ -1828,32 +1829,33 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "adrighem-domoticz-kpn-experia-v10-0559fa9",
-        "sha256": "ab6e9cda9837750b285bc2751b4460cbb5471f21260c6aa338a6d301f1e7b840",
-        "size": 108711,
+        "root_prefix": "adrighem-domoticz-kpn-experia-v10-9cfbf3a",
+        "sha256": "85b4c7683e4882fd12bdcc11b9c5514aee7f024ae6183d93921e3f718aa25b8e",
+        "size": 110958,
         "source_path": ".",
-        "tree_sha256": "371794b64d8666697c18640ee4f60c64a470db1b429927462e35aa2653d291c5",
-        "url": "https://api.github.com/repos/adrighem/domoticz-kpn-experia-v10/zipball/0559fa9efe54b861d5f4035178bd4235e5ebc6d4"
+        "tree_sha256": "d45c26102cedc251432b4fa143cbf568ffbc2f86ce5e25248291f6c145794ffb",
+        "url": "https://api.github.com/repos/adrighem/domoticz-kpn-experia-v10/zipball/9cfbf3a897c3bf977c0aa6290390c14b75040c12"
       },
       "certified_identity": {
         "domoticz_key": "ExperiaV10",
-        "plugin_py_sha256": "b0ad35a86b1b5a357e6bc79ecc2a3e02d8964432ee9730ab4cc3a14822456153"
+        "plugin_py_sha256": "2d9aa7a98bc7ffb576ff8b5b723b547ff7593f47109d34d51b5a33f4e7edca58"
       },
-      "commit": "0559fa9efe54b861d5f4035178bd4235e5ebc6d4",
+      "commit": "9cfbf3a897c3bf977c0aa6290390c14b75040c12",
       "package_id": "domoticz-kpn-experia-v10",
       "provider": "github",
-      "release_id": "github:adrighem/domoticz-kpn-experia-v10:v1.3.2",
-      "released_at": "2026-10-25T18:12:27Z",
+      "release_id": "github:adrighem/domoticz-kpn-experia-v10:v1.3.3",
+      "released_at": "2026-11-11T00:05:19Z",
       "repository_identity": "github.com/adrighem/domoticz-kpn-experia-v10",
-      "revision": 5,
+      "revision": 6,
       "supersedes": [
         "github:adrighem/domoticz-kpn-experia-v10:v1.1.1",
         "github:adrighem/domoticz-kpn-experia-v10:v1.1.2",
         "github:adrighem/domoticz-kpn-experia-v10:v1.2.0",
-        "github:adrighem/domoticz-kpn-experia-v10:v1.3.0"
+        "github:adrighem/domoticz-kpn-experia-v10:v1.3.0",
+        "github:adrighem/domoticz-kpn-experia-v10:v1.3.2"
       ],
-      "tag": "v1.3.2",
-      "version": "1.3.2"
+      "tag": "v1.3.3",
+      "version": "1.3.3"
     },
     {
       "artifact": {
@@ -2322,7 +2324,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 28,
+  "sequence": 29,
   "tombstones": [
     {
       "last_revision": 1,

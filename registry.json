@@ -75,6 +75,30 @@
       }
     },
     {
+      "package_id": "Balimo-domoticz-plugin",
+      "domoticz_key": "BalimoTuya",
+      "description": "Balimo domoticz plugin",
+      "repository": {
+        "url": "https://github.com/xavloco/Balimo-domoticz-plugin",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "BatteryLevel",
       "domoticz_key": "BatteryLevel",
       "description": "Domoticz python plugin to display/log battery level of zwave devices",
@@ -2512,31 +2536,6 @@
       }
     },
     {
-      "package_id": "Domoticz_VolvoRecharge_Plugin",
-      "domoticz_key": "VolvoEV",
-      "description": "domoticz plugin for Volvo Recharge Full EV or PHEV vehicles",
-      "repository": {
-        "url": "https://github.com/akamming/Domoticz_VolvoRecharge_Plugin",
-        "branch": "main"
-      },
-      "platforms": [
-        "linux",
-        "windows"
-      ],
-      "delivery": {
-        "preferred": "release_if_indexed",
-        "git_supported": true,
-        "release": {
-          "provider": "github",
-          "channel": "stable",
-          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
-          "artifact": "source_zip",
-          "source_path": ".",
-          "mutable_paths": []
-        }
-      }
-    },
-    {
       "package_id": "Domoticz_WT53R_Rain_Tank_Sensor",
       "domoticz_key": "WT53RSensor",
       "description": "This plugin connects to a WT53R range sensor over Modbus TCP protocol to measure water levels in rain tanks.",
@@ -3752,6 +3751,30 @@
       "platforms": [
         "linux",
         "windows"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "RoborockQ7-Domoticz",
+      "domoticz_key": "RoborockQ7",
+      "description": "Plugin Domoticz pour aspirateur robot Roborock Q7",
+      "repository": {
+        "url": "https://github.com/xavloco/RoborockQ7-Domoticz",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
       ],
       "delivery": {
         "preferred": "release_if_indexed",

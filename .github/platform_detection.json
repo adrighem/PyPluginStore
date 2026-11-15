@@ -170,6 +170,42 @@
       "source": "detected"
     },
     {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/xavloco/balimo-domoticz-plugin@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses apt package installation",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands",
+          "helper.py: uses apt package installation",
+          "helper.py: uses sudo"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 21,
+          "windows": 0
+        }
+      },
+      "owner": "xavloco",
+      "package_id": "Balimo-domoticz-plugin",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Balimo-domoticz-plugin",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "master",
       "confidence": "low",
       "evidence_class": "generic_python",
@@ -6070,38 +6106,6 @@
     },
     {
       "branch": "main",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/akamming/domoticz_volvorecharge_plugin@main",
-      "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
-        "platforms": [
-          "linux",
-          "windows"
-        ],
-        "reasons": [
-          "generic: no Linux-only or Windows-only evidence found"
-        ],
-        "scores": {
-          "both": 0,
-          "linux": 0,
-          "windows": 0
-        }
-      },
-      "owner": "akamming",
-      "package_id": "Domoticz_VolvoRecharge_Plugin",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "Domoticz_VolvoRecharge_Plugin",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
-      "branch": "main",
       "confidence": "medium",
       "evidence_class": "linux_evidence",
       "identity": "github.com/voyo/domoticz_wt53r_rain_tank_sensor@main",
@@ -8671,6 +8675,45 @@
         "linux"
       ],
       "repository": "rest980-domoticz",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/xavloco/roborockq7-domoticz@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses apt package installation",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "plugin.py: mentions Raspberry Pi/Raspbian",
+          "plugin.py: uses Unix system paths",
+          "LISEZMOI.md: mentions Raspberry Pi/Raspbian",
+          "LISEZMOI.md: uses apt package installation",
+          "LISEZMOI.md: uses sudo",
+          "LISEZMOI.md: uses systemd"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 33,
+          "windows": 0
+        }
+      },
+      "owner": "xavloco",
+      "package_id": "RoborockQ7-Domoticz",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "RoborockQ7-Domoticz",
       "reviewed": false,
       "source": "detected"
     },
