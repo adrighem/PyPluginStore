@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.32.2](https://github.com/adrighem/PyPluginStore/compare/v2.32.1...v2.32.2) (2026-11-15)
+
+
+### Bug Fixes
+
+* **registry:** add Balimo-domoticz-plugin, RoborockQ7-Domoticz; remove Domoticz_VolvoRecharge_Plugin ([3533a02](https://github.com/adrighem/PyPluginStore/commit/3533a0208c1d806ccc21485530945ee1d0e624e3))
+
 ## [2.32.1](https://github.com/adrighem/PyPluginStore/compare/v2.32.0...v2.32.1) (2026-11-09)
 
 
