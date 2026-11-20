@@ -102,7 +102,7 @@ def test_on_start_creates_payload_device_without_enabling_it(plugin_core_module,
     assert trigger_device["Used"] == 1
 
 
-def test_on_start_setup_warning_skips_missing_notification_api(plugin_core_module, tmp_path, monkeypatch):
+def test_on_start_accepts_folder_without_prefix(plugin_core_module, tmp_path, monkeypatch):
     plugins_dir = tmp_path / "domoticz" / "plugins"
     manager_dir = plugins_dir / "PyPluginStore"
     manager_dir.mkdir(parents=True)
@@ -126,8 +126,8 @@ def test_on_start_setup_warning_skips_missing_notification_api(plugin_core_modul
 
     plugin_core_module.BasePlugin().onStart()
 
-    assert any("strongly advised" in args[0] for args, _ in plugin_core_module.Domoticz.calls["Error"])
-    assert any("Notification skipped" in args[0] for args, _ in plugin_core_module.Domoticz.calls["Log"])
+    assert not any("strongly advised" in args[0] for args, _ in plugin_core_module.Domoticz.calls["Error"])
+    assert not any("Notification skipped" in args[0] for args, _ in plugin_core_module.Domoticz.calls["Log"])
 
 
 @pytest.mark.parametrize(
