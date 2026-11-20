@@ -9413,38 +9413,6 @@
       "source": "detected"
     },
     {
-      "branch": "master",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/zigbeefordomoticz/test_domoticzex@master",
-      "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
-        "platforms": [
-          "linux",
-          "windows"
-        ],
-        "reasons": [
-          "generic: no Linux-only or Windows-only evidence found"
-        ],
-        "scores": {
-          "both": 0,
-          "linux": 0,
-          "windows": 0
-        }
-      },
-      "owner": "zigbeefordomoticz",
-      "package_id": "test_domoticzex",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "test_domoticzex",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
       "branch": "main",
       "confidence": "high",
       "evidence_class": "explicit_both",
