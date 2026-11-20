@@ -35,9 +35,9 @@ Install, update, remove, and manage Domoticz Python plugins and frontend themes 
    cd /path/to/domoticz/plugins
    ```
 
-2. Clone PyPluginStore as `00-PyPluginStore`. (The `00-` prefix is mandatory to ensure PyPluginStore's dependency isolation engine runs *before* other plugins load).
+2. Clone PyPluginStore into the `plugins` folder.
    ```bash
-   git clone https://github.com/adrighem/PyPluginStore.git 00-PyPluginStore
+   git clone https://github.com/adrighem/PyPluginStore.git
    ```
 
 3. Restart Domoticz.

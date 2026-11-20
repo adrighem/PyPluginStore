@@ -21496,12 +21496,6 @@ class BasePlugin:
 
         plugins_dir = host.plugins_dir()
 
-        current_folder = self.get_current_plugin_folder()
-        if not current_folder.startswith("00-"):
-            warn_msg = f"PyPluginStore is in '{current_folder}'. It is strongly advised to rename the folder to start with '00-' (e.g., '00-PyPluginStore') so it loads first."
-            Domoticz.Error(warn_msg)
-            self.sendDomoticzNotification("PyPluginStore Setup Warning", warn_msg)
-
         dependency_recovery_ready = True
         try:
             recovered_generations = (
