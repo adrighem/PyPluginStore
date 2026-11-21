@@ -9,7 +9,7 @@ Install, update, remove, and manage Domoticz Python plugins and frontend themes 
 ## Key Features
 
 - **Unified Store UI:** A tabbed interface separating Plugins and Themes. Search, sort, filter, install, update, remove, and restore items directly from the Domoticz **Custom** menu.
-- **Dependency Isolation (Plugins):** Resolves all installed plugin requirements into an isolated, recoverable `.shared_deps` generation using `uv` or the Domoticz Python interpreter's `pip`. Bypasses PEP 668 restrictions safely since installations remain strictly localized without polluting global system packages.
+- **Dependency Isolation (Plugins):** Resolves all installed plugin requirements into an isolated, recoverable `.shared_deps` generation using `uv` or the Domoticz Python interpreter's `pip`, and makes it importable for every plugin through one `.pth` file. Bypasses PEP 668 restrictions safely since packages never go into the Python environment Domoticz runs with. See [Shared dependencies](#shared-dependencies).
 - **Staging-and-Mirror Architecture (Themes):** Protects your Domoticz `www/styles/` path by cloning theme repositories into an isolated staging `.theme_sources` folder, discarding `.git` metadata and only mirroring the necessary frontend CSS/JS files.
 - **Javascript Scanning (Themes):** Staged themes are statically scanned for `custom.js` files; the UI automatically badges them with a warning, making you aware of dynamic execution footprints.
 - **Release-first delivery:** Utilizes checksum-pinned stable Release archives when certified, with fallback support for direct Git checkouts.
@@ -71,15 +71,71 @@ Theme cards list responsive Domoticz skins. PyPluginStore shields the web direct
 | **Auto Update: All (NotifyOnly)** | The default. Runs background scheduled checks but only reports newer versions via the notification service without applying them. |
 | **Auto Update: None** | Disables all background updates and notifications. |
 | **Debug** | Set to **True** for detailed Python logging. |
+| **Container Restart** | Set to **Enabled** only when Domoticz runs in a container with a restart policy. Lets PyPluginStore restart Domoticz by stopping it. See [Containers](#containers). |
 
 ## Advanced Operation
 
 ### Local Registry Overrides
-Use `registry_local.json` to have your installation track different branches or to add private plugins not listed in the public catalog. 
+Use `registry_local.json` to have your installation track different branches or to add private plugins not listed in the public catalog.
 
 Open **Local registry** in the Plugin Store header to add, edit, or delete entries. Local entries are loaded after the public registry, override public entries, and show a **Local** badge in the interface.
 
 *See the [`registry_local.json` how-to](docs/registry_local.md) for more examples.*
+
+### Shared dependencies
+
+Domoticz runs every plugin in its own Python interpreter, so a plugin can only
+import packages that are on its own `sys.path`. PyPluginStore installs plugin
+requirements into `.shared_deps` and writes one file,
+`pypluginstore-shared-deps-<id>.pth`, into a site directory of the Python that
+Domoticz runs with (`<id>` identifies the PyPluginStore folder, so several
+Domoticz installs never overwrite each other's file):
+
+- in a virtual environment (such as `/opt/venv` in the Docker image), its
+  `site-packages`;
+- otherwise the user site of the Domoticz user (for example
+  `~/.local/lib/python3.13/site-packages`), then the system site directories.
+
+Python reads that file whenever Domoticz creates a plugin interpreter, so every
+plugin can import from `.shared_deps` without code changes. The file only acts
+inside Domoticz: it puts `.shared_deps` ahead of site-packages there, so plugins
+get the versions PyPluginStore resolved, and other Python programs using the
+same site directory are not affected. To remove it, delete
+`pypluginstore-shared-deps-*.pth` from that site directory.
+
+Python only reads `.pth` files when an interpreter starts. At startup,
+PyPluginStore checks whether the current Domoticz boot already saw the file. If
+not, it writes the file and requests one Domoticz restart. If plugins still
+cannot see the dependencies after that restart, PyPluginStore shows an error in
+the header and does not restart again. When the restart request does not take
+effect, restart Domoticz manually and check `restart_domoticz.log`.
+
+### Containers
+
+Domoticz has no restart command, and the Docker image runs no service manager.
+Inside a container, PyPluginStore can only restart Domoticz by stopping it and
+relying on the container restart policy to start it again. Domoticz exits
+normally when stopped, so use `unless-stopped` or `always`: with `on-failure` or
+no policy, the container stays down. Give the container a restart policy first:
+
+```yaml
+services:
+  domoticz:
+    image: domoticz/domoticz:stable
+    restart: unless-stopped
+```
+
+or with `docker run`, add `--restart unless-stopped`. Then set **Container
+Restart** to **Enabled** on the PyPluginStore hardware page.
+
+The `.pth` file lives in `/opt/venv`, which is part of the image, so it is lost
+when the container is recreated (for example after an image upgrade). With
+**Container Restart** enabled, PyPluginStore writes the file again and restarts
+Domoticz once on the first start of the new container. With it disabled, the
+header asks you to restart Domoticz yourself.
+
+PyPluginStore treats Docker, Podman and Kubernetes as containers. In Kubernetes,
+the default pod `restartPolicy: Always` brings Domoticz back.
 
 ## Support and Contributing
 
@@ -122,8 +178,8 @@ recover within two minutes, controls are restored and the page shows manual
 recovery guidance inline.
 
 The built-in Linux restart supports a host service named `domoticz.service`.
-Typical containers do not run `systemctl` or `service`, so restart those from the
-container host or orchestrator instead.
+In a container, the button works only when **Container Restart** is enabled and
+the container has a restart policy. See [Containers](#containers).
 
 <details>
 <summary>Linux restart authorization</summary>
@@ -234,6 +290,7 @@ the PyPluginStore folder.
 | **PyPluginStore self-update is refused** | Its own folder must be a clean Git checkout at the repository root, with an upstream and a fast-forward-only update path. Remove unintended tracked changes or local commits. Check the header and `self_update.log`. |
 | **A Local registry error appears** | Correct `registry_local.json`, then select **Reload entries**. Release management remains paused while the file is invalid. |
 | **Dependency resolution fails** | Follow [Dependency failures](#dependency-failures) and inspect the Domoticz log. |
+| **Header says other plugins can't import shared dependencies** | Follow [Shared dependencies](#shared-dependencies). In a container, see [Containers](#containers). |
 | **Restart times out** | Restart Domoticz externally, then check `restart_domoticz.log`. On Windows, also inspect the `\PyPluginStore-Domoticz-Restart` Task Scheduler history. |
 
 ### Dependency failures

@@ -73,6 +73,12 @@ def generate_plugin():
                 <option label="Enabled" value="Enabled"/>
             </options>
         </param>
+        <param field="Mode3" label="Container Restart" width="175px">
+            <options>
+                <option label="Disabled" value="Disabled" default="true"/>
+                <option label="Enabled" value="Enabled"/>
+            </options>
+        </param>
     </params>
 </plugin>
 """

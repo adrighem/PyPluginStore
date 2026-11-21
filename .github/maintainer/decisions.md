@@ -724,3 +724,43 @@ Rationale:
 
 Public action:
 - Opened `PR:194`.
+
+## 2026-11-21 - Expose shared dependencies through a site .pth file
+
+Decision: keep the single isolated `.shared_deps` generation and make it
+importable for every plugin with one `pypluginstore-shared-deps-<id>.pth` file
+in a site directory of the Python Domoticz runs with (issue #216).
+
+Rationale:
+- Domoticz runs each non-shared plugin in its own sub-interpreter; the old
+  `sys.path.insert` in PyPluginStore's `onStart` reached no other plugin.
+- Installing into the Domoticz environment was rejected after testing: plugins
+  can break each other with exit code 0, failed installs cannot be rolled
+  back, uninstall has no ownership data, and `/opt/venv` is lost on a Docker
+  container recreate.
+- Per-plugin dependency folders need a snippet in every plugin, leaving
+  unmodified plugins broken. Revisit only if real cross-plugin pin conflicts
+  appear.
+
+Implementation notes:
+- Site directory order: virtual environment site-packages, else user site,
+  then system site directories.
+- The `.pth` holds one `import` line that prepends `.shared_deps` only when
+  the built-in `Domoticz` module exists, so resolved versions win over
+  site-packages inside Domoticz and other Python processes are unaffected
+  (verified with embedded Python 3.13 and 3.14).
+- PyPluginStore's own startup `sys.path` shows whether the current boot read
+  the file; plugin start order is irrelevant. A file written during the
+  current Domoticz process is not trusted, because plugin-only restarts reuse
+  the process while earlier plugins missed the file.
+- A missing file triggers exactly one Domoticz restart per `.pth` path; the
+  attempt is recorded before restarting, so a failing setup reports an error
+  instead of looping.
+- Containers have no service manager: restart stops Domoticz with SIGTERM and
+  relies on the restart policy, only when the user enables Container Restart
+  (Mode3).
+- Verified in the official Docker image (Python 3.13.5): first boot, `docker
+  restart`, container recreate with the setting enabled and disabled.
+- Known future risk: CPython may deprecate executable `import` lines in `.pth`
+  files. If that happens, fall back to a plain path line (appended after
+  site-packages) and document the precedence change.

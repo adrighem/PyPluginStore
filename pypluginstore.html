@@ -1304,6 +1304,7 @@
     let managerIdentityVerdict = null;
     let managerStatusDetail = '';
     let selfUpdateState = null;
+    let sharedDepsStatus = null;
     let localRegistryEntries = [];
     let localRegistryRevision = '';
     let localRegistryPath = '';
@@ -1530,7 +1531,7 @@
             managerIdentityVerdict.state === 'consistent' &&
             managerIdentityVerdict.mutations_allowed === true
         ) {
-            setStatus('');
+            setStatus(String((sharedDepsStatus && sharedDepsStatus.message) || '').trim());
             return;
         }
         if (managerIdentityVerdict.state === 'restart_required') {
@@ -3088,7 +3089,9 @@
         installedScanError = String(response.installed_scan_error || '');
         managerKey = response.manager_key || null;
         selfUpdateState = response.self_update || null;
+        sharedDepsStatus = response.shared_dependencies || null;
         filterAndRender();
+        renderManagerStatus();
     }
 
     async function loadPlugins() {
