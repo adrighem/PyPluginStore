@@ -5712,6 +5712,42 @@
       "source": "detected"
     },
     {
+      "branch": "stable9",
+      "confidence": "high",
+      "evidence_class": "explicit_both",
+      "identity": "github.com/zigbeefordomoticz/domoticz-zigbee@stable9",
+      "last_detection": {
+        "confidence": "high",
+        "evidence_class": "explicit_both",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "readme.md: mentions Linux and Windows support",
+          "readme.md: mentions Raspberry Pi/Raspbian",
+          "plugin.py: uses Unix system paths",
+          "plugin.py: uses Linux device paths"
+        ],
+        "requires_python": ">=3.13",
+        "scores": {
+          "both": 8,
+          "linux": 13,
+          "windows": 0
+        }
+      },
+      "owner": "zigbeefordomoticz",
+      "package_id": "Domoticz-Zigbee",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux",
+        "windows"
+      ],
+      "repository": "Domoticz-Zigbee",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "master",
       "confidence": "low",
       "evidence_class": "generic_python",
@@ -9955,42 +9991,6 @@
         "windows"
       ],
       "repository": "XTEND-plugin",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
-      "branch": "stable9",
-      "confidence": "high",
-      "evidence_class": "explicit_both",
-      "identity": "github.com/zigbeefordomoticz/domoticz-zigbee@stable9",
-      "last_detection": {
-        "confidence": "high",
-        "evidence_class": "explicit_both",
-        "platforms": [
-          "linux",
-          "windows"
-        ],
-        "reasons": [
-          "readme.md: mentions Linux and Windows support",
-          "readme.md: mentions Raspberry Pi/Raspbian",
-          "plugin.py: uses Unix system paths",
-          "plugin.py: uses Linux device paths"
-        ],
-        "requires_python": ">=3.13",
-        "scores": {
-          "both": 8,
-          "linux": 13,
-          "windows": 0
-        }
-      },
-      "owner": "zigbeefordomoticz",
-      "package_id": "Zigate",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "Domoticz-Zigbee",
       "reviewed": false,
       "source": "detected"
     },
