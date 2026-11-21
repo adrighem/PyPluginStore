@@ -281,7 +281,7 @@ def test_site_dirs_prefer_virtual_environment(plugin_core_module, monkeypatch):
     monkeypatch.setattr(module.site, "ENABLE_USER_SITE", False)
     monkeypatch.setattr(module.site, "getsitepackages", lambda: ["/opt/venv/lib/python3.13/site-packages"])
 
-    assert module.shared_deps_site_dirs() == ["/opt/venv/lib/python3.13/site-packages"]
+    assert module.shared_deps_site_dirs() == [os.path.abspath("/opt/venv/lib/python3.13/site-packages")]
 
 
 def test_site_dirs_prefer_user_site_outside_virtual_environment(plugin_core_module, monkeypatch):
@@ -293,6 +293,6 @@ def test_site_dirs_prefer_user_site_outside_virtual_environment(plugin_core_modu
     monkeypatch.setattr(module.site, "getsitepackages", lambda: ["/usr/local/lib/python3.13/dist-packages"])
 
     assert module.shared_deps_site_dirs() == [
-        "/root/.local/lib/python3.13/site-packages",
-        "/usr/local/lib/python3.13/dist-packages",
+        os.path.abspath("/root/.local/lib/python3.13/site-packages"),
+        os.path.abspath("/usr/local/lib/python3.13/dist-packages"),
     ]
