@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.32.3](https://github.com/adrighem/PyPluginStore/compare/v2.32.2...v2.32.3) (2026-11-21)
+
+
+### Bug Fixes
+
+* **deps:** make shared dependencies importable for every plugin ([3573510](https://github.com/adrighem/PyPluginStore/commit/35735101155443ffb3cc4824f9398e4bade53eb3))
+* **deps:** make shared dependencies importable for every plugin ([ea07feb](https://github.com/adrighem/PyPluginStore/commit/ea07feb05acc1a3859860a4db48a230860075ac8)), closes [#216](https://github.com/adrighem/PyPluginStore/issues/216)
+* drop mandatory 00- folder prefix for PyPluginStore ([5a5db46](https://github.com/adrighem/PyPluginStore/commit/5a5db46c6a2ffe21585a15bbfd3440f543acb583))
+* drop mandatory 00- folder prefix for PyPluginStore ([a108bf1](https://github.com/adrighem/PyPluginStore/commit/a108bf11881a525862e76cb0e0c95ed9661b729b)), closes [#216](https://github.com/adrighem/PyPluginStore/issues/216)
+
 ## [2.32.2](https://github.com/adrighem/PyPluginStore/compare/v2.32.1...v2.32.2) (2026-11-15)
 
 
