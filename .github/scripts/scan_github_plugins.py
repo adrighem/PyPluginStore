@@ -88,6 +88,7 @@ REPO_BLOCKLIST = {
     "galadril/domoticz-python-plugin-template",
     "hedda/domoticz-zigpy",
     "ycahome/pp-manager",
+    "zigbeefordomoticz/test_domoticzex",
 }
 
 def is_valid_plugin_repo(repo_name):

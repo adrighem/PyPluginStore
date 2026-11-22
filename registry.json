@@ -7081,31 +7081,6 @@
       }
     },
     {
-      "package_id": "test_domoticzex",
-      "domoticz_key": "test-domoticzex",
-      "description": "Testing DomoticzEx integration into ZiGate plugin",
-      "repository": {
-        "url": "https://github.com/zigbeefordomoticz/test_domoticzex",
-        "branch": "master"
-      },
-      "platforms": [
-        "linux",
-        "windows"
-      ],
-      "delivery": {
-        "preferred": "release_if_indexed",
-        "git_supported": true,
-        "release": {
-          "provider": "github",
-          "channel": "stable",
-          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
-          "artifact": "source_zip",
-          "source_path": ".",
-          "mutable_paths": []
-        }
-      }
-    },
-    {
       "package_id": "tuyaha",
       "domoticz_key": "tuya",
       "description": "Implements the special Tuya Home Assistant API.",

@@ -1,6 +1,6 @@
 {
   "missing_certifications": [],
-  "package_count": 255,
+  "package_count": 254,
   "package_mappings": [
     {
       "domoticz_key": "RFSwitches",
@@ -1653,13 +1653,6 @@
       "package_id": "TeslaDomoticz",
       "plugin_py_sha256": "82d850fd024f719ac855fc60f449c06ad67910a28a33d296a930fda6c9f9d18b",
       "repository_identity": "github.com/janjaapko/tesladomoticz"
-    },
-    {
-      "domoticz_key": "test-domoticzex",
-      "legacy_package_id": "test_domoticzex",
-      "package_id": "test_domoticzex",
-      "plugin_py_sha256": "44e5dd371c6f148ad7c29f28f8afcd08a36938fa4703830c2f8603f43ea84487",
-      "repository_identity": "github.com/zigbeefordomoticz/test_domoticzex"
     },
     {
       "domoticz_key": "ThesslaGreen",
