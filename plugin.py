@@ -18405,6 +18405,26 @@ class ManagerIdentityService:
         return verdict
 
 
+# Match sources that rest on the folder name alone; Remove needs plugin.py to
+# confirm them before it may delete the folder.
+FOLDER_NAME_MATCH_SOURCES = frozenset(
+    (
+        "exact folder key",
+        "repository/archive folder name",
+        "normalized folder name",
+    )
+)
+
+# Default for match_installed_plugin(metadata=...): parse plugin.py itself.
+UNPARSED_PLUGIN_METADATA = object()
+
+# Install-conflict "source" label for each folder claim reason.
+FOLDER_CLAIM_SOURCES = {
+    "domoticz key": "domoticz key conflict",
+    "package folder": "registry folder conflict",
+}
+
+
 class BasePlugin:
     enabled = False
     pluginState = "Not Ready"
@@ -19141,6 +19161,53 @@ class BasePlugin:
             metadata[match.group(1).lower()] = html.unescape(value or "")
         return metadata
 
+    def registry_expected_metadata_names(self, plugin_key, entry):
+        """Return the normalized plugin.py key/name values that fit this entry."""
+        clone_url = self.build_git_clone_url(entry.author, entry.repository)
+        expected_names = set()
+        for expected_name in (
+            plugin_key,
+            entry.repository,
+            self.plugin_folder_name_from_clone_url(clone_url),
+            entry.domoticz_key,
+        ):
+            expected_names.add(self.normalize_plugin_metadata_value(expected_name))
+            expected_names.add(
+                self.normalize_plugin_metadata_value(
+                    self.strip_domoticz_plugin_affixes(expected_name)
+                )
+            )
+        expected_names.discard("")
+        return expected_names
+
+    def plugin_metadata_identity_verdict(self, plugin_key, metadata):
+        """Classify plugin.py evidence for a folder-name match.
+
+        Returns "confirmed", "unverified" or "contradicted". Domoticz binds a
+        plugin by its <plugin key>, so a declared key decides when present.
+        """
+        entry = self.get_registry_entry(plugin_key)
+        if metadata is None or entry is None:
+            return "unverified"
+        expected_names = self.registry_expected_metadata_names(plugin_key, entry)
+        declared_key = self.normalize_plugin_metadata_value(metadata.get("key", ""))
+        declared_name = self.normalize_plugin_metadata_value(metadata.get("name", ""))
+        if declared_key:
+            if declared_key in expected_names:
+                return "confirmed"
+            if declared_name in expected_names:
+                return "unverified"
+            if plugin_key in self.local_plugin_keys and not entry.domoticz_key.strip():
+                return "unverified"
+            return "contradicted"
+        if declared_name in expected_names:
+            return "confirmed"
+        clone_url = self.build_git_clone_url(entry.author, entry.repository)
+        link_identity = self.normalize_github_repo_identity(metadata.get("externallink", ""))
+        if link_identity and link_identity == self.normalize_github_repo_identity(clone_url):
+            return "confirmed"
+        return "unverified"
+
     def plugin_metadata_matches_registry(self, plugin_key, plugin_dir, metadata=None):
         entry = self.get_registry_entry(plugin_key)
         if entry is None:
@@ -19162,21 +19229,7 @@ class BasePlugin:
             Domoticz.Debug("Skipped possible plugin match for folder " + os.path.basename(plugin_dir) + " because externallink points to another repository.")
             return False
 
-        repo_folder = self.plugin_folder_name_from_clone_url(clone_url)
-        expected_names = set()
-        for expected_name in (
-            plugin_key,
-            entry.repository,
-            repo_folder,
-            entry.domoticz_key,
-        ):
-            expected_names.add(self.normalize_plugin_metadata_value(expected_name))
-            expected_names.add(
-                self.normalize_plugin_metadata_value(
-                    self.strip_domoticz_plugin_affixes(expected_name)
-                )
-            )
-        expected_names.discard("")
+        expected_names = self.registry_expected_metadata_names(plugin_key, entry)
 
         metadata_names = [
             self.normalize_plugin_metadata_value(metadata.get("key", "")),
@@ -19239,6 +19292,36 @@ class BasePlugin:
             )
             for identity in getattr(entry, "previous_identities", ()):
                 self.add_lookup_candidate(lookup, identity, plugin_key)
+        return lookup
+
+    def normalize_domoticz_key(self, value):
+        """Casefold a Domoticz <plugin key> for identity comparison."""
+        return str(value or "").strip().casefold()
+
+    def declared_domoticz_key(self, metadata):
+        """Return the casefolded plugin.py <plugin key>, or "" when absent."""
+        if metadata is None:
+            return ""
+        return self.normalize_domoticz_key(metadata.get("key", ""))
+
+    def build_domoticz_key_owners(self):
+        """Map each casefolded registry domoticz_key to every owning package."""
+        owners = {}
+        for plugin_key in self.plugin_data:
+            entry = self.get_registry_entry(plugin_key)
+            if plugin_key == "Idle" or entry is None:
+                continue
+            self.add_lookup_candidate(
+                owners,
+                self.normalize_domoticz_key(entry.domoticz_key),
+                plugin_key,
+            )
+        return owners
+
+    def build_domoticz_key_lookup(self, owners=None):
+        """Return domoticz_key owners narrowed to local entries on collision."""
+        lookup = dict(self.build_domoticz_key_owners() if owners is None else owners)
+        self.prefer_local_lookup_candidates(lookup)
         return lookup
 
     def build_installed_plugin_lookup(self):
@@ -19417,6 +19500,7 @@ class BasePlugin:
         for field in (
             "management_mode",
             "management_error",
+            "remove_error",
             "release_metadata_state",
             "package_id",
             "repository_identity",
@@ -19810,6 +19894,57 @@ class BasePlugin:
             return match["key"]
         return ""
 
+    def match_domoticz_key_candidate(self, plugin_folder, declared_key, domoticz_key_lookup):
+        """Match plugin.py <plugin key> against a unique registry domoticz_key."""
+        return self.match_lookup_candidate(
+            plugin_folder,
+            declared_key,
+            domoticz_key_lookup,
+            "plugin.py Domoticz key",
+            15,
+            "plugin.py <plugin key> equals the domoticz_key of a unique registry entry.",
+            "plugin.py Domoticz key",
+        )
+
+    def match_exact_folder_candidate(self, plugin_folder, exact_name_lookup, metadata, rejected_keys):
+        """Return the exact registry-key folder candidate unless plugin.py contradicts it."""
+        matched_key = exact_name_lookup.get(self.normalize_plugin_folder_name(plugin_folder), "")
+        if not matched_key:
+            return None
+        if self.plugin_metadata_identity_verdict(matched_key, metadata) == "contradicted":
+            rejected_keys.add(matched_key)
+            Domoticz.Debug(
+                "Skipped exact folder key candidate "
+                + matched_key
+                + " for folder "
+                + plugin_folder
+                + " because plugin.py declares another Domoticz key."
+            )
+            return None
+        return self.make_installed_plugin_match(
+            matched_key,
+            "exact folder key",
+            30,
+            "Folder name exactly matches a registry plugin key.",
+        )
+
+    def apply_folder_match_remove_gate(self, match, plugin_folder, metadata):
+        """Refuse Remove when only the folder name identifies the plugin."""
+        if not match or match.get("source") not in FOLDER_NAME_MATCH_SOURCES:
+            return
+        matched_key = match.get("key", "")
+        if self.plugin_metadata_identity_verdict(matched_key, metadata) == "confirmed":
+            return
+        match["remove_error"] = (
+            "Folder "
+            + plugin_folder
+            + " matches "
+            + matched_key
+            + " by folder name only and its plugin.py does not confirm it, "
+            "so PyPluginStore will not delete it. Check the folder and remove "
+            "it manually if it is not needed."
+        )
+
     def inferred_folder_match_is_valid(self, matched_key, plugin_path, metadata):
         if metadata is None:
             return True
@@ -19867,7 +20002,11 @@ class BasePlugin:
         metadata_name_lookup,
         remote_lookup,
         repo_identity_lookup,
+        domoticz_key_lookup=None,
+        metadata=UNPARSED_PLUGIN_METADATA,
     ):
+        if domoticz_key_lookup is None:
+            domoticz_key_lookup = self.build_domoticz_key_lookup()
         candidates = []
         plugin_file = os.path.join(plugin_path, "plugin.py")
         is_git_repo = is_git_checkout(plugin_path)
@@ -19904,22 +20043,24 @@ class BasePlugin:
             if match:
                 candidates.append(match)
 
-        metadata = self.parse_domoticz_plugin_metadata(plugin_path) if os.path.isfile(plugin_file) else None
+        if metadata is UNPARSED_PLUGIN_METADATA:
+            metadata = self.parse_domoticz_plugin_metadata(plugin_path)
+        declared_key = self.declared_domoticz_key(metadata)
+        key_owner_count = len(domoticz_key_lookup.get(declared_key, [])) if declared_key else 0
+        if key_owner_count:
+            candidates.append(self.match_domoticz_key_candidate(plugin_folder, declared_key, domoticz_key_lookup))
         if metadata is not None:
             candidates.append(self.match_metadata_externallink_candidate(plugin_folder, metadata, repo_identity_lookup))
 
-        matched_key = exact_name_lookup.get(self.normalize_plugin_folder_name(plugin_folder), "")
-        if matched_key:
-            candidates.append(
-                self.make_installed_plugin_match(
-                    matched_key,
-                    "exact folder key",
-                    30,
-                    "Folder name exactly matches a registry plugin key.",
-                )
-            )
-
         rejected_inferred_keys = set()
+        candidates.append(
+            self.match_exact_folder_candidate(
+                plugin_folder,
+                exact_name_lookup,
+                metadata,
+                rejected_inferred_keys,
+            )
+        )
         self.add_valid_inferred_folder_candidate(
             candidates,
             rejected_inferred_keys,
@@ -19938,12 +20079,20 @@ class BasePlugin:
             metadata,
         )
 
-        if metadata is not None:
+        if metadata is not None and key_owner_count < 2:
             candidates.append(self.match_metadata_names_candidate(plugin_folder, metadata, metadata_name_lookup))
-        elif not os.path.isfile(plugin_file) and not candidates:
+        elif metadata is not None:
+            Domoticz.Debug(
+                "Skipped plugin.py key/name metadata for folder "
+                + plugin_folder
+                + " because its Domoticz key belongs to several registry entries: "
+                + ", ".join(domoticz_key_lookup.get(declared_key, []))
+            )
+        elif not os.path.isfile(plugin_file) and not any(candidates):
             Domoticz.Debug("No registry match found for folder " + plugin_folder + " from git, folder, or metadata because plugin.py was not found.")
 
         match = self.choose_installed_plugin_match(candidates)
+        self.apply_folder_match_remove_gate(match, plugin_folder, metadata)
         match = self.merge_release_install_diagnostic(
             match,
             release_install_match,
@@ -20532,6 +20681,164 @@ class BasePlugin:
                 + " is already installed or claimed by an existing folder."
             )
 
+    def folder_install_claims(
+        self,
+        plugin_folder,
+        match,
+        metadata,
+        exact_name_lookup,
+        domoticz_key_owners,
+    ):
+        """Return (package, folder, reason, label) claims a folder makes on other packages.
+
+        label is the plugin the folder holds for "package folder" claims and
+        the declared <plugin key> for "domoticz key" claims.
+        """
+        matched_key = match.get("key", "") if match else ""
+        claims = []
+        folder_owner = exact_name_lookup.get(
+            self.normalize_plugin_folder_name(plugin_folder),
+            "",
+        )
+        if (
+            folder_owner
+            and folder_owner != matched_key
+            and not (match and match.get("authoritative"))
+        ):
+            claims.append((folder_owner, plugin_folder, "package folder", matched_key))
+        declared_key = self.declared_domoticz_key(metadata)
+        for owner in domoticz_key_owners.get(declared_key, []) if declared_key else []:
+            if owner == matched_key:
+                continue
+            claims.append(
+                (
+                    owner,
+                    plugin_folder,
+                    "domoticz key",
+                    metadata.get("key", "").strip(),
+                )
+            )
+        return claims
+
+    def folder_claim_message(self, plugin_key, reason, folder_labels):
+        """Describe every folder that claims plugin_key for one reason."""
+        folders = sorted(folder_labels, key=lambda value: value.casefold())
+        single = len(folders) == 1
+        folder_text = ("Folder " if single else "Folders ") + ", ".join(folders)
+        if reason == "domoticz key":
+            keys = sorted(set(folder_labels.values()), key=lambda value: value.casefold())
+            return (
+                folder_text
+                + (" already provides" if single else " already provide")
+                + " Domoticz plugin key "
+                + ", ".join(keys)
+                + ". Domoticz cannot load two plugins with the same key; "
+                "remove or rename "
+                + ("that folder" if single else "those folders")
+                + " before installing "
+                + plugin_key
+                + "."
+            )
+        held_key = folder_labels[folders[0]] if single else ""
+        return (
+            folder_text
+            + (" uses" if single else " use")
+            + " the package folder name of "
+            + plugin_key
+            + (
+                " but holds " + held_key
+                if held_key
+                else (
+                    " but its plugin.py names another plugin"
+                    if single
+                    else " but hold other plugins"
+                )
+            )
+            + ". Rename or remove "
+            + ("that folder" if single else "those folders")
+            + " manually before installing "
+            + plugin_key
+            + "."
+        )
+
+    def add_folder_install_conflict(self, conflicts, plugin_key, folders_by_reason):
+        """Merge all folder claims on plugin_key into the add_release_install_conflict shape.
+
+        Folders an existing Release conflict already names are skipped, so
+        the same folder is never reported twice.
+        """
+        existing = conflicts.get(plugin_key)
+        known_folders = set(existing.get("folders", [])) if existing else set()
+        folders_by_reason = {
+            reason: {
+                folder: label
+                for folder, label in folder_labels.items()
+                if folder not in known_folders
+            }
+            for reason, folder_labels in folders_by_reason.items()
+        }
+        folders_by_reason = {
+            reason: folder_labels
+            for reason, folder_labels in folders_by_reason.items()
+            if folder_labels
+        }
+        if not folders_by_reason:
+            return
+        message = " ".join(
+            self.folder_claim_message(plugin_key, reason, folders_by_reason[reason])
+            for reason in sorted(folders_by_reason)
+        )
+        conflict = existing or {
+            "package_id": "",
+            "package_ids": [],
+            "repository_identity": "",
+            "repository_identities": [],
+        }
+        claim_folders = {
+            folder
+            for folder_labels in folders_by_reason.values()
+            for folder in folder_labels
+        }
+        folders = sorted(
+            set(conflict.get("folders", [])) | claim_folders,
+            key=lambda value: value.casefold(),
+        )
+        sources = sorted(
+            set(conflict.get("sources", []))
+            | {FOLDER_CLAIM_SOURCES[reason] for reason in folders_by_reason}
+        )
+        conflict["detail"] = (existing["detail"] + " " + message) if existing else message
+        conflict["management_error"] = (
+            (existing["management_error"] + " " + message) if existing else message
+        )
+        conflict["folder"] = folders[0] if len(folders) == 1 else ""
+        conflict["folders"] = folders
+        conflict["sources"] = sources
+        conflict["source"] = (
+            sources[0] if len(sources) == 1 else "release install metadata conflict"
+        )
+        conflict["reasons"] = sorted(set(conflict.get("reasons", [])) | set(folders_by_reason))
+        conflicts[plugin_key] = conflict
+
+    def add_folder_install_conflicts(
+        self,
+        conflicts,
+        claims,
+        installed_plugins,
+        ambiguous_installed_plugin_folders,
+    ):
+        """Block installs of packages whose folder or Domoticz key is already taken."""
+        grouped = {}
+        for plugin_key, plugin_folder, reason, label in claims:
+            if (
+                plugin_key in installed_plugins
+                or plugin_key in ambiguous_installed_plugin_folders
+            ):
+                continue
+            grouped.setdefault(plugin_key, {}).setdefault(reason, {})[plugin_folder] = label
+        for plugin_key, folders_by_reason in grouped.items():
+            self.add_folder_install_conflict(conflicts, plugin_key, folders_by_reason)
+
     def _get_installed_plugins_unlocked(self, plugins_dir, *, publish=True):
         installed_plugins = []
         installed_plugin_folders = {}
@@ -20549,6 +20856,9 @@ class BasePlugin:
         all_repo_identity_lookup = (
             self.build_registry_repository_identity_lookup()
         )
+        domoticz_key_owners = self.build_domoticz_key_owners()
+        domoticz_key_lookup = self.build_domoticz_key_lookup(domoticz_key_owners)
+        folder_install_claims = []
 
         try:
             plugin_folders = sorted(
@@ -20575,6 +20885,7 @@ class BasePlugin:
                 continue
 
             is_git_repo = is_git_checkout(plugin_path)
+            metadata = self.parse_domoticz_plugin_metadata(plugin_path)
             match = self.match_installed_plugin(
                 plugin_folder,
                 plugin_path,
@@ -20584,6 +20895,17 @@ class BasePlugin:
                 metadata_name_lookup,
                 remote_lookup,
                 repo_identity_lookup,
+                domoticz_key_lookup,
+                metadata=metadata,
+            )
+            folder_install_claims.extend(
+                self.folder_install_claims(
+                    plugin_folder,
+                    match,
+                    metadata,
+                    exact_name_lookup,
+                    domoticz_key_owners,
+                )
             )
             if (
                 match
@@ -20688,6 +21010,7 @@ class BasePlugin:
                     for field in (
                         "management_mode",
                         "management_error",
+                        "remove_error",
                         "release_metadata_state",
                         "package_id",
                         "repository_identity",
@@ -20713,6 +21036,12 @@ class BasePlugin:
                         "is_git": is_git_repo,
                     }
 
+        self.add_folder_install_conflicts(
+            installed_plugin_install_conflicts,
+            folder_install_claims,
+            installed_plugins,
+            ambiguous_installed_plugin_folders,
+        )
         if publish:
             self.installed_plugin_folders = installed_plugin_folders
             self.ambiguous_installed_plugin_folders = (
@@ -20727,6 +21056,72 @@ class BasePlugin:
             self.installed_plugins_snapshot = list(installed_plugins)
             self.installed_plugins_snapshot_available = True
         return installed_plugins
+
+    def installed_plugin_state_key(self, plugin_key):
+        """Return the key plugin_key names in the installed-plugin scan.
+
+        An exact registry or scan key always wins; letter case is only
+        ignored when no exact key exists, so a local folder "foo" can never
+        stand in for registry plugin "Foo". Several case-insensitive matches
+        fail loud instead of picking one.
+        """
+        state_maps = (
+            self.plugin_data,
+            self.installed_plugin_folders,
+            self.ambiguous_installed_plugin_folders,
+            self.installed_plugin_match_details,
+            self.installed_plugin_install_conflicts,
+        )
+        if any(plugin_key in state_map for state_map in state_maps):
+            return plugin_key
+        plugin_key_cf = plugin_key.casefold()
+        matches = sorted(
+            {
+                key
+                for state_map in state_maps
+                for key in state_map
+                if key.casefold() == plugin_key_cf
+            }
+        )
+        if len(matches) > 1:
+            raise ValueError(
+                "Plugin key "
+                + plugin_key
+                + " matches several plugins that differ only in letter case: "
+                + ", ".join(matches)
+                + ". Use the exact plugin key."
+            )
+        return matches[0] if matches else plugin_key
+
+    def checked_installed_plugin_folder(self, plugin_key):
+        """Return the scanned folder for plugin_key, or "" when none.
+
+        Raises ValueError when the scan marks the key ambiguous, conflicting
+        or unmanageable.
+        """
+        state_key = self.installed_plugin_state_key(plugin_key)
+        ambiguous_folders = self.ambiguous_installed_plugin_folders.get(state_key, [])
+        if ambiguous_folders:
+            raise ValueError(
+                "Multiple installed folders match "
+                + plugin_key
+                + ": "
+                + ", ".join(ambiguous_folders)
+                + ". Remove or rename duplicates before continuing."
+            )
+        install_conflict = self.installed_plugin_install_conflicts.get(
+            state_key,
+            {},
+        ).get("management_error", "")
+        if install_conflict:
+            raise ValueError(install_conflict)
+        management_error = self.installed_plugin_match_details.get(
+            state_key,
+            {},
+        ).get("management_error", "")
+        if management_error:
+            raise ValueError(management_error)
+        return self.installed_plugin_folders.get(state_key, "")
 
     def get_installed_plugin_folder(
         self,
@@ -20746,47 +21141,7 @@ class BasePlugin:
                     "Installed plugin folders could not be scanned safely."
                 )
 
-        plugin_key_cf = plugin_key.casefold()
-
-        ambiguous_folders = []
-        for key, folders in self.ambiguous_installed_plugin_folders.items():
-            if key.casefold() == plugin_key_cf:
-                ambiguous_folders = folders
-                break
-
-        if ambiguous_folders:
-            raise ValueError(
-                "Multiple installed folders match "
-                + plugin_key
-                + ": "
-                + ", ".join(ambiguous_folders)
-                + ". Remove or rename duplicates before continuing."
-            )
-
-        install_conflict = ""
-        for key, conf in self.installed_plugin_install_conflicts.items():
-            if key.casefold() == plugin_key_cf:
-                install_conflict = conf.get("management_error", "")
-                break
-
-        if install_conflict:
-            raise ValueError(install_conflict)
-
-        management_error = ""
-        for key, detail in self.installed_plugin_match_details.items():
-            if key.casefold() == plugin_key_cf:
-                management_error = detail.get("management_error", "")
-                break
-
-        if management_error:
-            raise ValueError(management_error)
-
-        plugin_folder = ""
-        for key, folder in self.installed_plugin_folders.items():
-            if key.casefold() == plugin_key_cf:
-                plugin_folder = folder
-                break
-
+        plugin_folder = self.checked_installed_plugin_folder(plugin_key)
         if plugin_folder and os.path.isdir(os.path.join(plugins_dir, plugin_folder)):
             return plugin_folder
 
@@ -20796,45 +21151,7 @@ class BasePlugin:
                 "Installed plugin folders could not be scanned safely."
             )
 
-        ambiguous_folders = []
-        for key, folders in self.ambiguous_installed_plugin_folders.items():
-            if key.casefold() == plugin_key_cf:
-                ambiguous_folders = folders
-                break
-
-        if ambiguous_folders:
-            raise ValueError(
-                "Multiple installed folders match "
-                + plugin_key
-                + ": "
-                + ", ".join(ambiguous_folders)
-                + ". Remove or rename duplicates before continuing."
-            )
-
-        install_conflict = ""
-        for key, conf in self.installed_plugin_install_conflicts.items():
-            if key.casefold() == plugin_key_cf:
-                install_conflict = conf.get("management_error", "")
-                break
-
-        if install_conflict:
-            raise ValueError(install_conflict)
-
-        management_error = ""
-        for key, detail in self.installed_plugin_match_details.items():
-            if key.casefold() == plugin_key_cf:
-                management_error = detail.get("management_error", "")
-                break
-
-        if management_error:
-            raise ValueError(management_error)
-
-        plugin_folder = ""
-        for key, folder in self.installed_plugin_folders.items():
-            if key.casefold() == plugin_key_cf:
-                plugin_folder = folder
-                break
-
+        plugin_folder = self.checked_installed_plugin_folder(plugin_key)
         return plugin_folder if plugin_folder else plugin_key
 
     def resolve_installed_plugin_dir(
@@ -21615,6 +21932,13 @@ class BasePlugin:
                 managed_plugins.append(plugin_key)
         return managed_plugins
 
+    def running_plugin_domoticz_key(self):
+        """Return the <plugin key> declared by the running plugin.py."""
+        metadata = self.parse_domoticz_plugin_metadata(
+            self.get_plugin_home_folder()
+        )
+        return (metadata or {}).get("key", "").strip()
+
     def add_self_to_registry(self):
         self_key = self.get_current_plugin_folder()
         if not self_key:
@@ -21629,6 +21953,7 @@ class BasePlugin:
             self.update_times.get(self_key, ""),
             ["linux", "windows"],
             True,
+            domoticz_key=self.running_plugin_domoticz_key(),
         )
         self.registry_entries[self_key] = entry
         self.plugin_data[self_key] = entry.to_legacy_list()
@@ -22090,7 +22415,8 @@ class BasePlugin:
             Domoticz.Error("Error writing pending_operations.json: " + str(e))
             return False
 
-    def queuePendingOperation(self, action, plugin_key):
+    def queuePendingOperation(self, action, plugin_key, folder=""):
+        """Queue action for the next startup; folder records a confirmed remove target."""
         try:
             plugin_key = self.get_host().validate_plugin_key(plugin_key)
         except ValueError as e:
@@ -22099,16 +22425,33 @@ class BasePlugin:
 
         operations = self.loadPendingOperations()
         operation = {"action": action, "plugin_key": plugin_key}
+        if folder:
+            operation["folder"] = folder
         for existing_operation in operations:
             if existing_operation.get("action") == action and existing_operation.get("plugin_key") == plugin_key:
-                Domoticz.Debug("Pending operation already queued: " + action + " " + plugin_key)
-                return True
+                if existing_operation.get("folder", "") == operation.get("folder", ""):
+                    Domoticz.Debug("Pending operation already queued: " + action + " " + plugin_key)
+                    return True
+                existing_operation.update(operation)
+                return self.savePendingOperations(operations)
 
         operations.append(operation)
         if self.savePendingOperations(operations):
             Domoticz.Log("Queued pending operation: " + action + " " + plugin_key)
             return True
         return False
+
+    def dropped_pending_remove_message(self, plugin_key, message, queued_folder):
+        """Explain a refused pending remove, naming a half-removed folder."""
+        text = "Dropped pending remove for " + str(plugin_key) + ": " + str(message)
+        if queued_folder:
+            text += (
+                " The earlier removal of folder "
+                + str(queued_folder)
+                + " may be incomplete; delete what is left of it manually "
+                "if it is not needed."
+            )
+        return text
 
     def processPendingOperations(self):
         operations = self.loadPendingOperations()
@@ -22121,7 +22464,21 @@ class BasePlugin:
             action = operation.get("action")
             plugin_key = operation.get("plugin_key")
             if action == "remove":
-                success, message = self.removePlugin(plugin_key, queue_on_lock=False)
+                queued_folder = str(operation.get("folder") or "")
+                success, message, refused = self.remove_plugin_folder(
+                    plugin_key,
+                    queue_on_lock=False,
+                    queued_folder=queued_folder,
+                )
+                if refused:
+                    Domoticz.Error(
+                        self.dropped_pending_remove_message(
+                            plugin_key,
+                            message,
+                            queued_folder,
+                        )
+                    )
+                    continue
             elif action == "update":
                 entry = self.get_registry_entry(plugin_key)
                 if entry is not None:
@@ -22146,7 +22503,63 @@ class BasePlugin:
 
         self.savePendingOperations(remaining_operations)
 
+    def installed_plugin_remove_error(self, plugin_key):
+        """Return why plugin_key must not be removed, or "" when it is safe.
+
+        Mirrors the UI: only a registry plugin whose folder is positively
+        identified may be removed; local folders and aliases never are.
+        """
+        state_key = self.installed_plugin_state_key(plugin_key)
+        plugin_folder = self.installed_plugin_folders.get(state_key, "")
+        if not plugin_folder:
+            return (
+                "No installed folder is matched to "
+                + plugin_key
+                + "; nothing was removed."
+            )
+        remove_error = self.installed_plugin_match_details.get(
+            state_key,
+            {},
+        ).get("remove_error", "")
+        if remove_error:
+            return remove_error
+        if state_key not in self.plugin_data:
+            return (
+                "Folder "
+                + plugin_folder
+                + " is not matched to a registry plugin, so PyPluginStore "
+                "will not delete it. Restore this plugin to the registry "
+                "before removing it, or remove the folder manually."
+            )
+        return ""
+
+    def queued_remove_can_resume(self, plugin_key, plugin_target_dir, queued_folder):
+        """Allow a queued remove whose rmtree already deleted plugin.py.
+
+        The remove was authorized when plugin.py still confirmed the
+        identity; resume it only while the scan maps plugin_key to that same
+        folder and plugin.py is gone (nothing new was put in its place).
+        """
+        if not queued_folder:
+            return False
+        state_key = self.installed_plugin_state_key(plugin_key)
+        return (
+            self.installed_plugin_folders.get(state_key, "") == queued_folder
+            and os.path.basename(plugin_target_dir) == queued_folder
+            and state_key in self.plugin_data
+            and os.path.isdir(plugin_target_dir)
+            and not os.path.lexists(os.path.join(plugin_target_dir, "plugin.py"))
+        )
+
     def removePlugin(self, plugin_key, queue_on_lock=True):
+        success, message, _refused = self.remove_plugin_folder(
+            plugin_key,
+            queue_on_lock=queue_on_lock,
+        )
+        return success, message
+
+    def remove_plugin_folder(self, plugin_key, queue_on_lock=True, queued_folder=""):
+        """Remove a matched plugin folder; return (success, message, refused)."""
         host = self.get_host()
         try:
             plugin_key = host.validate_plugin_key(plugin_key)
@@ -22155,23 +22568,37 @@ class BasePlugin:
                 refresh=True,
             )
         except ValueError as e:
-            return False, str(e)
+            # Identity can no longer be proven (conflict, ambiguity, invalid
+            # key): refuse. A failed scan is transient, so keep a queued op.
+            return False, str(e), not self.installed_plugin_scan_error
 
         if os.path.basename(plugin_target_dir) == self.get_current_plugin_folder():
-            return False, "Plugin directory not found or cannot remove self"
+            return False, "Plugin directory not found or cannot remove self", False
+
+        remove_error = self.installed_plugin_remove_error(plugin_key)
+        if remove_error and not self.queued_remove_can_resume(
+            plugin_key,
+            plugin_target_dir,
+            queued_folder,
+        ):
+            return False, remove_error, True
 
         if not os.path.isdir(plugin_target_dir):
-            return False, "Plugin directory not found or cannot remove self"
+            return False, "Plugin directory not found or cannot remove self", False
 
         try:
             shutil.rmtree(plugin_target_dir)
             self.getInstalledPlugins(host.plugins_dir())
-            return True, ""
+            return True, "", False
         except Exception as e:
             if queue_on_lock and host.is_locked_file_error(e):
-                self.queuePendingOperation("remove", plugin_key)
-                return False, "Plugin files are in use; removal queued for the next startup."
-            return False, str(e)
+                self.queuePendingOperation(
+                    "remove",
+                    plugin_key,
+                    folder=os.path.basename(plugin_target_dir),
+                )
+                return False, "Plugin files are in use; removal queued for the next startup.", False
+            return False, str(e), False
 
     def _release_action_confirmation(
         self,

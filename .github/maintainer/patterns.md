@@ -15,7 +15,8 @@
 - Weekly registry discovery must require a non-empty root-level `plugin.py` before adding a repository; Domoticz-adjacent integrations, docs, Home Assistant bridges, MCP servers, scripts, and UI repos are not PyPluginStore plugins without that file.
 - Git ownership repairs should prefer non-destructive, memory-only configuration overrides (`safe.directory` via `-c`) over disk-level permissions changes (`chown`), especially in Docker volume-mount environments, to avoid permission fights and file management friction on the host.
 - Registry source order: remote public registry, bundled fallback, local ignored overlay.
-- Installed detection is tiered: matching git remote, recognized `plugin.py` externallink, exact registry key, unique repo/archive folder name with flexible and Domoticz-affix-stripped normalization, then unique `plugin.py` key/name metadata.
+- Installed detection is tiered: matching git remote, unique `plugin.py` `<plugin key>` against the registry `domoticz_key`, recognized `plugin.py` externallink, exact registry key (skipped when `plugin.py` declares another key), unique repo/archive folder name with flexible and Domoticz-affix-stripped normalization, then unique `plugin.py` key/name metadata (skipped when the key has several owners).
+- Destructive actions need positive identity. A folder matched by name alone may stay listed as installed, but Remove must be refused until `plugin.py` confirms it; folders without a registry entry are never removed; never fall back to deleting `plugins/<key>`; resolve the exact key before any case-insensitive match.
 - Local registry entries are explicit user intent and should win when they collide with public registry repository aliases.
 - A local registry override is Git-only intent: do not consult a persisted public
   Release preference, attach a public Release target, or render a Release switch

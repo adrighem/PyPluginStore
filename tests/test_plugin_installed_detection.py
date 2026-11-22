@@ -1,4 +1,5 @@
 import json
+import os
 from contextlib import contextmanager
 
 import pytest
@@ -282,7 +283,7 @@ def test_invalid_release_metadata_stays_visible_but_blocks_changes(
 
     assert "Somfy" in installed
     detail = plugin.installed_plugin_match_details["Somfy"]
-    assert detail["source"] == "repository/archive folder name"
+    assert detail["source"] == "plugin.py Domoticz key"
     assert detail["release_metadata_state"] == "invalid"
     assert "management_error" in detail
     with pytest.raises(ValueError, match="invalid or unreadable"):
@@ -741,9 +742,16 @@ def test_lock_failure_preserves_a_trusted_empty_snapshot(
     assert "another operation is active" in plugin.installed_plugin_scan_error
 
 
-def test_exact_registry_folder_without_metadata_is_installed(plugin_core_module, tmp_path):
+def forbid_rmtree(plugin_core_module, monkeypatch):
+    def forbidden(path, *args, **kwargs):
+        raise AssertionError("rmtree must not run for " + str(path))
+
+    monkeypatch.setattr(plugin_core_module.shutil, "rmtree", forbidden)
+
+
+def test_exact_registry_folder_without_metadata_is_installed(plugin_core_module, tmp_path, monkeypatch):
     plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
-    (plugins_dir / "deCONZ").mkdir()
+    (plugins_dir / "deCONZ" / "Data").mkdir(parents=True)
     plugin = plugin_core_module.BasePlugin()
     plugin.plugin_data = {
         "deCONZ": ["Smanar", "Domoticz-deCONZ", "description", "master", ""],
@@ -753,10 +761,24 @@ def test_exact_registry_folder_without_metadata_is_installed(plugin_core_module,
 
     assert "deCONZ" in installed
     assert plugin.installed_plugin_folders["deCONZ"] == "deCONZ"
-    assert plugin.installed_plugin_match_details["deCONZ"]["source"] == "exact folder key"
+    detail = plugin.installed_plugin_match_details["deCONZ"]
+    assert detail["source"] == "exact folder key"
+    assert "by folder name only" in detail["remove_error"]
+    assert "management_error" not in detail
+
+    forbid_rmtree(plugin_core_module, monkeypatch)
+    success, message = plugin.removePlugin("deCONZ")
+
+    assert success is False
+    assert "by folder name only" in message
+    assert (plugins_dir / "deCONZ" / "Data").is_dir()
 
 
-def test_exact_registry_folder_with_conflicting_metadata_is_installed(plugin_core_module, tmp_path):
+def test_exact_registry_folder_with_conflicting_metadata_is_not_installed(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+):
     plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
     write_plugin_py(
         plugins_dir / "deCONZ",
@@ -771,8 +793,37 @@ def test_exact_registry_folder_with_conflicting_metadata_is_installed(plugin_cor
 
     installed = plugin.getInstalledPlugins(plugins_dir)
 
-    assert "deCONZ" in installed
-    assert plugin.installed_plugin_folders["deCONZ"] == "deCONZ"
+    assert "deCONZ" not in installed
+    assert "deCONZ" not in plugin.installed_plugin_folders
+    conflict = plugin.installed_plugin_install_conflicts["deCONZ"]
+    assert conflict["reasons"] == ["package folder"]
+    assert conflict["folders"] == ["deCONZ"]
+    assert "plugin.py names another plugin" in conflict["management_error"]
+    with pytest.raises(ValueError, match="package folder name of deCONZ"):
+        plugin.resolve_installed_plugin_dir("deCONZ", refresh=True)
+
+    forbid_rmtree(plugin_core_module, monkeypatch)
+    success, _message = plugin.removePlugin("deCONZ")
+
+    assert success is False
+    assert (plugins_dir / "deCONZ" / "plugin.py").is_file()
+
+
+def test_exact_registry_folder_with_confirming_key_can_be_removed(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(plugins_dir / "deCONZ", key="DECONZ", name="deCONZ")
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "deCONZ": ["Smanar", "Domoticz-deCONZ", "description", "master", ""],
+    }
+
+    plugin.getInstalledPlugins(plugins_dir)
+    assert "remove_error" not in plugin.installed_plugin_match_details["deCONZ"]
+
+    success, message = plugin.removePlugin("deCONZ")
+
+    assert (success, message) == (True, "")
+    assert not (plugins_dir / "deCONZ").exists()
 
 
 def test_externallink_overrides_exact_registry_folder(plugin_core_module, tmp_path):
@@ -1026,7 +1077,7 @@ def test_unmatched_git_remote_falls_back_to_externallink(plugin_core_module, tmp
     assert plugin.installed_plugin_match_details["deCONZ"]["source"] == "plugin.py externallink"
 
 
-def test_unmatched_git_remote_allows_exact_folder_match(plugin_core_module, tmp_path):
+def test_unmatched_git_remote_allows_exact_folder_match(plugin_core_module, tmp_path, monkeypatch):
     plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
     plugin_dir = plugins_dir / "deCONZ"
     (plugin_dir / ".git").mkdir(parents=True)
@@ -1046,6 +1097,14 @@ def test_unmatched_git_remote_allows_exact_folder_match(plugin_core_module, tmp_
 
     assert "deCONZ" in installed
     assert plugin.installed_plugin_folders["deCONZ"] == "deCONZ"
+    assert "by folder name only" in plugin.installed_plugin_match_details["deCONZ"]["remove_error"]
+
+    forbid_rmtree(plugin_core_module, monkeypatch)
+    success, message = plugin.removePlugin("deCONZ")
+
+    assert success is False
+    assert "by folder name only" in message
+    assert (plugin_dir / ".git").is_dir()
 
 
 def test_installed_fork_branch_reports_registry_mismatch(plugin_core_module, tmp_path):
@@ -1249,3 +1308,457 @@ def test_archive_folder_does_not_accept_author_only_match(plugin_core_module, tm
     installed = plugin.getInstalledPlugins(plugins_dir)
 
     assert "deCONZ" not in installed
+
+
+def v2_package(package_id, domoticz_key, url, branch="master"):
+    return {
+        "package_id": package_id,
+        "domoticz_key": domoticz_key,
+        "description": "description",
+        "repository": {"url": url, "branch": branch},
+        "platforms": ["linux"],
+    }
+
+
+PUBLIC_DELIVERY = {
+    "preferred": "release_if_indexed",
+    "git_supported": True,
+    "release": {
+        "provider": "github",
+        "channel": "stable",
+        "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+        "artifact": "source_zip",
+        "source_path": ".",
+        "mutable_paths": [],
+    },
+}
+
+
+def apply_v2_registry(plugin, packages, local_packages=()):
+    plugin.apply_registry_sources(
+        {
+            "schema_version": 2,
+            "packages": [dict(package, delivery=PUBLIC_DELIVERY) for package in packages],
+        },
+        {package["package_id"]: package for package in local_packages},
+    )
+
+
+ZIGATE_URL = "https://github.com/zigbeefordomoticz/Domoticz-Zigbee"
+
+
+def test_unique_domoticz_key_detects_arbitrary_folder_above_externallink(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(
+        plugins_dir / "foo",
+        key="RFSwitches",
+        name="RF Switches",
+        externallink="https://github.com/Smanar/Domoticz-deCONZ",
+    )
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [
+            v2_package("433Switches", "RFSwitches", "https://github.com/flatsiedatsie/433Switches"),
+            v2_package("deCONZ", "DECONZ", "https://github.com/Smanar/Domoticz-deCONZ"),
+        ],
+    )
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert "433Switches" in installed
+    assert "deCONZ" not in installed
+    assert plugin.installed_plugin_folders["433Switches"] == "foo"
+    detail = plugin.installed_plugin_match_details["433Switches"]
+    assert detail["source"] == "plugin.py Domoticz key"
+    assert "remove_error" not in detail
+    assert plugin.installed_plugin_match_details["foo"]["source"] == "local folder alias"
+
+
+def test_pr225_rename_keeps_old_folder_installed_by_domoticz_key(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(plugins_dir / "Zigate", key="Zigate", name="Zigbee for domoticz plugin")
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [v2_package("Domoticz-Zigbee", "Zigate", ZIGATE_URL, "stable9")],
+    )
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert "Domoticz-Zigbee" in installed
+    assert plugin.installed_plugin_folders["Domoticz-Zigbee"] == "Zigate"
+    detail = plugin.installed_plugin_match_details["Domoticz-Zigbee"]
+    assert detail["source"] == "plugin.py Domoticz key"
+    assert "remove_error" not in detail
+    assert plugin.installed_plugin_install_conflicts == {}
+    assert plugin.resolve_installed_plugin_dir("Domoticz-Zigbee") == str(plugins_dir / "Zigate")
+
+
+def test_pr225_rename_without_plugin_py_is_only_a_local_folder(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    (plugins_dir / "Zigate" / "Data").mkdir(parents=True)
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [v2_package("Domoticz-Zigbee", "Zigate", ZIGATE_URL, "stable9")],
+    )
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert "Domoticz-Zigbee" not in installed
+    assert plugin.installed_plugin_match_details["Zigate"]["source"] == "local folder"
+    assert plugin.installed_plugin_install_conflicts == {}
+
+
+def test_non_unique_domoticz_key_blocks_every_owner(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(plugins_dir / "baz", key="Zigbee2MQTT", name="Zigbee2MQTT")
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [
+            v2_package("Zigbee2Mqtt", "Zigbee2MQTT", "https://github.com/stas-demydiuk/domoticz-zigbee2mqtt-plugin"),
+            v2_package("domoticz-zigbee2mqtt-plugin", "Zigbee2MQTT", "https://github.com/RoyP99/domoticz-zigbee2mqtt-plugin"),
+        ],
+    )
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert "Zigbee2Mqtt" not in installed
+    assert "domoticz-zigbee2mqtt-plugin" not in installed
+    assert plugin.installed_plugin_match_details["baz"]["source"] == "local folder"
+    for owner in ("Zigbee2Mqtt", "domoticz-zigbee2mqtt-plugin"):
+        conflict = plugin.installed_plugin_install_conflicts[owner]
+        assert conflict["reasons"] == ["domoticz key"]
+        assert conflict["source"] == "domoticz key conflict"
+        assert conflict["folders"] == ["baz"]
+        assert "Domoticz plugin key Zigbee2MQTT" in conflict["management_error"]
+    with pytest.raises(ValueError, match="Domoticz plugin key Zigbee2MQTT"):
+        plugin.assert_release_install_absent_locked("Zigbee2Mqtt")
+    assert any("several registry entries" in message for message in debug_messages(plugin_core_module))
+
+
+@pytest.mark.parametrize(
+    ("externallink", "source", "unverified"),
+    [
+        ("https://github.com/me/Domoticz-Zigbee-fork", "plugin.py externallink", False),
+        ("", "exact folder key", True),
+    ],
+)
+def test_local_fork_with_empty_domoticz_key_still_wins(
+    plugin_core_module,
+    tmp_path,
+    externallink,
+    source,
+    unverified,
+):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(
+        plugins_dir / "MyZigate",
+        key="Zigate",
+        name="Zigbee for domoticz plugin",
+        externallink=externallink,
+    )
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [v2_package("Zigate", "Zigate", ZIGATE_URL, "stable9")],
+        [v2_package("MyZigate", "", "https://github.com/me/Domoticz-Zigbee-fork", "dev")],
+    )
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert "MyZigate" in installed
+    assert "Zigate" not in installed
+    assert plugin.installed_plugin_folders["MyZigate"] == "MyZigate"
+    detail = plugin.installed_plugin_match_details["MyZigate"]
+    assert detail["source"] == source
+    assert ("remove_error" in detail) is unverified
+    conflict = plugin.installed_plugin_install_conflicts["Zigate"]
+    assert conflict["reasons"] == ["domoticz key"]
+    assert conflict["folders"] == ["MyZigate"]
+
+
+def test_self_folder_is_confirmed_by_running_plugin_key(plugin_core_module, tmp_path):
+    plugins_dir, manager_dir = configure_home(plugin_core_module, tmp_path)
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(plugin, [v2_package("deCONZ", "DECONZ", "https://github.com/Smanar/Domoticz-deCONZ")])
+    plugin.add_self_to_registry()
+
+    installed = plugin.getInstalledPlugins(plugins_dir)
+
+    assert plugin.get_registry_entry(manager_dir.name).domoticz_key == "PP-MANAGER"
+    assert manager_dir.name in installed
+    detail = plugin.installed_plugin_match_details[manager_dir.name]
+    assert detail["source"] == "plugin.py Domoticz key"
+    assert "remove_error" not in detail
+    assert plugin.plugin_metadata_identity_verdict(
+        manager_dir.name,
+        plugin.parse_domoticz_plugin_metadata(str(manager_dir)),
+    ) == "confirmed"
+
+
+def test_remove_refuses_the_unmatched_folder_fallback(plugin_core_module, tmp_path, monkeypatch):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    (plugins_dir / "deCONZ").mkdir()
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "deCONZ": ["Smanar", "Domoticz-deCONZ", "description", "master", ""],
+    }
+    plugin.getInstalledPlugins(plugins_dir)
+    plugin.installed_plugin_folders = {}
+    # Simulate get_installed_plugin_folder's last-resort "<key>" fallback.
+    monkeypatch.setattr(
+        plugin,
+        "get_installed_plugin_folder",
+        lambda plugin_key, plugins_dir=None, refresh=False: plugin_key,
+    )
+    forbid_rmtree(plugin_core_module, monkeypatch)
+
+    success, message = plugin.removePlugin("deCONZ")
+
+    assert success is False
+    assert message == "No installed folder is matched to deCONZ; nothing was removed."
+    assert (plugins_dir / "deCONZ").is_dir()
+
+
+def test_remove_refuses_an_unverified_local_folder_alias(plugin_core_module, tmp_path, monkeypatch):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    (plugins_dir / "Domoticz-deCONZ").mkdir()
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "deCONZ": ["Smanar", "Domoticz-deCONZ", "description", "master", ""],
+    }
+    forbid_rmtree(plugin_core_module, monkeypatch)
+
+    for key in ("Domoticz-deCONZ", "deCONZ"):
+        success, message = plugin.removePlugin(key)
+
+        assert success is False
+        assert "by folder name only" in message
+    assert "remove_error" in plugin.installed_plugin_match_details["Domoticz-deCONZ"]
+    assert (plugins_dir / "Domoticz-deCONZ").is_dir()
+
+
+def test_refused_pending_remove_is_dropped(plugin_core_module, tmp_path, monkeypatch):
+    plugins_dir, manager_dir = configure_home(plugin_core_module, tmp_path)
+    (plugins_dir / "deCONZ").mkdir()
+    (manager_dir / "pending_operations.json").write_text(
+        json.dumps([{"action": "remove", "plugin_key": "deCONZ"}]),
+        encoding="utf-8",
+    )
+    plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "deCONZ": ["Smanar", "Domoticz-deCONZ", "description", "master", ""],
+    }
+    forbid_rmtree(plugin_core_module, monkeypatch)
+
+    plugin.processPendingOperations()
+
+    assert not (manager_dir / "pending_operations.json").exists()
+    assert (plugins_dir / "deCONZ").is_dir()
+    errors = [args[0] for args, _ in plugin_core_module.Domoticz.calls["Error"] if args]
+    assert any(message.startswith("Dropped pending remove for deCONZ") for message in errors)
+
+
+def test_list_plugins_reports_remove_error_and_domoticz_key_conflict(plugin_core_module, tmp_path, monkeypatch):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    (plugins_dir / "deCONZ").mkdir()
+    write_plugin_py(plugins_dir / "MyZigbee", key="Zigbee2MQTT", name="Zigbee2MQTT")
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [
+            v2_package("deCONZ", "DECONZ", "https://github.com/Smanar/Domoticz-deCONZ"),
+            v2_package("Zigbee2Mqtt", "Zigbee2MQTT", "https://github.com/stas-demydiuk/domoticz-zigbee2mqtt-plugin"),
+            v2_package("domoticz-zigbee2mqtt-plugin", "Zigbee2MQTT", "https://github.com/RoyP99/domoticz-zigbee2mqtt-plugin"),
+        ],
+    )
+    responses = []
+    monkeypatch.setattr(plugin, "sendApiResponse", responses.append)
+
+    plugin.handleApiCommand({"action": "list_plugins"})
+
+    response = responses[0]
+    assert "deCONZ" in response["installed"]
+    assert "by folder name only" in response["installed_match_details"]["deCONZ"]["remove_error"]
+    assert response["installation_conflicts"]["Zigbee2Mqtt"]["reasons"] == ["domoticz key"]
+    assert response["installation_conflicts"]["domoticz-zigbee2mqtt-plugin"]["reasons"] == ["domoticz key"]
+
+
+def test_registry_key_never_resolves_to_a_case_variant_local_folder(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(plugins_dir / "foo", key="MyOwn", name="My own plugin")
+    (plugins_dir / "foo" / "precious.db").write_text("data")
+    write_plugin_py(plugins_dir / "zfoo", key="FooKey", name="Foo plugin")
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(plugin, [v2_package("Foo", "FooKey", "https://github.com/a/foo-plugin")])
+
+    plugin.getInstalledPlugins(plugins_dir)
+
+    assert plugin.installed_plugin_folders["foo"] == "foo"
+    assert plugin.installed_plugin_folders["Foo"] == "zfoo"
+    assert plugin.resolve_installed_plugin_dir("Foo") == str(plugins_dir / "zfoo")
+    with pytest.raises(ValueError, match="differ only in letter case"):
+        plugin.resolve_installed_plugin_dir("FOO")
+
+    success, message = plugin.removePlugin("Foo")
+
+    assert (success, message) == (True, "")
+    assert not (plugins_dir / "zfoo").exists()
+    assert (plugins_dir / "foo" / "precious.db").is_file()
+
+
+@pytest.mark.parametrize("folder", ["Backup", "Zigate", "zfoo"])
+def test_remove_refuses_folders_without_registry_identity(
+    plugin_core_module,
+    tmp_path,
+    monkeypatch,
+    folder,
+):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    (plugins_dir / "Backup" / "Data").mkdir(parents=True)
+    (plugins_dir / "Zigate" / "Data").mkdir(parents=True)
+    write_plugin_py(plugins_dir / "zfoo", key="FooKey", name="Foo plugin")
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [
+            v2_package("Domoticz-Zigbee", "Zigate", ZIGATE_URL, "stable9"),
+            v2_package("Foo", "FooKey", "https://github.com/a/foo-plugin"),
+        ],
+    )
+    plugin.getInstalledPlugins(plugins_dir)
+    assert plugin.installed_plugin_match_details[folder]["source"] in (
+        "local folder",
+        "local folder alias",
+    )
+    forbid_rmtree(plugin_core_module, monkeypatch)
+
+    success, message = plugin.removePlugin(folder)
+
+    assert success is False
+    assert "Restore this plugin to the registry" in message
+    assert (plugins_dir / folder).is_dir()
+
+
+def queue_partial_locked_remove(plugin_core_module, plugin, plugins_dir, monkeypatch):
+    """Simulate a Windows rmtree that deletes plugin.py, then hits a locked file."""
+    monkeypatch.setattr(
+        type(plugin.get_host()),
+        "is_locked_file_error",
+        lambda self, error: isinstance(error, PermissionError),
+    )
+    real_rmtree = plugin_core_module.shutil.rmtree
+
+    def partial_rmtree(path, *args, **kwargs):
+        os.remove(os.path.join(path, "plugin.py"))
+        raise PermissionError("native.pyd is in use")
+
+    monkeypatch.setattr(plugin_core_module.shutil, "rmtree", partial_rmtree)
+    success, message = plugin.removePlugin("Foo")
+    monkeypatch.setattr(plugin_core_module.shutil, "rmtree", real_rmtree)
+    assert success is False
+    assert "queued" in message
+    assert plugin.loadPendingOperations() == [
+        {"action": "remove", "plugin_key": "Foo", "folder": "Foo"}
+    ]
+
+
+def foo_plugin_with_locked_library(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(plugins_dir / "Foo", key="FooKey", name="Foo plugin")
+    (plugins_dir / "Foo" / "lib").mkdir()
+    (plugins_dir / "Foo" / "lib" / "native.pyd").write_text("x")
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(plugin, [v2_package("Foo", "FooKey", "https://github.com/a/foo-plugin")])
+    plugin.getInstalledPlugins(plugins_dir)
+    assert "remove_error" not in plugin.installed_plugin_match_details["Foo"]
+    return plugins_dir, plugin
+
+
+def test_partially_removed_plugin_is_finished_on_replay(plugin_core_module, tmp_path, monkeypatch):
+    plugins_dir, plugin = foo_plugin_with_locked_library(plugin_core_module, tmp_path)
+    queue_partial_locked_remove(plugin_core_module, plugin, plugins_dir, monkeypatch)
+    plugin.getInstalledPlugins(plugins_dir)
+    assert "by folder name only" in plugin.installed_plugin_remove_error("Foo")
+
+    plugin.processPendingOperations()
+
+    assert not (plugins_dir / "Foo").exists()
+    assert plugin.loadPendingOperations() == []
+
+
+def test_replaced_folder_drops_the_queued_remove(plugin_core_module, tmp_path, monkeypatch):
+    plugins_dir, plugin = foo_plugin_with_locked_library(plugin_core_module, tmp_path)
+    queue_partial_locked_remove(plugin_core_module, plugin, plugins_dir, monkeypatch)
+    write_plugin_py(plugins_dir / "Foo", key="MyOwn", name="My own plugin")
+    forbid_rmtree(plugin_core_module, monkeypatch)
+
+    plugin.processPendingOperations()
+
+    assert (plugins_dir / "Foo" / "plugin.py").is_file()
+    assert plugin.loadPendingOperations() == []
+    errors = [args[0] for args, _ in plugin_core_module.Domoticz.calls["Error"] if args]
+    assert any(
+        message.startswith("Dropped pending remove for Foo")
+        and "removal of folder Foo may be incomplete" in message
+        for message in errors
+    )
+
+
+def test_domoticz_key_conflict_names_every_claiming_folder(plugin_core_module, tmp_path):
+    plugins_dir, _ = configure_home(plugin_core_module, tmp_path)
+    write_plugin_py(plugins_dir / "bar", key="Zigbee2MQTT", name="Zigbee2MQTT")
+    write_plugin_py(plugins_dir / "foo", key="Zigbee2MQTT", name="Zigbee2MQTT")
+    plugin = plugin_core_module.BasePlugin()
+    apply_v2_registry(
+        plugin,
+        [
+            v2_package("Zigbee2Mqtt", "Zigbee2MQTT", "https://github.com/stas-demydiuk/domoticz-zigbee2mqtt-plugin"),
+            v2_package("domoticz-zigbee2mqtt-plugin", "Zigbee2MQTT", "https://github.com/RoyP99/domoticz-zigbee2mqtt-plugin"),
+        ],
+    )
+
+    plugin.getInstalledPlugins(plugins_dir)
+
+    conflict = plugin.installed_plugin_install_conflicts["Zigbee2Mqtt"]
+    assert conflict["folders"] == ["bar", "foo"]
+    assert conflict["folder"] == ""
+    assert conflict["management_error"].startswith(
+        "Folders bar, foo already provide Domoticz plugin key Zigbee2MQTT."
+    )
+    assert "remove or rename those folders" in conflict["detail"]
+
+
+def test_folder_claim_merges_into_an_existing_release_conflict(plugin_core_module):
+    plugin = plugin_core_module.BasePlugin()
+    conflicts = {
+        "Somfy": {
+            "folder": "Somfy",
+            "folders": ["Somfy"],
+            "source": "orphan release install metadata",
+            "sources": ["orphan release install metadata"],
+            "detail": "Release detail.",
+            "management_error": "Release error.",
+            "reasons": ["package folder"],
+        }
+    }
+
+    plugin.add_folder_install_conflict(
+        conflicts,
+        "Somfy",
+        {"domoticz key": {"Other": "tahomaIO", "Somfy": "tahomaIO"}},
+    )
+
+    conflict = conflicts["Somfy"]
+    assert conflict["folders"] == ["Other", "Somfy"]
+    assert conflict["source"] == "release install metadata conflict"
+    assert conflict["sources"] == ["domoticz key conflict", "orphan release install metadata"]
+    assert conflict["reasons"] == ["domoticz key", "package folder"]
+    assert conflict["management_error"] == (
+        "Release error. Folder Other already provides Domoticz plugin key "
+        "tahomaIO. Domoticz cannot load two plugins with the same key; remove "
+        "or rename that folder before installing Somfy."
+    )

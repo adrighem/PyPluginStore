@@ -105,7 +105,9 @@ are explicit values, not JSON object keys:
 ```
 
 `package_id` is the stable PyPluginStore identity. `domoticz_key` is the exact
-root `plugin.py` `<plugin key="...">` and may differ from it. A Domoticz key
+root `plugin.py` `<plugin key="...">` and may differ from it. PyPluginStore uses
+`domoticz_key` to detect installed copies in any folder and to confirm a folder
+before Remove deletes it, so it must match the plugin's real key. A Domoticz key
 change is a compatibility change and needs explicit review. Repository identity
 uses one canonical, credential-free HTTPS web URL; use an empty `platforms`
 array when support is unknown.
