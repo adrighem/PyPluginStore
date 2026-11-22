@@ -1425,3 +1425,22 @@ def test_missing_pip_guidance_is_logged_for_dependency_rebuild(
     assert returned_message == message
     assert "python3-pip" in message
     assert message in recorded_messages(plugin_core_module, "Error")
+
+
+def test_self_update_helper_decodes_command_output_with_replacement(plugin_core_module, tmp_path):
+    _, manager_dir = configure_home(plugin_core_module, tmp_path)
+    runtime = plugin_core_module.LinuxHostRuntime(plugin_core_module.Parameters)
+
+    helper = runtime.build_self_update_helper(
+        str(manager_dir),
+        str(manager_dir / "self_update.log"),
+        "origin/master",
+        str(manager_dir / "self_update_state.json"),
+        "job-1",
+        {"current_commit": "abc1111", "target_commit": "def2222"},
+        startup_delay=0,
+    )
+
+    run_command_source = helper.split("def run_command(", 1)[1].split("\ndef ", 1)[0]
+    assert 'encoding="utf-8"' in run_command_source
+    assert 'errors="replace"' in run_command_source

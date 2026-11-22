@@ -710,6 +710,7 @@ class HostRuntime:
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
+                errors="replace",
                 timeout=timeout
             )
         except subprocess.TimeoutExpired:
@@ -828,6 +829,9 @@ class HostRuntime:
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
+                # Callers parse this output as paths. Strict decoding makes
+                # undecodable names fail closed instead of yielding wrong paths.
+                errors="strict",
                 timeout=timeout,
             )
         except subprocess.TimeoutExpired:
@@ -1002,6 +1006,7 @@ for group_index, command_group in enumerate(command_groups, start=1):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                errors="replace",
                 timeout=20
             )
             write_log("return code: {}".format(result.returncode))
@@ -1374,6 +1379,7 @@ def run_command(command, timeout):
             stderr=subprocess.PIPE,
             text=True,
             encoding="utf-8",
+            errors="replace",
             timeout=timeout
         )
         write_log("return code: {}".format(result.returncode))
@@ -1631,6 +1637,7 @@ class WindowsHostRuntime(HostRuntime):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                errors="replace",
                 timeout=10,
             )
             self.append_restart_log("PowerShell .ps1 probe return code: " + str(result.returncode))
@@ -1671,6 +1678,7 @@ class WindowsHostRuntime(HostRuntime):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                errors="replace",
                 timeout=10,
             )
             self.append_restart_log("PowerShell EncodedCommand probe return code: " + str(result.returncode))
@@ -1801,6 +1809,7 @@ exit 1
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                errors="replace",
                 timeout=timeout,
             )
             self.append_restart_log("return code: " + str(result.returncode))
@@ -14522,7 +14531,7 @@ class ThemeRegistryService:
     def load_registry(self):
         themes = {}
         root_dir = self.plugin.get_plugin_home_folder()
-        
+
         # Load themes.json
         bundled_path = os.path.join(root_dir, "themes.json")
         if os.path.isfile(bundled_path):
@@ -14741,7 +14750,7 @@ class ThemeDiscoveryService:
         host = self.plugin.get_host()
         registry = self.plugin.theme_registry_service.load_registry()
         entry = registry.get(theme_key)
-        
+
         target_dir = entry.target_dir if entry else theme_key
         if target_dir in PROTECTED_THEMES:
             return False, "Cannot delete built-in protected themes"
@@ -21868,7 +21877,7 @@ class BasePlugin:
             ui_asset_names = ["pypluginstore-icon.png"]
             images_dir = host.images_dir()
             html_dst = host.ui_html_destination()
-            
+
             if os.path.isfile(html_src):
                 if not os.path.exists(templates_dir):
                     Domoticz.Debug(f"Creating templates directory: {templates_dir}")
@@ -21876,7 +21885,7 @@ class BasePlugin:
                 if not os.path.exists(images_dir):
                     Domoticz.Debug(f"Creating images directory: {images_dir}")
                     os.makedirs(images_dir, exist_ok=True)
-                
+
                 # Remove legacy UI if it exists
                 old_html_dst = os.path.join(templates_dir, "pp-manager.html")
                 if os.path.isfile(old_html_dst):
@@ -21885,7 +21894,7 @@ class BasePlugin:
                         Domoticz.Log(f"Removed legacy UI file: {old_html_dst}")
                     except Exception as e:
                         Domoticz.Error(f"Failed to remove legacy UI file: {e}")
-                
+
                 if self.getManagerIdentityService().deploy_runtime_frontend():
                     Domoticz.Log(f"Custom UI autoinstalled/updated: {html_dst}")
                 else:
@@ -21906,7 +21915,7 @@ class BasePlugin:
             Domoticz.Device(Name="API Payload", Unit=1, TypeName="Text", DeviceID="PPM_API_PAYLOAD").Create()
         if 2 not in Devices:
             Domoticz.Device(Name="API Trigger", Unit=2, Type=244, Subtype=73, Switchtype=9, DeviceID="PPM_API_TRIGGER", Used=1).Create()
-            
+
         self.fetch_registry()
         self.processPendingOperations()
 
@@ -21916,7 +21925,7 @@ class BasePlugin:
             Domoticz.Debug("Checking for SecPolUser file on:" + secpoluserFile)
             if os.path.isfile(secpoluserFile):
                 Domoticz.Log("secpoluser file found. Processing!!!")
-                with open(secpoluserFile) as secpoluserFileHandle:
+                with open(secpoluserFile, encoding="utf-8", errors="replace") as secpoluserFileHandle:
                     for line in secpoluserFileHandle:
                         line = line.strip()
                         if line.startswith("--->"):
@@ -21953,7 +21962,7 @@ class BasePlugin:
         Domoticz.Debug("Checking for Exception file on:" + exceptionFile)
         if os.path.isfile(exceptionFile):
             Domoticz.Log("Exception file found. Processing!!!")
-            with open(exceptionFile) as f:
+            with open(exceptionFile, encoding="utf-8", errors="replace") as f:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#"):
@@ -21997,7 +22006,7 @@ class BasePlugin:
                 if not payload_str:
                     Domoticz.Debug("API payload device is empty; ignoring trigger.")
                     return
-                
+
                 # 1. DoS Protection: commands are small, but the shared bridge can still contain a large prior response.
                 if len(payload_str) > API_PAYLOAD_MAX_LENGTH:
                     if self.isApiResponsePayloadString(payload_str):
@@ -22013,9 +22022,9 @@ class BasePlugin:
                 try:
                     # Clear payload device immediately to prevent replay/abuse
                     Devices[1].Update(nValue=0, sValue="")
-                    
+
                     payload = json.loads(payload_str)
-                    
+
                     # 2. Type Validation: Ensure we got a dictionary
                     if not isinstance(payload, dict):
                         raise ValueError("Payload must be a JSON object")
@@ -22023,7 +22032,7 @@ class BasePlugin:
                     if self.isApiResponsePayload(payload):
                         Domoticz.Debug("Ignoring stale API response left in payload device.")
                         return
-                    
+
                     # 3. Content Sanitization
                     self.tx_id = str(payload.get("tx_id", ""))[:50] # Limit tx_id length
                     self.handleApiCommand(payload)
@@ -22822,7 +22831,7 @@ class BasePlugin:
                     }
                 )
                 return
-        
+
         if action == "get_local_registry":
             document = self.local_registry_service.read_document()
             if document.writable:
@@ -22955,7 +22964,7 @@ class BasePlugin:
                 versions,
                 plugins_dir,
             )
-                    
+
             self.sendApiResponse({
                 "status": "success",
                 "action": action,
