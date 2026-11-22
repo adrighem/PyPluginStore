@@ -258,11 +258,11 @@ Theme authors are encouraged to choose the workflow that best fits their project
 1. **Minimal Hobbyist Workflow (Direct Clone)**
    - **Structure:** A single `custom.css` (and optional theme assets) committed directly to the root of the main branch.
    - **Metadata:** `branch` is set to the default branch (e.g. `main` or `master`), and `source_path` is `.`.
-   
+
 2. **Subfolder Compiler Workflow (Single Branch)**
    - **Structure:** The repository contains raw modular source code alongside compiled production assets. Production-ready files (including `custom.css`) are committed to a subfolder (e.g. `dist/`).
    - **Metadata:** `branch` is set to the default branch, and `source_path` is set to the output folder (e.g. `dist`). This prevents dev config files (like `package.json`, `.gitignore`, `webpack.config.js`) from being served directly under `www/styles/`.
-   
+
 3. **Clean Release Branch Workflow (Branch Split)**
    - **Structure:** The developer maintains a clean default branch for source files. A CI/CD workflow (like GitHub Actions) compiles, flattens, and publishes only the production-ready theme assets directly into the root of a dedicated build branch (e.g. `release` or `build`).
    - **Metadata:** `branch` is pointed to the build branch (e.g. `release`), and `source_path` is `.`. This is the most secure and performant option, keeping development files out of the repository checkout and avoiding sequential `@import` latencies for the end-user by shipping flattened CSS.
@@ -346,6 +346,14 @@ python .github/scripts/generate_plugin.py
 ```
 
 Commit both `plugin_core.py` and the regenerated `plugin.py`. The generated file should use LF line endings; the repository `.gitattributes` file is configured to help keep this consistent.
+
+### Decoding subprocess output
+
+Domoticz may run its embedded Python with an ASCII locale, and Windows tools print in the console code page. Never rely on bare `text=True`:
+
+- Output that is only logged or matched against messages (pip, restart and self-update commands, PowerShell, `schtasks`, mutating Git commands): pass `errors="replace"`, plus `encoding="utf-8"` when the tool emits UTF-8. A finished command must never be reported as failed because its output could not be decoded.
+- Output parsed as file paths (`run_git_read_only`, for example `git ls-files -z`): capture bytes and call `.decode("utf-8")` yourself, so a decode error fails closed instead of producing a wrong path. Do not use `text=True` with strict decoding for this: on Windows the decode error happens in a reader thread, is swallowed, and leaves `stdout` as `None` with return code 0.
+- Text files that users edit, such as `secpoluser.txt` and `exceptions.txt`: open with `encoding="utf-8"`.
 
 ## Releases
 

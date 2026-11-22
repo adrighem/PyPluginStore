@@ -277,7 +277,9 @@ permissions, or Windows service configuration.
 </details>
 
 Restart diagnostics for both platforms are written to `restart_domoticz.log` in
-the PyPluginStore folder.
+the PyPluginStore folder. Command output that is not valid text, such as
+localized Windows console output, is logged with `�` replacement characters.
+Those characters are cosmetic and do not mean the command failed.
 
 ## Troubleshooting
 
@@ -292,6 +294,7 @@ the PyPluginStore folder.
 | **Dependency resolution fails** | Follow [Dependency failures](#dependency-failures) and inspect the Domoticz log. |
 | **Header says other plugins can't import shared dependencies** | Follow [Shared dependencies](#shared-dependencies). In a container, see [Containers](#containers). |
 | **Restart times out** | Restart Domoticz externally, then check `restart_domoticz.log`. On Windows, also inspect the `\PyPluginStore-Domoticz-Restart` Task Scheduler history. |
+| **Logs show `�` characters** | The command printed bytes that are not valid UTF-8 or not valid in the system code page. PyPluginStore replaces them and judges success by the exit code, so the output is still usable. Check the return code on the line before. |
 
 ### Dependency failures
 
