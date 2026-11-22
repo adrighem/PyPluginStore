@@ -1762,7 +1762,7 @@
     {
       "domoticz_key": "Zigate",
       "legacy_package_id": "Zigate",
-      "package_id": "Zigate",
+      "package_id": "Domoticz-Zigbee",
       "plugin_py_sha256": "b23f7fcd3df71af6968e3ce04e683b88d731f9a5bee667953d7f3184b9ce76f5",
       "repository_identity": "github.com/zigbeefordomoticz/domoticz-zigbee"
     },
@@ -1792,6 +1792,10 @@
     {
       "legacy_package_id": "Domoticz-Shelly-plugin",
       "package_id": "hoog-domoticz-shelly-plugin"
+    },
+    {
+      "legacy_package_id": "Zigate",
+      "package_id": "Domoticz-Zigbee"
     }
   ],
   "schema_version": 1,
