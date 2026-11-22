@@ -1,6 +1,5 @@
 import json
 import shutil
-import sys
 from pathlib import Path
 
 import pytest
@@ -141,13 +140,7 @@ def test_on_start_recovers_and_finalizes_release_before_other_pending_work(
         "processPendingOperations",
         lambda: calls.append("legacy_pending"),
     )
-    shared_deps = str(manager_dir / ".shared_deps")
-
-    try:
-        plugin.onStart()
-    finally:
-        while shared_deps in sys.path:
-            sys.path.remove(shared_deps)
+    plugin.onStart()
 
     recovered = manager.load_transaction(transaction.operation_id)
     assert recovered.phase == "release_managed"

@@ -17,7 +17,7 @@ def load_module_from_path(name, path):
 
 
 @pytest.fixture
-def plugin_core_module(monkeypatch):
+def plugin_core_module(monkeypatch, tmp_path_factory):
     domoticz = types.ModuleType("Domoticz")
     calls = {name: [] for name in ("Debug", "Log", "Error", "SendNotification", "Debugging", "Heartbeat")}
 
@@ -31,4 +31,10 @@ def plugin_core_module(monkeypatch):
     domoticz.calls = calls
 
     monkeypatch.setitem(sys.modules, "Domoticz", domoticz)
-    return load_module_from_path("plugin_core_under_test", REPO_ROOT / "plugin_core.py")
+    module = load_module_from_path("plugin_core_under_test", REPO_ROOT / "plugin_core.py")
+    # onStart writes a .pth file and may restart Domoticz: keep the file out of
+    # the real site directories and never run real restart commands.
+    site_dir = str(tmp_path_factory.mktemp("site-packages"))
+    monkeypatch.setattr(module, "shared_deps_site_dirs", lambda: [site_dir])
+    monkeypatch.setattr(module.HostRuntime, "can_restart_domoticz", lambda self: False)
+    return module

@@ -42,8 +42,8 @@ legacy owner/author/repo aliases, positional entries, or keyed package objects.
 
 The file is stored beside the installed PyPluginStore plugin:
 
-- Linux: `/path/to/domoticz/plugins/00-PyPluginStore/registry_local.json`
-- Windows: `C:\path\to\domoticz\plugins\00-PyPluginStore\registry_local.json`
+- Linux: `/path/to/domoticz/plugins/PyPluginStore/registry_local.json`
+- Windows: `C:\path\to\domoticz\plugins\PyPluginStore\registry_local.json`
 
 Use schema v2 with an explicit `packages` array:
 
@@ -180,7 +180,7 @@ deletes the installed folder.
 Validate a manually edited file before reloading it:
 
 ```bash
-python -m json.tool /path/to/domoticz/plugins/00-PyPluginStore/registry_local.json
+python -m json.tool /path/to/domoticz/plugins/PyPluginStore/registry_local.json
 ```
 
 Then select **Reload entries** or **Refresh status**. If a private repository
