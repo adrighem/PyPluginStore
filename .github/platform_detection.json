@@ -5780,39 +5780,6 @@
       "source": "detected"
     },
     {
-      "branch": "master",
-      "confidence": "medium",
-      "evidence_class": "linux_evidence",
-      "identity": "github.com/hedda/domoticz-zigpy@master",
-      "last_detection": {
-        "confidence": "medium",
-        "evidence_class": "linux_evidence",
-        "platforms": [
-          "linux"
-        ],
-        "reasons": [
-          "plugin.py: uses Unix system paths",
-          "plugin.py: uses Linux device paths",
-          "testzigpy.py: uses Unix system paths",
-          "testzigpy.py: uses Linux device paths"
-        ],
-        "scores": {
-          "both": 0,
-          "linux": 20,
-          "windows": 0
-        }
-      },
-      "owner": "Hedda",
-      "package_id": "Domoticz-Zigpy",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux"
-      ],
-      "repository": "Domoticz-Zigpy",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
       "branch": "main",
       "confidence": "unknown",
       "evidence_class": "legacy",

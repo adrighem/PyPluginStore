@@ -1,6 +1,6 @@
 {
   "missing_certifications": [],
-  "package_count": 256,
+  "package_count": 255,
   "package_mappings": [
     {
       "domoticz_key": "RFSwitches",
@@ -974,13 +974,6 @@
       "package_id": "domoticz-zigbee2mqtt-plugin",
       "plugin_py_sha256": "673f4b727977e3e0f38494e892b36cfd21ff6d7acf0069c95a56543c55dbf4b0",
       "repository_identity": "github.com/royp99/domoticz-zigbee2mqtt-plugin"
-    },
-    {
-      "domoticz_key": "Zigpy",
-      "legacy_package_id": "Domoticz-Zigpy",
-      "package_id": "Domoticz-Zigpy",
-      "plugin_py_sha256": "74379e165ed026df32d3dd84b05902579d90173b484ed320b1b4ec56f79eb7fd",
-      "repository_identity": "github.com/hedda/domoticz-zigpy"
     },
     {
       "domoticz_key": "ZonneDimmer",
