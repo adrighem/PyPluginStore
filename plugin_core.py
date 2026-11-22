@@ -31,6 +31,7 @@ import os
 import platform
 import re
 import shutil
+import site
 import socket
 import ssl
 import stat
@@ -244,6 +245,8 @@ _MANAGER_LOADED_RELEASE_DOMAIN_FINGERPRINT = getattr(
 API_PAYLOAD_MAX_LENGTH = 2000
 SELF_UPDATE_STARTUP_DELAY_SECONDS = 5
 SELF_UPDATE_ACTIVE_STALE_SECONDS = 15 * 60
+CONTAINER_MARKER_FILES = ("/.dockerenv", "/run/.containerenv")
+SHARED_DEPS_PTH_PREFIX = "pypluginstore-shared-deps-"
 DEFAULT_GIT_HOST = "github.com"
 SUPPORTED_GIT_HOSTS = ("github.com", "gitlab.com", "codeberg.org")
 REPOSITORY_PATH_STOP_PARTS = {
@@ -979,10 +982,16 @@ else:
             .replace("__COMMAND_DELAY__", repr(command_delay))
         )
 
+    def restart_unavailable_message(self):
+        return "Domoticz restart is not configured for this platform."
+
+    def can_restart_domoticz(self):
+        return bool(self.restart_command_groups())
+
     def restart_domoticz(self):
         command_groups = self.restart_command_groups()
         if not command_groups:
-            return False, "Domoticz restart is not configured for this platform."
+            return False, self.restart_unavailable_message()
 
         helper = self.build_restart_helper(command_groups, self.restart_log_file())
         self.append_restart_log("restart requested")
@@ -1439,7 +1448,36 @@ class LinuxHostRuntime(HostRuntime):
     def prepare_web_file(self, path):
         os.chmod(path, 0o644)
 
+    def is_container(self):
+        return bool(os.environ.get("KUBERNETES_SERVICE_HOST")) or any(
+            os.path.exists(marker) for marker in CONTAINER_MARKER_FILES
+        )
+
+    def container_restart_enabled(self):
+        value = str(self.parameter("Mode3", "Disabled") or "").strip().lower()
+        return value in ("enabled", "true", "yes")
+
+    def restart_unavailable_message(self):
+        if self.is_container():
+            return (
+                "Domoticz runs in a container. Give the container a restart "
+                "policy, then set Container Restart to Enabled in the "
+                "PyPluginStore hardware settings."
+            )
+        return super().restart_unavailable_message()
+
     def restart_command_groups(self):
+        if self.is_container():
+            # Domoticz has no restart command and a container has no service
+            # manager: stop Domoticz and let the container restart policy
+            # start it again. Only allowed once the user confirmed a policy.
+            if not self.container_restart_enabled() or not sys.executable:
+                return []
+            stop_domoticz = (
+                "import os, signal; os.kill({}, signal.SIGTERM)"
+                .format(os.getpid())
+            )
+            return [[[sys.executable, "-c", stop_domoticz]]]
         return [
             [["systemctl", "restart", "domoticz.service"]],
             [["sudo", "-n", "systemctl", "restart", "domoticz.service"]],
@@ -12121,6 +12159,222 @@ class ReleaseTransactionManager:
             return self._recover_pending_locked(blocking=blocking)
 
 
+def shared_deps_site_dirs():
+    """Return site directories whose .pth files new interpreters read.
+
+    A virtual environment (as in the Domoticz Docker image) uses its own
+    site-packages. Elsewhere the user site comes first, so no system
+    directory is touched when the user site is usable.
+    """
+    directories = []
+    in_virtual_environment = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
+    if not in_virtual_environment and site.ENABLE_USER_SITE:
+        directories.append(site.getusersitepackages())
+    get_site_packages = getattr(site, "getsitepackages", None)
+    if callable(get_site_packages):
+        directories.extend(get_site_packages())
+    unique = []
+    for directory in directories:
+        if directory and os.path.abspath(directory) not in unique:
+            unique.append(os.path.abspath(directory))
+    return unique
+
+
+def current_process_token():
+    """Identify this Domoticz process; plugin-only restarts keep it."""
+    try:
+        with open("/proc/self/stat", encoding="ascii") as stat_file:
+            fields = stat_file.read().rsplit(")", 1)[1].split()
+        with open("/proc/sys/kernel/random/boot_id", encoding="ascii") as boot_file:
+            boot_id = boot_file.read().strip()
+        return "{}:{}:{}".format(boot_id, os.getpid(), fields[19])
+    except (OSError, IndexError, ValueError):
+        return str(os.getpid())
+
+
+class SharedDependencyActivation:
+    """Make .shared_deps importable in every plugin interpreter.
+
+    Domoticz gives each plugin its own sub-interpreter, so a sys.path change
+    in PyPluginStore reaches no other plugin. Every interpreter Domoticz
+    creates reads .pth files from the site directories, so one .pth file
+    exposes the live dependency generation to all plugins. This
+    interpreter's startup sys.path shows whether the current Domoticz boot
+    already read that file, whatever order the plugins started in, as long
+    as the file was not written during this same Domoticz process.
+    """
+
+    def __init__(
+        self,
+        shared_deps_dir,
+        state_path,
+        startup_sys_path,
+        site_dirs,
+        process_token,
+    ):
+        self.shared_deps_dir = os.path.abspath(shared_deps_dir)
+        self.state_path = state_path
+        self.startup_sys_path = [
+            os.path.abspath(path)
+            for path in startup_sys_path
+            if isinstance(path, str) and path
+        ]
+        self.site_dirs = list(site_dirs)
+        self.process_token = process_token
+        # One file per manager folder: two Domoticz installs sharing a user
+        # site never overwrite each other, and a renamed folder gets a new key.
+        digest = hashlib.sha256(self.shared_deps_dir.encode("utf-8")).hexdigest()
+        self.pth_name = SHARED_DEPS_PTH_PREFIX + digest[:12] + ".pth"
+
+    def pth_contents(self):
+        # site executes "import" lines in every interpreter. Only Domoticz
+        # registers the built-in Domoticz module, so other Python processes
+        # sharing this site directory are unaffected. Prepending keeps the
+        # resolved dependency versions ahead of site-packages. ascii() keeps
+        # the file readable when Python decodes it with the locale encoding.
+        return (
+            "import os, sys; p = {}; sys.path.insert(0, p) if "
+            "'Domoticz' in sys.builtin_module_names and os.path.isdir(p) "
+            "and p not in sys.path else None\n"
+        ).format(ascii(self.shared_deps_dir))
+
+    def is_visible(self):
+        return self.shared_deps_dir in self.startup_sys_path
+
+    def has_dependencies(self):
+        try:
+            with os.scandir(self.shared_deps_dir) as entries:
+                return next(entries, None) is not None
+        except OSError:
+            return False
+
+    def ensure_pth(self):
+        """Write the .pth file unless it is current; return (path, written)."""
+        contents = self.pth_contents()
+        for directory in self.site_dirs:
+            path = os.path.join(directory, self.pth_name)
+            try:
+                with open(path, encoding="utf-8") as pth_file:
+                    if pth_file.read() == contents:
+                        return path, False
+            except (OSError, ValueError):
+                continue
+        errors = []
+        for directory in self.site_dirs:
+            path = os.path.join(directory, self.pth_name)
+            temporary_path = path + ".tmp"
+            try:
+                os.makedirs(directory, exist_ok=True)
+                with open(temporary_path, "w", encoding="utf-8") as pth_file:
+                    pth_file.write(contents)
+                os.replace(temporary_path, path)
+                return path, True
+            except OSError as error:
+                errors.append(directory + ": " + str(error.strerror or error))
+                if os.path.isfile(temporary_path):
+                    os.remove(temporary_path)
+        raise OSError(
+            "no writable site directory for "
+            + self.pth_name
+            + " ("
+            + ("; ".join(errors) or "none found")
+            + ")"
+        )
+
+    def reconcile(self, can_restart, restart_hint):
+        """Write the .pth file and decide what this boot needs.
+
+        Never restarts Domoticz itself: the caller acts on restart_needed
+        and records the attempt with mark_restart_requested first.
+        """
+        if not self.has_dependencies():
+            try:
+                self._record_pth(*self.ensure_pth())
+            except OSError as error:
+                Domoticz.Debug("Shared dependency .pth not written yet: " + str(error))
+            return self._status("inactive", "")
+        try:
+            pth_path, written = self.ensure_pth()
+        except OSError as error:
+            return self._status(
+                "unavailable",
+                "Other plugins can't import shared dependencies: "
+                + str(error)
+                + ".",
+            )
+        self._record_pth(pth_path, written)
+        state = self._read_state()
+        if self.is_visible() and state.get("pth_written_in") != self.process_token:
+            self.clear_restart_request()
+            return self._status("active", "", pth_path)
+        if state.get("restart_requested_for") == pth_path:
+            return self._status(
+                "failed",
+                "Other plugins still can't import shared dependencies after "
+                "the restart PyPluginStore requested. Restart Domoticz "
+                "manually; if this message stays, check that Python reads "
+                + pth_path
+                + ".",
+                pth_path,
+            )
+        if can_restart:
+            return self._status(
+                "restart_needed",
+                "Requested a Domoticz restart so other plugins can import "
+                "shared dependencies. If Domoticz does not restart, restart "
+                "it manually and check restart_domoticz.log.",
+                pth_path,
+            )
+        return self._status(
+            "restart_required",
+            ("Restart Domoticz so other plugins can import shared "
+             "dependencies. " + restart_hint).strip(),
+            pth_path,
+        )
+
+    def mark_restart_requested(self, pth_path):
+        """Record the restart first, so a failing .pth never loops restarts."""
+        self._update_state(restart_requested_for=pth_path)
+
+    def clear_restart_request(self):
+        self._update_state(restart_requested_for=None)
+
+    def _record_pth(self, pth_path, written):
+        if written:
+            self._update_state(pth_written_in=self.process_token)
+
+    def _read_state(self):
+        try:
+            with open(self.state_path, encoding="utf-8") as state_file:
+                state = json.load(state_file)
+        except (OSError, ValueError):
+            return {}
+        return state if isinstance(state, dict) else {}
+
+    def _update_state(self, **changes):
+        state = self._read_state()
+        for key, value in changes.items():
+            if value is None:
+                state.pop(key, None)
+            else:
+                state[key] = value
+        if state == self._read_state():
+            return
+        if not state:
+            os.remove(self.state_path)
+            return
+        os.makedirs(os.path.dirname(self.state_path), exist_ok=True)
+        temporary_path = self.state_path + ".tmp"
+        with open(temporary_path, "w", encoding="utf-8") as state_file:
+            json.dump(state, state_file, sort_keys=True)
+            state_file.write("\n")
+        os.replace(temporary_path, self.state_path)
+
+    @staticmethod
+    def _status(state, message, pth_path=""):
+        return {"state": state, "message": message, "pth_path": pth_path}
+
+
 class ReleaseDependencyError(RuntimeError):
     """A dependency snapshot that cannot safely proceed to activation."""
 
@@ -12708,6 +12962,8 @@ class _ReleaseDependencyCommandRunner:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             check=False,
             timeout=900,
         )
@@ -18093,6 +18349,7 @@ class BasePlugin:
         self.public_registry_data = None
         self.local_plugin_keys = []
         self.local_registry_error = ""
+        self.shared_deps_status = {"state": "unknown", "message": "", "pth_path": ""}
         self.update_times = {}
         self.update_status = {}
         self.plugin_platforms = {}
@@ -21496,12 +21753,6 @@ class BasePlugin:
 
         plugins_dir = host.plugins_dir()
 
-        current_folder = self.get_current_plugin_folder()
-        if not current_folder.startswith("00-"):
-            warn_msg = f"PyPluginStore is in '{current_folder}'. It is strongly advised to rename the folder to start with '00-' (e.g., '00-PyPluginStore') so it loads first."
-            Domoticz.Error(warn_msg)
-            self.sendDomoticzNotification("PyPluginStore Setup Warning", warn_msg)
-
         dependency_recovery_ready = True
         try:
             recovered_generations = (
@@ -21543,11 +21794,10 @@ class BasePlugin:
                 "generation recovery succeeds."
             )
 
-        # Inject shared dependencies into sys.path
-        shared_deps_dir = host.shared_deps_dir()
-        if os.path.isdir(shared_deps_dir) and shared_deps_dir not in sys.path:
-            sys.path.insert(0, shared_deps_dir)
-            Domoticz.Log(f"Injected PyPluginStore shared dependencies into sys.path: {shared_deps_dir}")
+        # Never restart Domoticz while dependency recovery is unresolved.
+        self.shared_deps_status = self.activate_shared_dependencies(
+            host, restart_allowed=dependency_recovery_ready
+        )
 
         # Autoinstall/Update Custom UI
         templates_dir = host.templates_dir()
@@ -22660,6 +22910,7 @@ class BasePlugin:
                 "platforms": self.plugin_platforms,
                 "python_compatibility": self.get_plugin_python_compatibility(),
                 "host_python": f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}",
+                "shared_dependencies": self.shared_deps_status,
                 "self_update": self.getSelfUpdateState()
             })
         elif action == "refresh_update_status":
@@ -22701,6 +22952,7 @@ class BasePlugin:
                 "platforms": self.plugin_platforms,
                 "python_compatibility": self.get_plugin_python_compatibility(),
                 "host_python": f"{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}",
+                "shared_dependencies": self.shared_deps_status,
                 "self_update": self.getSelfUpdateState()
             })
         elif action == "self_update_status":
@@ -23279,6 +23531,49 @@ class BasePlugin:
 
         except Exception as e:
             Domoticz.Error(f"Error reading or processing {pyfilename}: {str(e)}")
+
+    def activate_shared_dependencies(self, host, restart_allowed=True):
+        """Expose .shared_deps to other plugins; restart Domoticz if needed."""
+        activation = SharedDependencyActivation(
+            host.shared_deps_dir(),
+            os.path.join(
+                host.plugin_home_folder(),
+                ".pypluginstore",
+                "shared_deps_activation.json",
+            ),
+            sys.path,
+            shared_deps_site_dirs(),
+            current_process_token(),
+        )
+        try:
+            status = activation.reconcile(
+                restart_allowed and host.can_restart_domoticz(),
+                host.restart_unavailable_message(),
+            )
+            if status["state"] == "restart_needed":
+                activation.mark_restart_requested(status["pth_path"])
+                restarted, restart_message = host.restart_domoticz()
+                if not restarted:
+                    activation.clear_restart_request()
+                    status = dict(
+                        status,
+                        state="restart_required",
+                        message=(
+                            "Restart Domoticz so other plugins can import "
+                            "shared dependencies. " + restart_message
+                        ),
+                    )
+        except OSError as error:
+            status = {
+                "state": "unavailable",
+                "message": "Shared dependency activation failed: " + str(error),
+                "pth_path": "",
+            }
+        if status["state"] in ("failed", "unavailable"):
+            Domoticz.Error(status["message"])
+        elif status["message"]:
+            Domoticz.Log(status["message"])
+        return status
 
     def restartDomoticz(self):
         Domoticz.Log("Domoticz service restart requested from PyPluginStore UI.")

@@ -18,7 +18,7 @@ import os
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CORE_FILE = os.path.join(SCRIPT_DIR, '../../plugin_core.py')
 OUTPUT_FILE = os.path.join(SCRIPT_DIR, '../../plugin.py')
-PLUGIN_VERSION = "2.32.2"  # x-release-please-version
+PLUGIN_VERSION = "2.32.3"  # x-release-please-version
 RELEASE_VERSION_MARKER = "x-release-please-" + "version"
 
 def generate_plugin():
@@ -68,6 +68,12 @@ def generate_plugin():
             </options>
         </param>
         <param field="Mode7" label="Git Ownership Repair" width="175px">
+            <options>
+                <option label="Disabled" value="Disabled" default="true"/>
+                <option label="Enabled" value="Enabled"/>
+            </options>
+        </param>
+        <param field="Mode3" label="Container Restart" width="175px">
             <options>
                 <option label="Disabled" value="Disabled" default="true"/>
                 <option label="Enabled" value="Enabled"/>
