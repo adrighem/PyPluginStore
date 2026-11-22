@@ -348,6 +348,45 @@
       "source": "detected"
     },
     {
+      "branch": "main",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/xavloco/bureaurpi@main",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: mentions Raspberry Pi/Raspbian",
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses Unix system paths",
+          "README.md: uses shell commands",
+          "plugin.py: mentions Raspberry Pi/Raspbian",
+          "plugin.py: uses sudo",
+          "plugin.py: uses systemd",
+          "plugin.py: uses Unix system paths",
+          "plugin.py: imports Linux-specific module pwd"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 36,
+          "windows": 0
+        }
+      },
+      "owner": "xavloco",
+      "package_id": "BureauRPi",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "BureauRPi",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
       "branch": "master",
       "confidence": "low",
       "evidence_class": "generic_python",
@@ -1013,6 +1052,35 @@
       "branch": "main",
       "confidence": "unknown",
       "evidence_class": "legacy",
+      "identity": "github.com/szelessavalapitvany/domoticz-automatic-watering-system@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "generic: no Linux-only or Windows-only evidence found"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 0,
+          "windows": 0
+        }
+      },
+      "owner": "szelessavalapitvany",
+      "package_id": "Domoticz-Automatic-Watering-System",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Domoticz-Automatic-Watering-System",
+      "reviewed": false,
+      "source": "unknown"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
       "identity": "github.com/galadril/domoticz-awtrixng-plugin@main",
       "last_detection": {
         "confidence": "low",
@@ -1038,6 +1106,38 @@
       "repository": "Domoticz-AWTRIXNG-Plugin",
       "reviewed": false,
       "source": "unknown"
+    },
+    {
+      "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "linux_evidence",
+      "identity": "github.com/smanar/domoticz-bbox@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "linux_evidence",
+        "platforms": [
+          "linux"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses chmod",
+          "README.md: uses Unix system paths"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 9,
+          "windows": 0
+        }
+      },
+      "owner": "Smanar",
+      "package_id": "Domoticz-BBox",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux"
+      ],
+      "repository": "Domoticz-BBox",
+      "reviewed": false,
+      "source": "detected"
     },
     {
       "branch": "main",
@@ -2650,6 +2750,35 @@
       "repository": "domoticz-ir-climate-controller",
       "reviewed": false,
       "source": "detected"
+    },
+    {
+      "branch": "main",
+      "confidence": "unknown",
+      "evidence_class": "legacy",
+      "identity": "github.com/szelessavalapitvany/domoticz-jek-presence-switch@main",
+      "last_detection": {
+        "confidence": "low",
+        "evidence_class": "generic_python",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "generic: no Linux-only or Windows-only evidence found"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 0,
+          "windows": 0
+        }
+      },
+      "owner": "szelessavalapitvany",
+      "package_id": "Domoticz-JEK-Presence-Switch",
+      "policy_action": "kept_low_confidence_new",
+      "registry_platforms": [],
+      "repository": "Domoticz-JEK-Presence-Switch",
+      "reviewed": false,
+      "source": "unknown"
     },
     {
       "branch": "master",
@@ -4289,6 +4418,44 @@
         "windows"
       ],
       "repository": "domoticz-python-melcloud",
+      "reviewed": false,
+      "source": "detected"
+    },
+    {
+      "branch": "master",
+      "confidence": "medium",
+      "evidence_class": "mixed_platform_evidence",
+      "identity": "github.com/janreimen/domoticz-rainstats@master",
+      "last_detection": {
+        "confidence": "medium",
+        "evidence_class": "mixed_platform_evidence",
+        "platforms": [
+          "linux",
+          "windows"
+        ],
+        "reasons": [
+          "README.md: uses sudo",
+          "README.md: uses systemd",
+          "README.md: uses shell commands",
+          "rain_stats/history.py: states Windows only",
+          "tests/test_deploy.py: uses shell commands",
+          "tests/test_config.py: uses Unix system paths",
+          "tests/test_repo.py: mentions Raspberry Pi/Raspbian"
+        ],
+        "scores": {
+          "both": 0,
+          "linux": 17,
+          "windows": 10
+        }
+      },
+      "owner": "janreimen",
+      "package_id": "Domoticz-Rainstats",
+      "policy_action": "unchanged",
+      "registry_platforms": [
+        "linux",
+        "windows"
+      ],
+      "repository": "Domoticz-Rainstats",
       "reviewed": false,
       "source": "detected"
     },
@@ -9409,38 +9576,6 @@
         "linux"
       ],
       "repository": "TeslaDomoticz",
-      "reviewed": false,
-      "source": "detected"
-    },
-    {
-      "branch": "master",
-      "confidence": "low",
-      "evidence_class": "generic_python",
-      "identity": "github.com/zigbeefordomoticz/test_domoticzex@master",
-      "last_detection": {
-        "confidence": "low",
-        "evidence_class": "generic_python",
-        "platforms": [
-          "linux",
-          "windows"
-        ],
-        "reasons": [
-          "generic: no Linux-only or Windows-only evidence found"
-        ],
-        "scores": {
-          "both": 0,
-          "linux": 0,
-          "windows": 0
-        }
-      },
-      "owner": "zigbeefordomoticz",
-      "package_id": "test_domoticzex",
-      "policy_action": "unchanged",
-      "registry_platforms": [
-        "linux",
-        "windows"
-      ],
-      "repository": "test_domoticzex",
       "reviewed": false,
       "source": "detected"
     },

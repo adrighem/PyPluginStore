@@ -23,7 +23,7 @@
     },
     {
       "package_id": "Balimo-domoticz-plugin",
-      "updated_at": "2026-11-15T06:36:12Z"
+      "updated_at": "2026-11-21T05:37:32Z"
     },
     {
       "package_id": "BatteryLevel",
@@ -40,6 +40,10 @@
     {
       "package_id": "Broadlink-Domoticz-plugin",
       "updated_at": "2025-11-03T16:37:49Z"
+    },
+    {
+      "package_id": "BureauRPi",
+      "updated_at": "2026-11-21T05:24:09Z"
     },
     {
       "package_id": "ChromecastPlugin",
@@ -63,7 +67,7 @@
     },
     {
       "package_id": "dell-idrac",
-      "updated_at": "2026-11-04T03:35:07Z"
+      "updated_at": "2026-11-18T03:34:41Z"
     },
     {
       "package_id": "Denon4306",
@@ -118,8 +122,16 @@
       "updated_at": "2026-07-20T08:22:28Z"
     },
     {
+      "package_id": "Domoticz-Automatic-Watering-System",
+      "updated_at": "2026-11-19T14:27:01Z"
+    },
+    {
       "package_id": "Domoticz-AWTRIXNG-Plugin",
       "updated_at": "2026-10-01T20:54:28Z"
+    },
+    {
+      "package_id": "Domoticz-BBox",
+      "updated_at": "2026-11-20T18:49:04Z"
     },
     {
       "package_id": "Domoticz-Bluetti-Plugin",
@@ -175,7 +187,7 @@
     },
     {
       "package_id": "Domoticz-DSVT",
-      "updated_at": "2026-11-08T06:50:03Z"
+      "updated_at": "2026-11-18T11:21:32Z"
     },
     {
       "package_id": "domoticz-dts238",
@@ -306,6 +318,10 @@
       "updated_at": "2026-10-14T15:42:23Z"
     },
     {
+      "package_id": "Domoticz-JEK-Presence-Switch",
+      "updated_at": "2026-11-21T13:59:36Z"
+    },
+    {
       "package_id": "Domoticz-Kodi-Plugin",
       "updated_at": "2019-02-12T10:34:47Z"
     },
@@ -363,7 +379,7 @@
     },
     {
       "package_id": "Domoticz-MySkodaAPI",
-      "updated_at": "2026-11-14T10:22:23Z"
+      "updated_at": "2026-11-18T10:30:39Z"
     },
     {
       "package_id": "Domoticz-N8N-Plugin",
@@ -498,6 +514,10 @@
       "updated_at": "2026-09-05T15:18:46Z"
     },
     {
+      "package_id": "Domoticz-Rainstats",
+      "updated_at": "2026-11-21T21:53:45Z"
+    },
+    {
       "package_id": "Domoticz-RAVEn-Plugin",
       "updated_at": "2018-01-22T10:05:42Z"
     },
@@ -527,7 +547,7 @@
     },
     {
       "package_id": "domoticz-solaredge-modbustcp-plugin",
-      "updated_at": "2026-11-14T22:19:39Z"
+      "updated_at": "2026-11-15T18:25:58Z"
     },
     {
       "package_id": "Domoticz-SolarForecast",
@@ -579,7 +599,7 @@
     },
     {
       "package_id": "Domoticz-TinyTUYA-Plugin",
-      "updated_at": "2026-11-06T21:25:01Z"
+      "updated_at": "2026-11-18T20:52:17Z"
     },
     {
       "package_id": "Domoticz-TPLinkRouter",
@@ -783,7 +803,7 @@
     },
     {
       "package_id": "EV_Charge_Control",
-      "updated_at": "2026-09-19T08:09:24Z"
+      "updated_at": "2026-11-18T11:23:04Z"
     },
     {
       "package_id": "evcc_domoticz",
@@ -823,7 +843,7 @@
     },
     {
       "package_id": "GoodWeAPI",
-      "updated_at": "2026-11-14T19:48:51Z"
+      "updated_at": "2026-11-20T10:50:03Z"
     },
     {
       "package_id": "GoveeDiscovery",
@@ -835,7 +855,7 @@
     },
     {
       "package_id": "ha-domoticz-sync",
-      "updated_at": "2026-11-02T05:44:40Z"
+      "updated_at": "2026-11-16T19:20:39Z"
     },
     {
       "package_id": "Hisense-AirCon-Domoticz",
@@ -847,7 +867,7 @@
     },
     {
       "package_id": "homeconnectex",
-      "updated_at": "2026-11-13T01:06:58Z"
+      "updated_at": "2026-11-20T01:07:20Z"
     },
     {
       "package_id": "Homewizard",
@@ -1019,7 +1039,7 @@
     },
     {
       "package_id": "RoborockQ7-Domoticz",
-      "updated_at": "2026-11-15T06:44:48Z"
+      "updated_at": "2026-11-21T05:36:21Z"
     },
     {
       "package_id": "Roomba",
@@ -1063,7 +1083,7 @@
     },
     {
       "package_id": "solarFlow2400AC",
-      "updated_at": "2026-06-25T14:17:35Z"
+      "updated_at": "2026-11-18T06:24:07Z"
     },
     {
       "package_id": "SolarForecast",
@@ -1104,10 +1124,6 @@
     {
       "package_id": "TeslaDomoticz",
       "updated_at": "2026-06-23T20:09:32Z"
-    },
-    {
-      "package_id": "test_domoticzex",
-      "updated_at": "2023-09-19T12:53:35Z"
     },
     {
       "package_id": "ThesslaGreen-modbus",
@@ -1171,7 +1187,7 @@
     },
     {
       "package_id": "Zigate",
-      "updated_at": "2026-11-14T18:50:20Z"
+      "updated_at": "2026-11-21T17:21:21Z"
     },
     {
       "package_id": "Zigbee2Mqtt",

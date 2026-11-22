@@ -198,6 +198,30 @@
       "requires_python": ">=3.8"
     },
     {
+      "package_id": "BureauRPi",
+      "domoticz_key": "BureauRPi",
+      "description": "Plugin Domoticz pour allumer ou couper le bureau graphique d'un Raspberry Pi, avec arrêt automatique.",
+      "repository": {
+        "url": "https://github.com/xavloco/BureauRPi",
+        "branch": "main"
+      },
+      "platforms": [
+        "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "ChromecastPlugin",
       "domoticz_key": "Chromecast",
       "description": "Chromecast plugin for Domoticz, based on PyChromecast",
@@ -451,6 +475,52 @@
       "platforms": [
         "linux",
         "windows"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "Domoticz-Automatic-Watering-System",
+      "domoticz_key": "AWS_OA",
+      "description": "Automatic irrigation controller plugin for Domoticz with Open-Meteo weather forecasts, rainfall-based watering, soil moisture monitoring, scheduling, and multilingual support.",
+      "repository": {
+        "url": "https://github.com/szelessavalapitvany/Domoticz-Automatic-Watering-System",
+        "branch": "main"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "Domoticz-BBox",
+      "domoticz_key": "BBox",
+      "description": "Plugin pour Domoticz et la BBox, le routeur de Bouygues telecom",
+      "repository": {
+        "url": "https://github.com/Smanar/Domoticz-BBox",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux"
       ],
       "delivery": {
         "preferred": "release_if_indexed",
@@ -1049,6 +1119,28 @@
       }
     },
     {
+      "package_id": "Domoticz-JEK-Presence-Switch",
+      "domoticz_key": "JEK",
+      "description": "Presence-based device switching plugin for Domoticz home automation.",
+      "repository": {
+        "url": "https://github.com/szelessavalapitvany/Domoticz-JEK-Presence-Switch",
+        "branch": "main"
+      },
+      "platforms": [],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
       "package_id": "Domoticz-Kodi-Plugin",
       "domoticz_key": "Kodi",
       "description": "Full version of Kodi Python Plugin for Domoticz home automation",
@@ -1548,6 +1640,31 @@
       },
       "platforms": [
         "linux"
+      ],
+      "delivery": {
+        "preferred": "release_if_indexed",
+        "git_supported": true,
+        "release": {
+          "provider": "github",
+          "channel": "stable",
+          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "artifact": "source_zip",
+          "source_path": ".",
+          "mutable_paths": []
+        }
+      }
+    },
+    {
+      "package_id": "Domoticz-Rainstats",
+      "domoticz_key": "Rain-Stats",
+      "description": "Get Domoticz Rain statistics over time periods out of a rain and rain rate sensor",
+      "repository": {
+        "url": "https://github.com/janreimen/Domoticz-Rainstats",
+        "branch": "master"
+      },
+      "platforms": [
+        "linux",
+        "windows"
       ],
       "delivery": {
         "preferred": "release_if_indexed",
@@ -3768,7 +3885,7 @@
     {
       "package_id": "RoborockQ7-Domoticz",
       "domoticz_key": "RoborockQ7",
-      "description": "Plugin Domoticz pour aspirateur robot Roborock Q7",
+      "description": "Roborock Q7 domoticz plugin",
       "repository": {
         "url": "https://github.com/xavloco/RoborockQ7-Domoticz",
         "branch": "main"
@@ -7079,31 +7196,6 @@
       "repository": {
         "url": "https://github.com/j-b-n/sweden_energyprice",
         "branch": "main"
-      },
-      "platforms": [
-        "linux",
-        "windows"
-      ],
-      "delivery": {
-        "preferred": "release_if_indexed",
-        "git_supported": true,
-        "release": {
-          "provider": "github",
-          "channel": "stable",
-          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
-          "artifact": "source_zip",
-          "source_path": ".",
-          "mutable_paths": []
-        }
-      }
-    },
-    {
-      "package_id": "test_domoticzex",
-      "domoticz_key": "test-domoticzex",
-      "description": "Testing DomoticzEx integration into ZiGate plugin",
-      "repository": {
-        "url": "https://github.com/zigbeefordomoticz/test_domoticzex",
-        "branch": "master"
       },
       "platforms": [
         "linux",
