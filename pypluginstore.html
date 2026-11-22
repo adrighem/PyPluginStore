@@ -1070,6 +1070,18 @@
         letter-spacing: 0;
     }
 
+    #pypluginstore-container .unverified-badge {
+        display: inline-block;
+        background: var(--pps-warning);
+        color: #fff;
+        border: 1px solid var(--pps-warning);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7em;
+        font-weight: 600;
+        letter-spacing: 0;
+    }
+
     #pypluginstore-container .repo-mismatch-detail {
         color: var(--pps-warning);
         font-weight: 600;
@@ -4401,6 +4413,14 @@
                     statusBadges.appendChild(channelBadge);
                 }
 
+                if (matchDetails.remove_error) {
+                    const unverifiedBadge = document.createElement('span');
+                    unverifiedBadge.className = 'unverified-badge';
+                    unverifiedBadge.textContent = 'Unverified';
+                    unverifiedBadge.title = String(matchDetails.remove_error);
+                    statusBadges.appendChild(unverifiedBadge);
+                }
+
                 if (hasRepoMismatch) {
                     const mismatchBadge = document.createElement('span');
                     mismatchBadge.className = 'repo-mismatch-badge';
@@ -4679,6 +4699,7 @@
                         installedScanError
                         || installationConflict
                         || matchDetails.management_error
+                        || matchDetails.remove_error
                         || !hasRegistryEntry
                         || (
                             management
@@ -4692,6 +4713,7 @@
                                 && installationConflict.management_error
                             )
                             || matchDetails.management_error
+                            || matchDetails.remove_error
                             || (
                                 !hasRegistryEntry
                                 && 'Restore this plugin to the registry before removing it.'

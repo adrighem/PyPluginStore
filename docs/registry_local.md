@@ -13,7 +13,9 @@ delete an override without deleting the installed plugin.
 `package_id` is the stable PyPluginStore identity and cannot be renamed while
 editing. Create a new package and remove the old entry if you need another ID.
 The `domoticz_key` is separate: it is the exact `<plugin key="...">` value that
-Domoticz uses to bind hardware configuration.
+Domoticz uses to bind hardware configuration. PyPluginStore also uses it to find
+an installed copy in any folder whose `plugin.py` declares that key, and to
+confirm a copy found by folder name.
 
 Saving validates the document locally and writes it atomically; it does not
 contact or install the repository. Concurrent edits are protected by a content
@@ -34,6 +36,9 @@ On the first successful read of a valid package-keyed v1 file, PyPluginStore:
 3. atomically rewrites `registry_local.json` as schema v2.
 
 An uninstalled package may therefore migrate with an empty `domoticz_key`.
+Such an entry is still detected through its Git remote, `externallink` or folder
+name, but a folder found only by name stays **Unverified**: Remove is disabled
+until you set `domoticz_key` to the key in its `plugin.py`.
 Malformed input, colliding package IDs, unsafe paths, or an incompatible backup
 leave the original file untouched and read-only. The active v2 file never keeps
 legacy owner/author/repo aliases, positional entries, or keyed package objects.
@@ -71,7 +76,7 @@ Package IDs must be unique even when case is ignored.
 | Field | Use |
 | --- | --- |
 | `package_id` | Stable PyPluginStore package identity; normally the new-install folder name. |
-| `domoticz_key` | Exact Domoticz `<plugin key="...">`; it may differ from `package_id`. Use `""` only when it cannot yet be certified. |
+| `domoticz_key` | Exact Domoticz `<plugin key="...">`; it may differ from `package_id`. It drives installed detection and confirms Remove. Use `""` only when it cannot yet be certified. |
 | `description` | Text shown on the package card. |
 | `repository.url` | Complete Git clone source: HTTPS, SSH, `file://`, or an HTTP/LAN source you explicitly trust. |
 | `repository.branch` | Branch to clone or update. |

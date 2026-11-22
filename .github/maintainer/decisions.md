@@ -656,6 +656,9 @@ Public action:
 
 ## 2026-06-27 - Preserve and broaden installed plugin detection
 
+Amended by 2026-11-22 - Match installed plugins by Domoticz key and gate Remove
+on positive identity (issue #219).
+
 Decision: use tiered installed-plugin detection that prefers matching git remotes first, then recognized `plugin.py` `externallink`, then exact registry-key folders, unique repository/archive folder names, and unique `plugin.py` key/name metadata.
 
 Rationale:
@@ -764,3 +767,73 @@ Implementation notes:
 - Known future risk: CPython may deprecate executable `import` lines in `.pth`
   files. If that happens, fall back to a plain path line (appended after
   site-packages) and document the precedence change.
+
+## 2026-11-22 - Match installed plugins by Domoticz key and gate Remove on positive identity
+
+Decision: amend the 2026-06-27 tiered detection (issue #219). A unique registry
+`domoticz_key` declared by `plugin.py` is identity evidence, a `plugin.py` key
+that names another plugin vetoes an exact package-folder match, and Remove only
+deletes a folder whose identity is positively confirmed.
+
+Rationale:
+- Domoticz binds hardware by `<plugin key>`, not by folder name. 242 of 293
+  public packages have a `package_id` that differs from `domoticz_key`, so the
+  key never reached the matcher, and PR #225 (Zigate to Domoticz-Zigbee) would
+  have turned existing `plugins/Zigate` installs into unmatched local folders.
+- The exact-folder tier was never checked against `plugin.py`. An empty folder
+  holding only `Data/` and `Conf/`, or a folder holding another plugin, showed
+  as installed and Remove ran `shutil.rmtree` on it.
+- Eight `domoticz_key` values (ignoring case) are shared by several packages.
+  A package ID that
+  happens to casefold to one of them (`Zigbee2Mqtt`) used to claim any folder
+  declaring that key and let the other owner clone a duplicate key.
+
+Implementation notes:
+- Tier order is now: Release metadata (authoritative), git remote (10),
+  unique `plugin.py` Domoticz key (15), recognized `externallink` (20), exact
+  registry-key folder (30), repository/archive folder name (40), normalized
+  folder name (50), unique `plugin.py` key/name (60).
+- `build_domoticz_key_lookup()` is a separate casefolded index. The 6-tuple of
+  `build_installed_plugin_lookup()` is unchanged because Release certification
+  reads it.
+- Candidates are not filtered by key owner, so local registry entries still win
+  through `choose_installed_plugin_match()`. Tier 60 is skipped when the
+  declared key has several owners.
+- `plugin_metadata_identity_verdict()` classifies folder-name matches as
+  confirmed, unverified or contradicted. A declared key decides when present;
+  externallink no longer vetoes, so forks still confirm. A name-only match with
+  a contradicting key, and a local entry with an empty `domoticz_key`, stay
+  unverified. A contradicted exact folder is skipped.
+- The self entry takes `domoticz_key` from the running `plugin.py`
+  (`PP-MANAGER`) so its folder confirms by key.
+- Folder-name matches that are not confirmed get `remove_error`. The UI
+  disables Remove and shows an **Unverified** badge; `removePlugin()` refuses
+  them and also refuses any key without a positive installed folder, which
+  closes the `get_installed_plugin_folder()` fallback to `plugins/<key>`. Like
+  the UI, the server also refuses local folders and folder aliases that have
+  no registry entry. A refused queued remove is dropped instead of retried on
+  every start. Update and dependency rebuilds are unaffected.
+- Key lookups resolve the exact key first (`installed_plugin_state_key()`);
+  letter case is only ignored when no exact key exists, and several
+  case-insensitive matches fail loud. A local folder `foo` can no longer stand
+  in for registry plugin `Foo` in Remove, Update or Install.
+- A remove queued after a locked-file failure records the confirmed folder.
+  On replay it may finish even though the partial `rmtree` already deleted
+  `plugin.py`, but only while the scan still maps the key to that same folder
+  and `plugin.py` is still absent. Otherwise it is dropped and the log names
+  the possibly half-removed folder.
+- Detection of `ISSUE:46`-era canonical folders without `plugin.py` is kept;
+  only their Remove is refused.
+- Install conflicts: `package folder` when a registry-key folder holds another
+  plugin or one `plugin.py` contradicts, and `domoticz key` for every owner
+  that is not installed when any folder, Release-managed ones included,
+  declares its key. This also stops `install()` from treating a foreign
+  `plugins/<key>` as already installed. The message names every claiming
+  folder, and folders an existing Release conflict already names are not
+  reported twice.
+
+Follow-up:
+- PR #225: the runtime has no `legacy_package_id` alias, so Release-managed
+  installs recorded as package `Zigate` become orphan markers after the rename.
+  The repository identity conflict blocks a duplicate install, but the existing
+  folder can no longer be updated. Handle that in PR #225.

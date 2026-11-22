@@ -213,6 +213,16 @@ def test_plugin_cards_render_repo_mismatch_warning():
     assert "Add a matching registry_local.json override before updating this checkout" in script
 
 
+def test_unverified_folder_match_disables_remove_and_shows_badge():
+    html = load_html()
+    script = load_inline_script()
+
+    assert ".unverified-badge" in html
+    assert "unverifiedBadge.textContent = 'Unverified'" in script
+    assert "|| matchDetails.remove_error\n" in script
+    assert script.count("matchDetails.remove_error") >= 4
+
+
 def test_refresh_status_button_is_wired_to_backend_command():
     html = load_html()
     script = load_inline_script()

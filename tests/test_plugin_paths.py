@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from plugin_core_helpers import configure_home
+from plugin_core_helpers import configure_home, write_plugin_py
 
 def test_safe_plugin_dir_rejects_traversal(plugin_core_module, tmp_path):
     configure_home(plugin_core_module, tmp_path)
@@ -32,8 +32,11 @@ def test_remove_command_rejects_traversal(plugin_core_module, tmp_path):
 def test_windows_locked_remove_is_queued(plugin_core_module, tmp_path, monkeypatch):
     _, manager_dir = configure_home(plugin_core_module, tmp_path)
     plugin_dir = tmp_path / "domoticz" / "plugins" / "LockedPlugin"
-    plugin_dir.mkdir()
+    write_plugin_py(plugin_dir, key="LockedPlugin", name="Locked plugin")
     plugin = plugin_core_module.BasePlugin()
+    plugin.plugin_data = {
+        "LockedPlugin": ["tester", "LockedPlugin", "description", "master", ""],
+    }
     plugin.host = plugin_core_module.WindowsHostRuntime(plugin_core_module.Parameters)
 
     monkeypatch.setattr(plugin_core_module.shutil, "rmtree", lambda path: (_ for _ in ()).throw(PermissionError("in use")))
@@ -43,7 +46,7 @@ def test_windows_locked_remove_is_queued(plugin_core_module, tmp_path, monkeypat
     assert success is False
     assert "queued" in message
     assert json.loads((manager_dir / "pending_operations.json").read_text()) == [
-        {"action": "remove", "plugin_key": "LockedPlugin"}
+        {"action": "remove", "plugin_key": "LockedPlugin", "folder": "LockedPlugin"}
     ]
 
 
