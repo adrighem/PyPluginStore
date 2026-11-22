@@ -210,6 +210,8 @@ def validate_repository(author, repository, branch):
             env=env,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=GIT_REMOTE_TIMEOUT_SECONDS,
         )
     except subprocess.TimeoutExpired:

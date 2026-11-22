@@ -28,7 +28,7 @@ from registry_records import RegistryRecord
 from scan_github_plugins import get_repo_info
 
 def main():
-    with open(REGISTRY_FILE, 'r') as f:
+    with open(REGISTRY_FILE, 'r', encoding='utf-8') as f:
         registry = json.load(f)
 
     print(f"Auditing {len(registry)} plugins...")

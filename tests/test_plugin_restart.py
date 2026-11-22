@@ -236,3 +236,79 @@ def test_restart_helper_summarizes_permission_failures(plugin_core_module, tmp_p
     assert "all restart command groups failed" in log_text
     assert "failure summary: Domoticz restart failed: sudo requires an interactive password." in log_text
     assert "NOPASSWD sudoers rule" in log_text
+
+
+INVALID_UTF8_WRITER = "import sys; sys.stdout.buffer.write(b'caf\\xe9 \\xff ok\\n')"
+
+
+def test_restart_helper_tolerates_undecodable_output(plugin_core_module, tmp_path):
+    runtime = plugin_core_module.HostRuntime({})
+    log_file = tmp_path / "restart_domoticz.log"
+    command_groups = [
+        [[plugin_core_module.sys.executable, "-c", INVALID_UTF8_WRITER]],
+        [[plugin_core_module.sys.executable, "-c", "print('second group')"]],
+    ]
+
+    helper = runtime.build_restart_helper(command_groups, str(log_file), startup_delay=0, command_delay=0)
+    result = plugin_core_module.subprocess.run(
+        [plugin_core_module.sys.executable, "-c", helper],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert result.returncode == 0
+    log_text = log_file.read_text(encoding="utf-8")
+    assert "return code: 0" in log_text
+    assert "ok" in log_text
+    assert "exception:" not in log_text
+    assert "second group" not in log_text
+    assert "restart command group completed" in log_text
+
+
+def test_git_runner_replaces_undecodable_output(plugin_core_module, tmp_path):
+    runtime = plugin_core_module.HostRuntime({})
+
+    result = runtime._run_git_once(
+        [plugin_core_module.sys.executable, "-c", INVALID_UTF8_WRITER],
+        str(tmp_path),
+    )
+
+    assert result is not None
+    assert result.returncode == 0
+    assert result.stdout == "caf� � ok\n"
+
+
+def test_git_read_only_runner_fails_closed_on_undecodable_output(plugin_core_module, tmp_path, monkeypatch):
+    runtime = plugin_core_module.HostRuntime({})
+    monkeypatch.setattr(
+        runtime,
+        "safe_git_command",
+        lambda command, cwd: [plugin_core_module.sys.executable, "-c", INVALID_UTF8_WRITER],
+    )
+
+    assert runtime.run_git_read_only(["git", "ls-files", "-z"], str(tmp_path)) is None
+
+
+def test_windows_restart_probes_decode_with_replacement(plugin_core_module, tmp_path, monkeypatch):
+    configure_home(plugin_core_module, tmp_path)
+    runtime = plugin_core_module.WindowsHostRuntime(plugin_core_module.Parameters)
+    calls = []
+
+    class FakeResult:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(*args, **kwargs):
+        calls.append(kwargs)
+        return FakeResult()
+
+    monkeypatch.setattr(plugin_core_module.subprocess, "run", fake_run)
+
+    runtime.probe_powershell_file_execution()
+    runtime.probe_powershell_encoded_command()
+    runtime.run_schtasks(["/Query"])
+
+    assert len(calls) == 3
+    assert all(call.get("errors") == "replace" for call in calls)

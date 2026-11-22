@@ -86,6 +86,7 @@ REPO_BLOCKLIST = {
     "adrighem/pypluginstore",
     "domoticz/domoticz",
     "galadril/domoticz-python-plugin-template",
+    "hedda/domoticz-zigpy",
     "ycahome/pp-manager",
     "zigbeefordomoticz/test_domoticzex",
 }
