@@ -352,7 +352,7 @@ Commit both `plugin_core.py` and the regenerated `plugin.py`. The generated file
 Domoticz may run its embedded Python with an ASCII locale, and Windows tools print in the console code page. Never rely on bare `text=True`:
 
 - Output that is only logged or matched against messages (pip, restart and self-update commands, PowerShell, `schtasks`, mutating Git commands): pass `errors="replace"`, plus `encoding="utf-8"` when the tool emits UTF-8. A finished command must never be reported as failed because its output could not be decoded.
-- Output parsed as file paths (`run_git_read_only`, for example `git ls-files -z`): keep `encoding="utf-8", errors="strict"`. A decode error then fails closed instead of producing a wrong path.
+- Output parsed as file paths (`run_git_read_only`, for example `git ls-files -z`): capture bytes and call `.decode("utf-8")` yourself, so a decode error fails closed instead of producing a wrong path. Do not use `text=True` with strict decoding for this: on Windows the decode error happens in a reader thread, is swallowed, and leaves `stdout` as `None` with return code 0.
 - Text files that users edit, such as `secpoluser.txt` and `exceptions.txt`: open with `encoding="utf-8"`.
 
 ## Releases

@@ -18,6 +18,13 @@ class FakeGitResult:
         self.stderr = stderr
         self.returncode = returncode
 
+    def as_bytes(self):
+        return FakeGitResult(
+            self.stdout.encode("utf-8"),
+            self.stderr.encode("utf-8"),
+            self.returncode,
+        )
+
 
 class GitScenario:
     def __init__(self):
@@ -39,7 +46,8 @@ class GitScenario:
         expected_command, result = self.steps.pop(0)
         if actual_command != expected_command:
             raise AssertionError("expected command " + repr(expected_command) + ", got " + repr(actual_command))
-        return result
+        captures_bytes = kwargs.get("capture_output") and not kwargs.get("text")
+        return result.as_bytes() if captures_bytes else result
 
     def assert_complete(self):
         assert self.steps == []
@@ -302,7 +310,8 @@ def test_git_runners_decode_captured_output_as_utf8(
 
     def fake_run(command, cwd=None, **kwargs):
         run_options.append(kwargs)
-        return FakeGitResult(stdout="PyPluginStore \u00b7 build\n")
+        result = FakeGitResult(stdout="PyPluginStore \u00b7 build\n")
+        return result if kwargs.get("text") else result.as_bytes()
 
     monkeypatch.setattr(plugin_core_module.subprocess, "run", fake_run)
 
@@ -318,8 +327,11 @@ def test_git_runners_decode_captured_output_as_utf8(
     assert "\u00b7" in regular.stdout
     assert "\u00b7" in read_only.stdout
     assert len(run_options) == 2
-    assert all(options["text"] is True for options in run_options)
-    assert all(options["encoding"] == "utf-8" for options in run_options)
+    regular_options, read_only_options = run_options
+    assert regular_options["text"] is True
+    assert regular_options["encoding"] == "utf-8"
+    assert "text" not in read_only_options
+    assert "encoding" not in read_only_options
 
 
 def test_run_git_skips_ownership_repair_by_default_when_safe_directory_fails(plugin_core_module, tmp_path, monkeypatch):

@@ -822,17 +822,22 @@ class HostRuntime:
         environment = self.get_git_env()
         environment["GIT_OPTIONAL_LOCKS"] = "0"
         try:
-            return subprocess.run(
+            completed = subprocess.run(
                 actual_command,
                 cwd=cwd,
                 env=environment,
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                # Callers parse this output as paths. Strict decoding makes
-                # undecodable names fail closed instead of yielding wrong paths.
-                errors="strict",
                 timeout=timeout,
+            )
+            # Callers parse this output as paths, so undecodable names must
+            # fail closed instead of yielding wrong paths. Decode here rather
+            # than with text=True: on Windows a decode error in the reader
+            # thread is swallowed and leaves stdout None with returncode 0.
+            return subprocess.CompletedProcess(
+                actual_command,
+                completed.returncode,
+                completed.stdout.decode("utf-8"),
+                completed.stderr.decode("utf-8"),
             )
         except subprocess.TimeoutExpired:
             Domoticz.Error(
