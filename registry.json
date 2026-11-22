@@ -4446,10 +4446,17 @@
         "release": {
           "provider": "github",
           "channel": "stable",
-          "tag_pattern": "^v?[0-9]+(?:\\.[0-9]+){1,3}$",
+          "tag_pattern": "^stable9-[0-9]+(?:\\.[0-9]+){1,3}$",
           "artifact": "source_zip",
           "source_path": ".",
-          "mutable_paths": []
+          "mutable_paths": [
+            "Conf",
+            "Data",
+            "Logs",
+            "OTAFirmware",
+            "Reports",
+            "certs"
+          ]
         }
       },
       "requires_python": ">=3.13"
