@@ -1,7 +1,7 @@
 {
-  "expires_at": "2026-12-01T11:40:12Z",
-  "generated_at": "2026-11-15T11:40:12Z",
-  "registry_sha256": "ccb7331fe6ab888b727fb78298d762312a46d8211c5545729c45324befe7353a",
+  "expires_at": "2026-12-11T06:54:26Z",
+  "generated_at": "2026-11-25T06:54:26Z",
+  "registry_sha256": "0f356c1fd47f8a65d16ee965bc6777714056169e9403b2e008c1064d2ab7e474",
   "releases": [
     {
       "artifact": {
@@ -440,33 +440,34 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "janreimen-Domoticz-MySkodaAPI-003d96a",
-        "sha256": "7dd43e1e0949e60bf9324ef01d56567e77e4ac362589bf5be7872b66e50dd842",
-        "size": 88164,
+        "root_prefix": "janreimen-Domoticz-MySkodaAPI-ed8f421",
+        "sha256": "263a9d021e96ce4bf8fe663990f59bda777aabdc4402d25f2eb65b60a69ec505",
+        "size": 90658,
         "source_path": ".",
-        "tree_sha256": "90957acd865505ae674624211a3f70900d7eae18fe89b46faa61653d89ba691b",
-        "url": "https://api.github.com/repos/janreimen/domoticz-myskodaapi/zipball/003d96a9c1fa70015e3720d9336ae9929e3efde2"
+        "tree_sha256": "fc028386cf33e9750db7cb9530184ce153d5a22ed90b12c724ce8e5d3e4855ef",
+        "url": "https://api.github.com/repos/janreimen/domoticz-myskodaapi/zipball/ed8f42154b442d3ccc07455f2d28d651ac525b92"
       },
       "certified_identity": {
         "domoticz_key": "MySkodaAPI",
-        "plugin_py_sha256": "6a386170b927acadf48a2bcbad053eaad7893bc8ab703397cd1e00a9876a4a74"
+        "plugin_py_sha256": "480da355d8464183bb2712b60cacdfbd5fa7e55f9aa87350311494a7f113a29d"
       },
-      "commit": "003d96a9c1fa70015e3720d9336ae9929e3efde2",
+      "commit": "ed8f42154b442d3ccc07455f2d28d651ac525b92",
       "package_id": "Domoticz-MySkodaAPI",
       "provider": "github",
-      "release_id": "github:janreimen/domoticz-myskodaapi:v0.4.4.2",
-      "released_at": "2026-10-15T16:48:13Z",
+      "release_id": "github:janreimen/domoticz-myskodaapi:v0.4.4.3",
+      "released_at": "2026-11-18T10:32:27Z",
       "repository_identity": "github.com/janreimen/domoticz-myskodaapi",
-      "revision": 6,
+      "revision": 7,
       "supersedes": [
         "github:janreimen/domoticz-myskodaapi:v0.4.1",
         "github:janreimen/domoticz-myskodaapi:v0.4.2",
         "github:janreimen/domoticz-myskodaapi:v0.4.3.1",
         "github:janreimen/domoticz-myskodaapi:v0.4.3.2",
-        "github:janreimen/domoticz-myskodaapi:v0.4.4.1"
+        "github:janreimen/domoticz-myskodaapi:v0.4.4.1",
+        "github:janreimen/domoticz-myskodaapi:v0.4.4.2"
       ],
-      "tag": "v0.4.4.2",
-      "version": "0.4.4.2"
+      "tag": "v0.4.4.3",
+      "version": "0.4.4.3"
     },
     {
       "artifact": {
@@ -594,6 +595,36 @@
       ],
       "tag": "v1.2.4",
       "version": "1.2.4"
+    },
+    {
+      "artifact": {
+        "kind": "source_zip",
+        "migration": {
+          "evidence": "commit_source_archive",
+          "mode": "automatic"
+        },
+        "provenance": "forge_source_archive",
+        "root_prefix": "janreimen-Domoticz-Rainstats-3ae6102",
+        "sha256": "8d7d5ccc60ff9d07a91b20e9cba51b512c49c928c40107854fb573efe590c49e",
+        "size": 186708,
+        "source_path": ".",
+        "tree_sha256": "0576b6f7a7bccf276a945087b47d06c13da18431628a634d40aa2b7f3c310f8d",
+        "url": "https://api.github.com/repos/janreimen/domoticz-rainstats/zipball/3ae61029618c97d90ad4f0956218ee6a19e55880"
+      },
+      "certified_identity": {
+        "domoticz_key": "Rain-Stats",
+        "plugin_py_sha256": "34d70e3cb0601f54ec73c07184c48c0e65f37c4ef8f3693c5113112dd29b0f6e"
+      },
+      "commit": "3ae61029618c97d90ad4f0956218ee6a19e55880",
+      "package_id": "Domoticz-Rainstats",
+      "provider": "github",
+      "release_id": "github:janreimen/domoticz-rainstats:0.0.4",
+      "released_at": "2026-11-23T09:00:38Z",
+      "repository_identity": "github.com/janreimen/domoticz-rainstats",
+      "revision": 1,
+      "supersedes": [],
+      "tag": "0.0.4",
+      "version": "0.0.4"
     },
     {
       "artifact": {
@@ -1132,27 +1163,29 @@
           "mode": "automatic"
         },
         "provenance": "forge_source_archive",
-        "root_prefix": "JanJaapKo-domoticz-GoodWeSEMS-a86c40f",
-        "sha256": "c6ceaa90ab2534a3589dfe203b9d0c6adbaa60e302b9e9f2fa607f9d592eb9af",
-        "size": 19767,
+        "root_prefix": "JanJaapKo-domoticz-GoodWeSEMS-9252bc5",
+        "sha256": "d3c3eb3f2e24e5c22ea55c7b971bc2c0b00064c34972ea88b64612c161c171be",
+        "size": 68080,
         "source_path": ".",
-        "tree_sha256": "0c358e406826d6eefbc17d4dea5477f5f75d6fe1581dba966dcf96d897eb20f5",
-        "url": "https://api.github.com/repos/janjaapko/domoticz-goodwesems/zipball/a86c40f1c637c047c866ec610ca0e44abcd28978"
+        "tree_sha256": "188c1387370b7bd651047aaa622b4b004c55b4f48e76ce3aa3a43f394da7a4a5",
+        "url": "https://api.github.com/repos/janjaapko/domoticz-goodwesems/zipball/9252bc5ad3cda13c3864185ebbd83105271f2932"
       },
       "certified_identity": {
         "domoticz_key": "GoodWeSEMS",
-        "plugin_py_sha256": "0d8c91f9bac86a9fa533cafaa19923c576b4f26512e4fe06c631764e076c28b3"
+        "plugin_py_sha256": "55964741b3957242d91325eb8bc26838d0fefe15cceefdcd5155ceb6bef59afc"
       },
-      "commit": "a86c40f1c637c047c866ec610ca0e44abcd28978",
+      "commit": "9252bc5ad3cda13c3864185ebbd83105271f2932",
       "package_id": "GoodWeAPI",
       "provider": "github",
-      "release_id": "github:janjaapko/domoticz-goodwesems:4.0.1",
-      "released_at": "2023-12-16T13:36:05Z",
+      "release_id": "github:janjaapko/domoticz-goodwesems:6.4.0",
+      "released_at": "2026-11-20T10:50:04Z",
       "repository_identity": "github.com/janjaapko/domoticz-goodwesems",
-      "revision": 1,
-      "supersedes": [],
-      "tag": "4.0.1",
-      "version": "4.0.1"
+      "revision": 2,
+      "supersedes": [
+        "github:janjaapko/domoticz-goodwesems:4.0.1"
+      ],
+      "tag": "6.4.0",
+      "version": "6.4.0"
     },
     {
       "artifact": {
@@ -2324,7 +2357,7 @@
     }
   ],
   "schema_version": 2,
-  "sequence": 32,
+  "sequence": 33,
   "tombstones": [
     {
       "last_revision": 1,
