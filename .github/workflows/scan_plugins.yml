@@ -79,13 +79,16 @@ jobs:
           echo "COMMIT_MSG=$msg" >> $GITHUB_ENV
 
       - name: Create Pull Request
+        id: cpr
         uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: ${{ env.COMMIT_MSG }}
           title: "Update Domoticz Python plugin registry from weekly scan"
           body-path: "${{ runner.temp }}/pr-body.md"
           branch: "auto-add-plugins"
+          base: "master"
           delete-branch: true
           labels: "automated pr, enhancement"
           add-paths: |
@@ -93,3 +96,38 @@ jobs:
             update_times.json
             release_index.json
             .github/platform_detection.json
+
+      - name: Retry Create Pull Request on transient failure
+        if: steps.cpr.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BODY_PATH: ${{ runner.temp }}/pr-body.md
+        run: |
+          echo "Initial PR creation failed, retrying with 30s wait..."
+          for attempt in 1 2; do
+            echo "Waiting 30 seconds before retry attempt $attempt..."
+            sleep 30
+            PR_NUM=$(gh api "repos/$REPO/pulls?head=${{ github.repository_owner }}:auto-add-plugins&state=open" --jq '.[0].number // empty' 2>/dev/null || true)
+            if [ -n "$PR_NUM" ]; then
+              echo "Pull request #$PR_NUM already exists."
+              gh api "repos/$REPO/pulls/$PR_NUM" -X PATCH -F body=@"$BODY_PATH" >/dev/null 2>&1 || true
+              exit 0
+            fi
+
+            PR_NUM=$(gh api "repos/$REPO/pulls" \
+              -f title="Update Domoticz Python plugin registry from weekly scan" \
+              -f head="auto-add-plugins" \
+              -f base="master" \
+              -F body=@"$BODY_PATH" \
+              --jq '.number // empty' 2>/dev/null || true)
+
+            if [ -n "$PR_NUM" ]; then
+              echo "Pull request #$PR_NUM created successfully on retry attempt $attempt."
+              gh api "repos/$REPO/issues/$PR_NUM/labels" -f "labels[]=automated pr" -f "labels[]=enhancement" >/dev/null 2>&1 || true
+              exit 0
+            fi
+            echo "Retry attempt $attempt failed."
+          done
+          echo "All PR creation retry attempts failed."
+          exit 1
