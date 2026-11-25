@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.32.4](https://github.com/adrighem/PyPluginStore/compare/v2.32.3...v2.32.4) (2026-11-25)
+
+
+### Bug Fixes
+
+* **ci:** retry weekly scan PR creation on transient failure ([e8355f1](https://github.com/adrighem/PyPluginStore/commit/e8355f12843f9af8fabf6becca88ad9d6457255a))
+* decode dependency installer output as UTF-8 explicitly ([#224](https://github.com/adrighem/PyPluginStore/issues/224)) ([61ff6b9](https://github.com/adrighem/PyPluginStore/commit/61ff6b9ebd1fae81221b63a253edfaa66ed02933)), closes [#218](https://github.com/adrighem/PyPluginStore/issues/218)
+* match installed plugins by Domoticz key and refuse unverified Remove ([#229](https://github.com/adrighem/PyPluginStore/issues/229)) ([7a9adad](https://github.com/adrighem/PyPluginStore/commit/7a9adad251ec2ed4c987fdc52b2df4abdd6ebeb2)), closes [#219](https://github.com/adrighem/PyPluginStore/issues/219)
+* **registry:** add BureauRPi, Domoticz-Automatic-Watering-System, Domoticz-BBox and others; update RoborockQ7-Domoticz ([#230](https://github.com/adrighem/PyPluginStore/issues/230)) ([48afb1d](https://github.com/adrighem/PyPluginStore/commit/48afb1d11db815047133274b015b9639d01f6aa8))
+* **registry:** install Zigbee for Domoticz into Domoticz-Zigbee ([#225](https://github.com/adrighem/PyPluginStore/issues/225)) ([ca132f1](https://github.com/adrighem/PyPluginStore/commit/ca132f1e5b5fc7f5321b2afcb551c06286317b57))
+* **registry:** remove Domoticz-Zigpy prototype and block rescans ([#217](https://github.com/adrighem/PyPluginStore/issues/217)) ([7eeb3ca](https://github.com/adrighem/PyPluginStore/commit/7eeb3cade8644a3bc48cc0d2aacaac9d8a563a08))
+* **registry:** remove test_domoticzex test repository ([#220](https://github.com/adrighem/PyPluginStore/issues/220)) ([328f897](https://github.com/adrighem/PyPluginStore/commit/328f8978d3d48611987c8cc0b27cc14169d7bd46))
+* **registry:** Zigate stable9 release tags and local data paths ([#215](https://github.com/adrighem/PyPluginStore/issues/215)) ([ed51fc0](https://github.com/adrighem/PyPluginStore/commit/ed51fc0e466e6db7f31ee84b2078f1cb7b5e32e3))
+* tolerate undecodable subprocess output in git, restart and self-update runners ([#228](https://github.com/adrighem/PyPluginStore/issues/228)) ([57bff84](https://github.com/adrighem/PyPluginStore/commit/57bff840b9b0876b9b7682dac1bff2ef11de7dcd))
+
+
+### Documentation
+
+* **maintainer:** record 2026-11-25 triage run and PR:225 merge ([4a07f56](https://github.com/adrighem/PyPluginStore/commit/4a07f56b19025c3eff3e9ef05ca53ddb4d894db9))
+
 ## [2.32.3](https://github.com/adrighem/PyPluginStore/compare/v2.32.2...v2.32.3) (2026-11-21)
 
 
