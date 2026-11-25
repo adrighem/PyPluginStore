@@ -973,3 +973,23 @@ Open items:
 1. `ISSUE:190`: plain-language review of user-facing status text. Start with `pypluginstore.html` `formatCardManagementStatus` (`Git - update available`, `Git - new commits available`, git `current`) and `plugin_core.py` migration/preservation messages ("Release migration needs confirmation", "preservation policy contains an unsafe path"). Proposed: `Update available`, `Up to date`, action-oriented explanations with technical detail in a tooltip. Ping arjantenhoopen to review wording.
 2. Author credit: `include-commit-authors: true` in `release-please-config.json` rendered no authors in 2.30.6. Check release-please action version support and whether it only applies to some commit/author types.
 3. Merge hygiene: enforce squash-only with PR title as commit subject (repo setting `squash_merge_commit_title=PR_TITLE`), optionally add a conventional PR title check, so external PRs land in the changelog without manual cleanup.
+
+## 2026-11-25 - Triage: PR:225, PR:226, PR:227
+
+- Full inbox scan: 0 open issues; 3 open PRs (225, 226, 227); no notifications.
+- `PR:225` (pipiche38, `Zigate` -> `Domoticz-Zigbee` package_id rename): deep review complete. Repo identity unchanged (already `github.com/zigbeefordomoticz/domoticz-zigbee`, no `previous_identities` needed); installed-folder matching survives via `domoticz_key`/git-remote lookups; post-merge registry validates (293 packages, round-trip identical); migration report file is a non-runtime artifact. Merged as squash commit `ca132f1` after maintainer approval.
+- Post-merge verification: `release_index.json` already re-bound by the auto workflow (sequence 31 -> 32, `registry_sha256` matches new registry bytes, `ReleaseIndex.from_document` passes); no `Zigate`/`Domoticz-Zigbee` release descriptors exist, so no install markers orphan.
+- `PR:226` release 2.32.4: all checks SUCCESS, mergeable; awaiting maintainer approval.
+- `PR:227` weekly scan: BLOCKED. CONFLICTING against master + two `action_required` runs on head `4bbbcc97` (databaseId 45022542093, 45022542134). New-package content verified clean (5 `domoticz_key` values match live `plugin.py`); `test_domoticzex` removal already in master (stale PR body). Needs rebase + re-scan + required-check resolution.
+
+Verification:
+- Post-merge registry: 293 packages, `Domoticz-Zigbee` present, no `Zigate`; registry/index sha256 pair match confirmed.
+- Notes: `.github/maintainer/notes/pr-225.md`, `pr-226.md`, `pr-227.md`.
+
+Open items:
+1. `PR:226` (release 2.32.4): pending maintainer merge approval.
+2. `PR:227`: rebase onto master, re-run scan, resolve `action_required` required checks (inspect `gh run view 45022542093`), re-review, merge.
+3. Uncommitted local `scan_plugins.yml` edit (cpr retry step + `base: master`): likely in-flight fix for the PR:227 transient-failure mode; confirm intent and commit.
+4. `ISSUE:190`: plain-language review of user-facing status text. Start with `pypluginstore.html` `formatCardManagementStatus` (`Git - update available`, `Git - new commits available`, git `current`) and `plugin_core.py` migration/preservation messages ("Release migration needs confirmation", "preservation policy contains an unsafe path"). Proposed: `Update available`, `Up to date`, action-oriented explanations with technical detail in a tooltip. Ping arjantenhoopen to review wording.
+5. Author credit: `include-commit-authors: true` in `release-please-config.json` rendered no authors in 2.30.6. Check release-please action version support and whether it only applies to some commit/author types. Verify against the 2.32.4 changelog once PR:226 merges.
+6. Merge hygiene: enforce squash-only with PR title as commit subject (repo setting `squash_merge_commit_title=PR_TITLE`), optionally add a conventional PR title check, so external PRs land in the changelog without manual cleanup.
