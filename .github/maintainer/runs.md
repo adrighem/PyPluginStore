@@ -993,3 +993,23 @@ Open items:
 4. `ISSUE:190`: plain-language review of user-facing status text. Start with `pypluginstore.html` `formatCardManagementStatus` (`Git - update available`, `Git - new commits available`, git `current`) and `plugin_core.py` migration/preservation messages ("Release migration needs confirmation", "preservation policy contains an unsafe path"). Proposed: `Update available`, `Up to date`, action-oriented explanations with technical detail in a tooltip. Ping arjantenhoopen to review wording.
 5. Author credit: `include-commit-authors: true` in `release-please-config.json` rendered no authors in 2.30.6. Check release-please action version support and whether it only applies to some commit/author types. Verify against the 2.32.4 changelog once PR:226 merges.
 6. Merge hygiene: enforce squash-only with PR title as commit subject (repo setting `squash_merge_commit_title=PR_TITLE`), optionally add a conventional PR title check, so external PRs land in the changelog without manual cleanup.
+
+## 2026-11-25 - Triage follow-up: PR:227 closed, scan re-run, PR:230 + PR:226 merged
+
+- `PR:227` (weekly scan, CONFLICTING + `action_required` runs) closed per maintainer decision.
+- Reviewed and committed the in-flight `scan_plugins.yml` fix (cpr retry step + `base: master` pin) as `e8355f1`; pushed to master.
+- Manually triggered Weekly Plugin Scan (run `45562178396`, workflow_dispatch on master): green in 18m6s, produced `PR:230`.
+- `PR:230` reviewed: 8 new packages (all `domoticz_key` values verified against live `plugin.py`), 3 new release descriptors, registry/index re-bound (sequence 32 -> 33, sha256 match, `ReleaseIndex.from_document` passes, all descriptors/tombstones accepted by the registry contract). Merged as squash commit `48afb1d`.
+- Post-merge CI (release-please, Validate Plugins, Push on master) all green.
+- `PR:226` (release 2.32.4) merged as squash commit `2df90e6`; tag `v2.32.4` published 2026-11-25T07:15:16Z.
+- Author-credit follow-up: the 2.32.4 CHANGELOG entry contains NO author lines despite `include-commit-authors: true` — symptom persists. Kept as open item.
+
+Verification:
+- Post-merge registry: 301 packages; release index sequence 33, 75 releases, 2 tombstones; sha256 pair match confirmed.
+- Post-release manifest: `{"." : "2.32.4"}`; `plugin.py` header `version="2.32.4"`.
+- Notes: `.github/maintainer/notes/pr-230.md`.
+
+Open items:
+1. `ISSUE:190`: plain-language review of user-facing status text (start with `pypluginstore.html` `formatCardManagementStatus` and `plugin_core.py` migration/preservation messages; ping arjantenhoopen).
+2. release-please author credit: `include-commit-authors: true` renders no authors in 2.30.6 AND 2.32.4. Check the release-please action version/config support.
+3. Merge hygiene: enforce squash-only with PR title as commit subject (repo setting `squash_merge_commit_title=PR_TITLE`), optionally add a conventional PR title check.
