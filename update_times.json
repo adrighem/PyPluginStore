@@ -666,6 +666,10 @@
       "updated_at": "2026-09-08T07:03:44Z"
     },
     {
+      "package_id": "Domoticz-Zigbee",
+      "updated_at": "2026-11-14T18:50:20Z"
+    },
+    {
       "package_id": "domoticz-zigbee2mqtt-plugin",
       "updated_at": "2025-11-01T12:18:23Z"
     },
@@ -1160,10 +1164,6 @@
     {
       "package_id": "XTEND-plugin",
       "updated_at": "2026-10-27T18:21:43Z"
-    },
-    {
-      "package_id": "Zigate",
-      "updated_at": "2026-11-14T18:50:20Z"
     },
     {
       "package_id": "Zigbee2Mqtt",
