@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.32.5](https://github.com/adrighem/PyPluginStore/compare/v2.32.4...v2.32.5) (2026-11-25)
+
+
+### Documentation
+
+* **maintainer:** record PR:230 + PR:226 merges and v2.32.4 release ([24fa8c6](https://github.com/adrighem/PyPluginStore/commit/24fa8c6b559213cc6dca7397cee27aa50645c81a))
+
 ## [2.32.4](https://github.com/adrighem/PyPluginStore/compare/v2.32.3...v2.32.4) (2026-11-25)
 
 
